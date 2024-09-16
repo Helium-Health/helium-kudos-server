@@ -6,10 +6,10 @@ export type RecognitionDocument = Document & Recognition;
 @Schema({ timestamps: true })
 export class Recognition {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  giverId: Types.ObjectId;  // Reference to the User entity for the giver
+  giverId: Types.ObjectId; // Reference to the User entity for the giver
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  receiverId: Types.ObjectId;  // Reference to the User entity for the receiver
+  receiverId: Types.ObjectId; // Reference to the User entity for the receiver
 
   @Prop({ type: String, required: true })
   message: string;

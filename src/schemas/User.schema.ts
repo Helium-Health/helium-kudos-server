@@ -4,17 +4,28 @@ import { Document, Types } from 'mongoose';
 // Define the type for User Document
 export type UserDocument = Document & User;
 
+export enum UserRole {
+  Admin = 'admin',
+  User = 'user',
+}
+
 @Schema({ timestamps: true }) // Automatically adds createdAt and updatedAt fields
 export class User {
   @Prop({ type: String, required: true, unique: true })
   email: string;
 
-
   @Prop({ type: String, required: true })
   name: string;
 
-  @Prop({ type: String, enum: ['admin', 'user'], default: 'user' })
-  role: string;
+  @Prop({ type: String })
+  picture?: string;
+
+  @Prop({
+    type: String,
+    enum: [UserRole.Admin, UserRole.User],
+    default: UserRole.User,
+  })
+  role: UserRole;
 
   @Prop({ type: Boolean, default: false })
   verified: boolean;
