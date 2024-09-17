@@ -1,15 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { User, UserDocument } from '../schemas/UserSchema';
+import { User } from 'src/schemas/User.schema';
+import { CreateUserDto } from './dto/User.dto';
 
 @Injectable()
-export class UserService {
-  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
+export class UsersService {
+  constructor(@InjectModel(User.name) private userModel: Model<User>) {}
 
   // Method to create a new user
-  async createUser(data: Partial<User>): Promise<User> {
-    const newUser = new this.userModel(data);
+  async createUser(createUserDto: CreateUserDto): Promise<User> {
+    const newUser = new this.userModel(createUserDto);
+
     return newUser.save();
   }
 
@@ -23,8 +25,13 @@ export class UserService {
     return this.userModel.find().exec();
   }
 
-  async updateUser(id: string, updateData: Partial<User>): Promise<User | null> {
-    return this.userModel.findByIdAndUpdate(id, updateData, { new: true }).exec();
+  async updateUser(
+    id: string,
+    updateData: Partial<User>,
+  ): Promise<User | null> {
+    return this.userModel
+      .findByIdAndUpdate(id, updateData, { new: true })
+      .exec();
   }
 
   async deleteUser(id: string): Promise<User | null> {

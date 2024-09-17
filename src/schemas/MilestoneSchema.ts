@@ -1,4 +1,3 @@
-
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
@@ -7,9 +6,13 @@ export type MilestoneDocument = Document & Milestone;
 @Schema({ timestamps: true })
 export class Milestone {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  userId: Types.ObjectId;  // Reference to the User entity
+  userId: Types.ObjectId; // Reference to the User entity
 
-  @Prop({ type: String, required: true, enum: ['work anniversary', 'birthday'] })
+  @Prop({
+    type: String,
+    required: true,
+    enum: ['work anniversary', 'birthday'],
+  })
   type: string;
 
   @Prop({ type: String })

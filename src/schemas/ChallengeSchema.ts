@@ -1,4 +1,3 @@
-
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
@@ -16,7 +15,7 @@ export class Challenge {
   points: number;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  creatorId: Types.ObjectId;  // Reference to the User entity (admin creator)
+  creatorId: Types.ObjectId; // Reference to the User entity (admin creator)
 }
 
 export const ChallengeSchema = SchemaFactory.createForClass(Challenge);
