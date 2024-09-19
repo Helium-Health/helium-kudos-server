@@ -1,4 +1,4 @@
 export type UserDetails = {
-    email: string;
-    displayname: string;
+  email: string;
+  displayname: string;
 };

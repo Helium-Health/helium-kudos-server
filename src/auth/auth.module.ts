@@ -1,9 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-// import { MongooseModule } from '@nestjs/mongoose';
-// import { User, UserSchema } from 'src/schemas/User.schema';
-import { UsersModule } from 'src/users/users.module';
+// import { UsersModule } from 'src/users/users.module';
 // import { SessionSerializer } from './utils/Serializer';
 import { GoogleAuthGuard } from './utils/Guards';
 import { GoogleStrategy } from './utils/GoogleStrategy';
@@ -12,7 +10,7 @@ import { User } from 'src/typeorm/entities/User';
 
 @Module({
   imports: [
-    UsersModule,
+    // UsersModule,
     TypeOrmModule.forFeature([User]),
     // MongooseModule.forFeature([
     //   {

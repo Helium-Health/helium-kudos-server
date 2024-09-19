@@ -1,7 +1,4 @@
 import { Injectable } from '@nestjs/common';
-// import { InjectModel } from '@nestjs/mongoose';
-// import { Model } from 'mongoose';
-// import { User } from 'src/schemas/User.schema';
 // import { UsersService } from 'src/users/users.service';
 // import { OAuth2Client } from 'google-auth-library';
 import { UserDetails } from 'src/utils/type';
@@ -19,13 +16,11 @@ export class AuthService {
     const user = await this.userRepository.findOneBy({ email: details.email });
     console.log(user);
 
-    if (user) {
-      return user;
-    }
+    if (user) return user;
+
     console.log('User not found. Creating ...');
     const newUser = this.userRepository.create(details);
-    return await this.userRepository.save(newUser);
-
+    return this.userRepository.save(newUser);
   }
 
   // private oauthClient: OAuth2Client;
