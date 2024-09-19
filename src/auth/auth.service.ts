@@ -1,47 +1,69 @@
 import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { User } from 'src/schemas/User.schema';
-import { UsersService } from 'src/users/users.service';
-import { OAuth2Client } from 'google-auth-library';
+// import { InjectModel } from '@nestjs/mongoose';
+// import { Model } from 'mongoose';
+// import { User } from 'src/schemas/User.schema';
+// import { UsersService } from 'src/users/users.service';
+// import { OAuth2Client } from 'google-auth-library';
+import { UserDetails } from 'src/utils/type';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from 'src/typeorm/entities/User';
 @Injectable()
 export class AuthService {
-  private oauthClient: OAuth2Client;
-
   constructor(
-    @InjectModel(User.name) private userModel: Model<User>,
-    private userService: UsersService,
-  ) {
-    this.oauthClient = new OAuth2Client(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-    );
+    @InjectRepository(User) private readonly userRepository: Repository<User>,
+  ) {}
+  async validateUser(details: UserDetails) {
+    console.log('AuthService');
+    console.log(details);
+    const user = await this.userRepository.findOneBy({ email: details.email });
+    console.log(user);
+
+    if (user) {
+      return user;
+    }
+    console.log('User not found. Creating ...');
+    const newUser = this.userRepository.create(details);
+    return await this.userRepository.save(newUser);
+
   }
 
-  async validateUser(token: string): Promise<User> {
-    const googleAuth = await this.oauthClient.verifyIdToken({
-      idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
+  // private oauthClient: OAuth2Client;
 
-    const payload = googleAuth.getPayload();
+  // constructor(
+  //   @InjectModel(User.name) private userModel: Model<User>,
+  //   private userService: UsersService,
+  // ) {
+  //   this.oauthClient = new OAuth2Client(
+  //     process.env.GOOGLE_CLIENT_ID,
+  //     process.env.GOOGLE_CLIENT_SECRET,
+  //   );
+  // }
 
-    const userExists = await this.userModel.findOne({
-      email: payload.email,
-    });
+  // async validateUser(token: string): Promise<User> {
+  //   const googleAuth = await this.oauthClient.verifyIdToken({
+  //     idToken: token,
+  //     audience: process.env.GOOGLE_CLIENT_ID,
+  //   });
 
-    console.log('User exists. Getting...');
-    if (userExists) return userExists;
+  //   const payload = googleAuth.getPayload();
 
-    console.log('User not found. Creating...');
+  //   const userExists = await this.userModel.findOne({
+  //     email: payload.email,
+  //   });
 
-    const createdUser = await this.userService.createUser({
-      email: payload.email,
-      name: payload.name,
-      picture: payload.picture,
-      verified: payload.email_verified || false,
-    });
+  //   console.log('User exists. Getting...');
+  //   if (userExists) return userExists;
 
-    return createdUser;
-  }
+  //   console.log('User not found. Creating...');
+
+  //   const createdUser = await this.userService.createUser({
+  //     email: payload.email,
+  //     name: payload.name,
+  //     picture: payload.picture,
+  //     verified: payload.email_verified || false,
+  //   });
+
+  //   return createdUser;
+  // }
 }

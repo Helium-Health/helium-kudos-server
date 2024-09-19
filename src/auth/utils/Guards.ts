@@ -16,19 +16,23 @@ export class GoogleAuthGuard extends AuthGuard('google') {
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const activate = (await super.canActivate(context)) as boolean;
     const request = context.switchToHttp().getRequest();
-    const token = request.body.token;
+    await super.logIn(request);
+    return activate;
+    // const request = context.switchToHttp().getRequest();
+    // const token = request.body.token;
 
-    if (!token) {
-      throw new UnauthorizedException('No token provided');
-    }
+    // if (!token) {
+    //   throw new UnauthorizedException('No token provided');
+    // }
 
-    try {
-      const user = await this.authService.validateUser(token);
-      request.user = user;
-      return true;
-    } catch {
-      throw new UnauthorizedException('Invalid token');
-    }
+    // try {
+    //   const user = await this.authService.validateUser(token);
+    //   request.user = user;
+    //   return true;
+    // } catch {
+    //   throw new UnauthorizedException('Invalid token');
+    // }
   }
 }

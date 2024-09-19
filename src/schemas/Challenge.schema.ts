@@ -14,7 +14,7 @@ export class Challenge {
   @Prop({ type: Number, required: true })
   points: number;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'Mr', required: true })
   creatorId: Types.ObjectId; // Reference to the User entity (admin creator)
 }
 
