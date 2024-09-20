@@ -12,12 +12,6 @@ import { User } from 'src/typeorm/entities/User';
   imports: [
     // UsersModule,
     TypeOrmModule.forFeature([User]),
-    // MongooseModule.forFeature([
-    //   {
-    //     name: User.name,
-    //     schema: UserSchema,
-    //   },
-    // ]),
   ],
   providers: [
     GoogleAuthGuard,
