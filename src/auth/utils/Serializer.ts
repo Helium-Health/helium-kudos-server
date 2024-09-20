@@ -11,11 +11,14 @@ export class SessionSerializer extends PassportSerializer {
   }
 
   serializeUser(user: any, done: (err: Error, user: any) => void) {
+    console.log('Serialize User');
     done(null, user.email);
   }
 
   async deserializeUser(payload: any, done: (err: Error, user: any) => void) {
-    // const user = await this.authService.findUser(payload.email);
-    // return user ? done(null, user) : done(null, null);
+    const user = await this.authService.findUser(payload.email);
+    console.log('Deserialize User');
+    console.log(user);
+    return user ? done(null, user) : done(null, null);
   }
 }

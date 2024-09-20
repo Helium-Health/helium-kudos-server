@@ -2,12 +2,14 @@ import {
   Controller,
   Get,
   Inject,
-  Post,
-  Request,
+  // Post,
+  Req,
+  // Request,
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { GoogleAuthGuard } from './utils/Guards';
+import { Request } from 'express';
 
 @Controller('auth')
 export class AuthController {
@@ -27,9 +29,19 @@ export class AuthController {
     return { msg: 'OK' };
   }
 
-  @Post('/login/google')
-  @UseGuards(GoogleAuthGuard)
-  async googleLogin(@Request() req) {
-    return req.user;
+  @Get('status')
+  user(@Req() request: Request) {
+    console.log(request.user);
+    if (request.user) {
+      return { msg: 'Authenticated' };
+    } else {
+      return { msg: 'Not Authenticated' };
+    }
   }
+
+  // @Post('/login/google')
+  // @UseGuards(GoogleAuthGuard)
+  // async googleLogin(@Request() req) {
+  //   return req.user;
+  // }
 }

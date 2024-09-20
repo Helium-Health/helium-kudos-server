@@ -23,6 +23,11 @@ export class AuthService {
     return this.userRepository.save(newUser);
   }
 
+  async findUser(email: string) {
+    const user = await this.userRepository.findOneBy({ email });
+    return user;
+  }
+
   // private oauthClient: OAuth2Client;
 
   // constructor(
