@@ -4,11 +4,14 @@ import { AuthService } from './auth.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from 'src/schemas/User.schema';
 import { UsersModule } from 'src/users/users.module';
-// import { SessionSerializer } from './utils/Serializer';
+import { SessionSerializer } from './utils/Serializer';
 import { GoogleAuthGuard } from './utils/Guards';
+import { GoogleStratery } from './utils/google.stratedy';
+import { PassportModule } from '@nestjs/passport';
 
 @Module({
   imports: [
+    PassportModule,
     UsersModule,
     MongooseModule.forFeature([
       {
@@ -18,8 +21,9 @@ import { GoogleAuthGuard } from './utils/Guards';
     ]),
   ],
   providers: [
+    GoogleStratery,
     GoogleAuthGuard,
-    // SessionSerializer,
+    SessionSerializer,
     {
       provide: 'AUTH_SERVICE',
       useClass: AuthService,
