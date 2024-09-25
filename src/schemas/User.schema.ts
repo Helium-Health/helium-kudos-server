@@ -37,8 +37,8 @@ export class User {
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Milestone' }] })
   milestones: Types.Array<Types.ObjectId>;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Coin' }] })
-  coins: Types.Array<Types.ObjectId>;
+  @Prop({ type: Types.ObjectId, ref: 'Wallet' }) // Reference to the Wallet
+  wallet: Types.ObjectId;
 }
 
 // Create schema using the class
