@@ -4,11 +4,14 @@ import { AuthService } from './auth.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from 'src/schemas/User.schema';
 import { UsersModule } from 'src/users/users.module';
-// import { SessionSerializer } from './utils/Serializer';
 import { GoogleAuthGuard } from './utils/Guards';
+import { JwtModule } from '@nestjs/jwt';
+import { JwtStrategy } from './utils/jwt.strategy';
+import { PassportModule } from '@nestjs/passport';
 
 @Module({
   imports: [
+    PassportModule.register({ session: true }),
     UsersModule,
     MongooseModule.forFeature([
       {
@@ -16,10 +19,20 @@ import { GoogleAuthGuard } from './utils/Guards';
         schema: UserSchema,
       },
     ]),
+    JwtModule.registerAsync({
+      useFactory: async () => {
+        return {
+          secret: process.env.JWT_SECRET,
+          signOptions: {
+            expiresIn: '1d',
+          },
+        };
+      },
+    }),
   ],
   providers: [
     GoogleAuthGuard,
-    // SessionSerializer,
+    JwtStrategy,
     {
       provide: 'AUTH_SERVICE',
       useClass: AuthService,
