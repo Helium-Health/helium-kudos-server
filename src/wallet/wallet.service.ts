@@ -9,12 +9,14 @@ import { Model, Connection } from 'mongoose';
 import { Wallet } from 'src/schemas/wallet.schema';
 import { Coin } from 'src/schemas/coin.schema';
 import { User } from 'src/schemas/user.schema';
+import { Currency } from 'src/schemas/Currency.schema';
 
 @Injectable()
 export class WalletService {
   constructor(
     @InjectModel(Wallet.name) private walletModel: Model<Wallet>,
     @InjectModel(Coin.name) private coinModel: Model<Coin>,
+    @InjectModel(Currency.name) private currencyModel: Model<Currency>,
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectConnection() private readonly connection: Connection,
   ) {}
@@ -60,15 +62,15 @@ export class WalletService {
       availableToGive: wallet.availableToGive,
     };
   }
-  // //Admin can set naira equivalence of coin
-  // async setCoinToNaira(value: number) {
-  //   let coin = await this.coinModel.findOne();
-  //   if (!coin) {
-  //     coin = new this.coinModel();
-  //   }
-  //   coin.coinToNaira = value;
-  //   return coin.save();
-  // }
+  //Admin can set naira equivalence of coin
+  async setCoinToNaira(value: number) {
+    let currency = await this.currencyModel.findOne();
+    if (!currency) {
+      currency = new this.currencyModel();
+    }
+    currency.coinToNaira = value;
+    return currency.save();
+  }
 
   async allocateCoins(userEmail: string, allocation: number) {
     const wallet = await this.walletModel.findOne({ userEmail });

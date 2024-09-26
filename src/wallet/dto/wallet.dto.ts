@@ -23,3 +23,8 @@ export class SendCoinsDto {
   @IsPositive()
   amount: number;
 }
+export class SetCoinToNairaDto {
+  @IsNumber()
+  @IsPositive()
+  exchangeValue: number;
+}
