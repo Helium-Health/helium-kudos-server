@@ -6,6 +6,10 @@ import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 // import { PassportModule } from '@nestjs/passport';
+import { RecognitionModule } from './recognition/recognition.module';
+import { CompanyModule } from './company/company.module';
+import { UserRecognitionModule } from './user-recognition/user-recognition.module';
+import { WalletModule } from './wallet/wallet.module';
 
 @Module({
   imports: [
@@ -13,6 +17,10 @@ import { UsersModule } from './users/users.module';
     MongooseModule.forRoot(process.env.MONGODB_URI),
     AuthModule,
     UsersModule,
+    RecognitionModule,
+    CompanyModule,
+    UserRecognitionModule,
+    WalletModule,
     // PassportModule.register({ session: true }),
   ],
   controllers: [AppController],
