@@ -8,9 +8,11 @@ import { User, UserSchema } from 'src/schemas/user.schema';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Wallet.name, schema: WalletSchema }]),
-    MongooseModule.forFeature([{ name: Coin.name, schema: CoinSchema }]),
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    MongooseModule.forFeature([
+      { name: Wallet.name, schema: WalletSchema },
+      { name: Coin.name, schema: CoinSchema },
+      { name: User.name, schema: UserSchema },
+    ]),
   ],
   controllers: [WalletController],
   providers: [WalletService],

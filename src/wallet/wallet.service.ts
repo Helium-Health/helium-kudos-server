@@ -18,6 +18,11 @@ export class WalletService {
     @InjectModel(User.name) private userModel: Model<User>,
   ) {}
   async createWallet(userEmail: string): Promise<Wallet> {
+    if (!userEmail) {
+      throw new BadRequestException(
+        'User email is required to create a wallet',
+      );
+    }
     const newWallet = new this.walletModel({
       userEmail, // Link the wallet to the user
       earnedBalance: 0,
