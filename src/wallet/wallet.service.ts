@@ -60,31 +60,16 @@ export class WalletService {
       availableToGive: wallet.availableToGive,
     };
   }
-  //Admin can set naira equivalence of coin
-  async setCoinToNaira(value: number) {
-    let coin = await this.coinModel.findOne();
-    if (!coin) {
-      coin = new this.coinModel();
-    }
-    coin.coinToNaira = value;
-    return coin.save();
-  }
+  // //Admin can set naira equivalence of coin
+  // async setCoinToNaira(value: number) {
+  //   let coin = await this.coinModel.findOne();
+  //   if (!coin) {
+  //     coin = new this.coinModel();
+  //   }
+  //   coin.coinToNaira = value;
+  //   return coin.save();
+  // }
 
-  async getNairaEquivalent(userEmail: string) {
-    const wallet = await this.walletModel.findOne({ userId: userEmail });
-
-    if (!wallet) {
-      throw new NotFoundException('Wallet not found for user');
-    }
-    const coin = await this.coinModel.findOne();
-    const conversionRate = coin ? coin.coinToNaira : 100;
-    const nairaEquivalent = wallet.earnedBalance / conversionRate;
-
-    return {
-      earnedBalance: wallet.earnedBalance,
-      nairaEquivalent: nairaEquivalent,
-    };
-  }
   async allocateCoins(userEmail: string, allocation: number) {
     const wallet = await this.walletModel.findOne({ userEmail });
     if (!wallet) {

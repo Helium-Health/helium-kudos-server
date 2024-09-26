@@ -3,7 +3,6 @@ import { WalletService } from './wallet.service';
 import {
   AllocateCoinsDto,
   AllocateCoinsToUsersDto,
-  CreateCoinEquivalentDto,
   SendCoinsDto,
 } from './dto/wallet.dto';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
@@ -30,13 +29,13 @@ export class WalletController {
     return this.walletService.getAvailableToGiveBalance(userEmail);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Post('admin/set-coin-to-naira')
-  async setCoinToNaira(
-    @Body() createCoinEquivalentDto: CreateCoinEquivalentDto,
-  ) {
-    return this.walletService.setCoinToNaira(createCoinEquivalentDto.value);
-  }
+  // @UseGuards(JwtAuthGuard)
+  // @Post('admin/set-coin-to-naira')
+  // async setCoinToNaira(
+  //   @Body() createCoinEquivalentDto: CreateCoinEquivalentDto,
+  // ) {
+  //   return this.walletService.setCoinToNaira(createCoinEquivalentDto.value);
+  // }
 
   @UseGuards(JwtAuthGuard)
   @Post('admin/allocate-coins')
