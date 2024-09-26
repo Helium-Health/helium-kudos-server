@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - staging
-      - devops
 env:
   REGISTRY: docker.io
   IMAGE_NAME: ${{ github.repository }}
