@@ -3,9 +3,6 @@ import { Document } from 'mongoose';
 
 @Schema()
 export class Coin extends Document {
-  @Prop({ required: true, default: 100 })
-  coinToNaira: number;
-
   @Prop({ required: false })
   allocation: number;
 
