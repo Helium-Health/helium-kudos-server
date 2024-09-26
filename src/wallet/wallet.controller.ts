@@ -10,9 +10,18 @@ import {
 export class WalletController {
   constructor(private readonly walletService: WalletService) {}
 
-  @Get(':userId')
-  async getUserBalances(@Param('userId') userId: string) {
-    return this.walletService.getUserBalances(userId);
+  @Get(':userEmail')
+  async getUserBalances(@Param('userEmail') userEmail: string) {
+    return this.walletService.getUserBalances(userEmail);
+  }
+  @Get('total-earned-coins/:userEmail')
+  async getEarnedCoinBalance(@Param('userEmail') userEmail: string) {
+    return this.walletService.getEarnedCoinBalance(userEmail);
+  }
+  @Get('available-to-give/:userEmail')
+  async getAvailableToGiveBalance(@Param('userEmail') userEmail: string) {
+    // return this.walletService.getAvailableToGiveBalance(userEmail);
+    return this.walletService.calculateAvailableToGive(userEmail);
   }
 
   @Post('admin/set-coin-to-naira')
@@ -25,7 +34,7 @@ export class WalletController {
   @Post('admin/allocate-coins')
   async allocateCoins(@Body() allocateCoins: AllocateCoinsDto) {
     return this.walletService.allocateCoins(
-      allocateCoins.userId,
+      allocateCoins.userEmail,
       allocateCoins.allocation,
     );
   }
@@ -33,8 +42,8 @@ export class WalletController {
   @Post('send-coins')
   async sendCoins(@Body() sendCoinsDto: SendCoinsDto) {
     return this.walletService.sendCoins(
-      sendCoinsDto.fromUserId,
-      sendCoinsDto.toUserId,
+      sendCoinsDto.fromUserEmail,
+      sendCoinsDto.toUserEmail,
       sendCoinsDto.amount,
     );
   }

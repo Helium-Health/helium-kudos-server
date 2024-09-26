@@ -9,7 +9,7 @@ export class CreateCoinEquivalentDto {
 
 export class AllocateCoinsDto {
   @IsString()
-  userId: string;
+  userEmail: string;
 
   @IsNumber()
   @IsPositive()
@@ -18,10 +18,10 @@ export class AllocateCoinsDto {
 
 export class SendCoinsDto {
   @IsString()
-  fromUserId: string;
+  fromUserEmail: string;
 
   @IsString()
-  toUserId: string;
+  toUserEmail: string;
 
   @IsNumber()
   @IsPositive()
