@@ -51,7 +51,7 @@ export class WalletService {
       throw new NotFoundException('User wallet not found');
     }
     return {
-      earnedBalance: wallet.availableToGive,
+      availableToGive: wallet.availableToGive,
     };
   }
   //Admin can set naira equivalence of coin
@@ -64,40 +64,31 @@ export class WalletService {
     return coin.save();
   }
 
-  async allocateCoins(userEmail: string, allocation: number) {
-    // Find the user's wallet based on their email
-    const wallet = await this.walletModel
-      .findOne({ userEmail: userEmail })
-      .populate('coins')
-      .exec();
+  async getNairaEquivalent(userEmail: string) {
+    const wallet = await this.walletModel.findOne({ userId: userEmail });
 
     if (!wallet) {
       throw new NotFoundException('Wallet not found for user');
     }
+    const coin = await this.coinModel.findOne();
+    const conversionRate = coin ? coin.coinToNaira : 100;
+    const nairaEquivalent = wallet.earnedBalance / conversionRate;
 
+    return {
+      earnedBalance: wallet.earnedBalance,
+      nairaEquivalent: nairaEquivalent,
+    };
+  }
+  async allocateCoins(userEmail: string, allocation: number) {
+    const wallet = await this.walletModel.findOne({ userEmail });
+    if (!wallet) {
+      throw new NotFoundException('Wallet not found for user');
+    }
     if (allocation < 0) {
       throw new BadRequestException('Allocation must be a positive number');
     }
-
-    // Set the expiration date to 3 months from the current date
-    const expirationDate = new Date();
-    expirationDate.setMonth(expirationDate.getMonth() + 3);
-
-    // Create a new coin entry with the specified allocation and expiration date
-    const newCoin = new this.coinModel({
-      allocation: allocation,
-      expirationDate: expirationDate,
-    });
-
-    await newCoin.save(); // Save the coin entry to the database
-
-    // Add the new coin to the user's wallet and update availableToGive
-    wallet.coins.push(newCoin._id);
-    wallet.availableToGive += allocation;
-
-    await wallet.save(); // Save the updated wallet
-
-    return wallet;
+    wallet.availableToGive = allocation;
+    return wallet.save();
   }
 
   async allocateCoinsToAll(allocation: number) {
@@ -114,6 +105,31 @@ export class WalletService {
       return wallet.save();
     });
     await Promise.all(updatedWallets);
+    return wallets;
+  }
+  async allocateCoinsToSpecificUsers(userEmails: string[], allocation: number) {
+    if (allocation < 0) {
+      throw new BadRequestException('Allocation must be a positive number');
+    }
+
+    // Find wallets of the specific users by their emails
+    const wallets = await this.walletModel.find({
+      userEmail: { $in: userEmails },
+    });
+
+    if (wallets.length === 0) {
+      throw new NotFoundException('No wallets found for the specified users');
+    }
+
+    // Update the wallets of the specified users
+    const updatedWallets = wallets.map((wallet) => {
+      wallet.availableToGive = allocation;
+      return wallet.save();
+    });
+
+    // Wait for all wallet updates to complete
+    await Promise.all(updatedWallets);
+
     return wallets;
   }
   async sendCoins(fromUserEmail: string, toUserEmail: string, amount: number) {
@@ -137,31 +153,5 @@ export class WalletService {
     await toWallet.save();
 
     return { success: true, message: 'Coins sent successfully' };
-  }
-  async calculateAvailableToGive(userEmail: string): Promise<number> {
-    const wallet = await this.walletModel
-      .findOne({ userEmail })
-      .populate('coins'); // Populate coins
-
-    if (!wallet) {
-      throw new NotFoundException('Wallet not found for user');
-    }
-
-    const currentDate = new Date();
-    let totalAvailable = 0;
-
-    const coins = wallet.coins as unknown as Coin[];
-
-    for (const coin of coins) {
-      if (coin.expirationDate && coin.expirationDate > currentDate) {
-        totalAvailable += coin.allocation; // Only count non-expired coins
-      }
-    }
-
-    // Update wallet's availableToGive
-    wallet.availableToGive = totalAvailable;
-    await wallet.save();
-
-    return totalAvailable; // Return the updated balance
   }
 }

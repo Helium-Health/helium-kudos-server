@@ -15,7 +15,10 @@ export class AllocateCoinsDto {
   @IsPositive()
   allocation: number;
 }
-
+export class AllocateCoinsToUsersDto {
+  allocation: number;
+  userEmails: string[];
+}
 export class SendCoinsDto {
   @IsString()
   fromUserEmail: string;
