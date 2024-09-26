@@ -24,7 +24,7 @@ export class WalletController {
     return this.walletService.getEarnedCoinBalance(userEmail);
   }
 
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Get('available-to-give/:userEmail')
   async getAvailableToGiveBalance(@Param('userEmail') userEmail: string) {
     return this.walletService.getAvailableToGiveBalance(userEmail);
@@ -64,7 +64,7 @@ export class WalletController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  // @UseGuards(JwtAuthGuard)
   @Post('send-coins')
   async sendCoins(@Body() sendCoinsDto: SendCoinsDto) {
     return this.walletService.sendCoins(

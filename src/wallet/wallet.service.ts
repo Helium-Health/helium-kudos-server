@@ -4,8 +4,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
+import { Model, Connection } from 'mongoose';
 import { Wallet } from 'src/schemas/wallet.schema';
 import { Coin } from 'src/schemas/coin.schema';
 import { User } from 'src/schemas/user.schema';
@@ -16,6 +16,7 @@ export class WalletService {
     @InjectModel(Wallet.name) private walletModel: Model<Wallet>,
     @InjectModel(Coin.name) private coinModel: Model<Coin>,
     @InjectModel(User.name) private userModel: Model<User>,
+    @InjectConnection() private readonly connection: Connection,
   ) {}
   async createWallet(userEmail: string): Promise<Wallet> {
     if (!userEmail) {
@@ -138,25 +139,46 @@ export class WalletService {
     return wallets;
   }
   async sendCoins(fromUserEmail: string, toUserEmail: string, amount: number) {
-    const fromWallet = await this.walletModel.findOne({
-      userEmail: fromUserEmail,
-    });
-    const toWallet = await this.walletModel.findOne({ userEmail: toUserEmail });
+    // Start a session
+    const session = await this.connection.startSession();
+    session.startTransaction(); // Begin transaction
 
-    if (!fromWallet || !toWallet) {
-      throw new NotFoundException('Wallets not found');
+    try {
+      const fromWallet = await this.walletModel
+        .findOne({ userEmail: fromUserEmail })
+        .session(session);
+      const toWallet = await this.walletModel
+        .findOne({ userEmail: toUserEmail })
+        .session(session);
+
+      if (!fromWallet || !toWallet) {
+        throw new NotFoundException('Wallets not found');
+      }
+
+      if (fromWallet.availableToGive < amount) {
+        throw new BadRequestException('Insufficient balance to give');
+      }
+
+      // Deduct from the sender's wallet
+      fromWallet.availableToGive -= amount;
+      // Add to the receiver's wallet
+      toWallet.earnedBalance += amount;
+
+      // Save both wallets within the transaction
+      await fromWallet.save({ session });
+      await toWallet.save({ session });
+
+      // Commit the transaction
+      await session.commitTransaction();
+
+      return { success: true, message: 'Coins sent successfully' };
+    } catch (error) {
+      // If an error occurs, abort the transaction
+      await session.abortTransaction();
+      throw error; // Rethrow the error so it can be handled elsewhere
+    } finally {
+      // End the session
+      session.endSession();
     }
-
-    if (fromWallet.availableToGive < amount) {
-      throw new BadRequestException('Insufficient balance to give');
-    }
-
-    fromWallet.availableToGive -= amount;
-    toWallet.earnedBalance += amount;
-
-    await fromWallet.save();
-    await toWallet.save();
-
-    return { success: true, message: 'Coins sent successfully' };
   }
 }
