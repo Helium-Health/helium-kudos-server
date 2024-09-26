@@ -1,8 +1,11 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Get,
+  ParseIntPipe,
   Post,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
@@ -30,7 +33,10 @@ export class RecognitionController {
   }
 
   @Get()
-  async getAllRecognitions() {
-    return this.recognitionService.getAllRecognitions();
+  async getAllRecognitions(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    return this.recognitionService.getAllRecognitions(page, limit);
   }
 }

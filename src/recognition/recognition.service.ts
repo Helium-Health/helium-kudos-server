@@ -100,64 +100,81 @@ export class RecognitionService {
     }
   }
 
-  async getAllRecognitions() {
-    return this.recognitionModel.aggregate([
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'senderId',
-          foreignField: '_id',
-          as: 'sender',
-        },
-      },
-      { $unwind: '$sender' },
-      {
-        $lookup: {
-          from: 'userrecognitions',
-          localField: '_id',
-          foreignField: 'recognitionId',
-          as: 'userRecognitions',
-        },
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'userRecognitions.userId',
-          foreignField: '_id',
-          as: 'receivers',
-        },
-      },
-      {
-        $project: {
-          _id: 1,
-          message: 1,
-          coinAmount: 1,
-          companyValues: 1,
-          createdAt: 1,
-          sender: {
-            _id: '$sender._id',
-            name: '$sender.name',
-            picture: '$sender.picture',
+  async getAllRecognitions(page: number, limit: number) {
+    const skip = (page - 1) * limit;
+
+    const [recognitions, totalCount] = await Promise.all([
+      this.recognitionModel.aggregate([
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'senderId',
+            foreignField: '_id',
+            as: 'sender',
           },
-          receivers: {
-            $map: {
-              input: {
-                $filter: {
-                  input: '$receivers',
-                  as: 'receiver',
-                  cond: { $ne: ['$$receiver._id', '$sender._id'] },
+        },
+        { $unwind: '$sender' },
+        {
+          $lookup: {
+            from: 'userrecognitions',
+            localField: '_id',
+            foreignField: 'recognitionId',
+            as: 'userRecognitions',
+          },
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'userRecognitions.userId',
+            foreignField: '_id',
+            as: 'receivers',
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            message: 1,
+            coinAmount: 1,
+            companyValues: 1,
+            createdAt: 1,
+            sender: {
+              _id: '$sender._id',
+              name: '$sender.name',
+              picture: '$sender.picture',
+            },
+            receivers: {
+              $map: {
+                input: {
+                  $filter: {
+                    input: '$receivers',
+                    as: 'receiver',
+                    cond: { $ne: ['$$receiver._id', '$sender._id'] },
+                  },
                 },
-              },
-              as: 'receiver',
-              in: {
-                _id: '$$receiver._id',
-                name: '$$receiver.name',
-                picture: '$$receiver.picture',
+                as: 'receiver',
+                in: {
+                  _id: '$$receiver._id',
+                  name: '$$receiver.name',
+                  picture: '$$receiver.picture',
+                },
               },
             },
           },
         },
-      },
+        { $skip: skip },
+        { $limit: limit },
+      ]),
+      this.recognitionModel.countDocuments(),
     ]);
+
+    return {
+      data: recognitions,
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+      },
+    };
   }
 }
