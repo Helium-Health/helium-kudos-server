@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 // import { PassportModule } from '@nestjs/passport';
 import { WalletModule } from './wallet/wallet.module';
+import { CurrencyModule } from './currency/currency.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { WalletModule } from './wallet/wallet.module';
     AuthModule,
     UsersModule,
     WalletModule,
+    CurrencyModule,
     // PassportModule.register({ session: true }),
   ],
   controllers: [AppController],

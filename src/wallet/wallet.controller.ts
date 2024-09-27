@@ -3,8 +3,7 @@ import { WalletService } from './wallet.service';
 import {
   AllocateCoinsDto,
   AllocateCoinsToUsersDto,
-  SendCoinsDto,
-  SetCoinToNairaDto,
+  // SetCoinToNairaDto,
 } from './dto/wallet.dto';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 
@@ -30,21 +29,14 @@ export class WalletController {
     return this.walletService.getAvailableToGiveBalance(userEmail);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Post('admin/set-coin-to-naira')
-  async setCoinToNaira(@Body() setCoinToNairaDto: SetCoinToNairaDto) {
-    return this.walletService.setCoinToNaira(setCoinToNairaDto.exchangeValue);
-  }
+  // @UseGuards(JwtAuthGuard)
+  // @Post('admin/set-coin-to-naira')
+  // async setCoinToNaira(@Body() setCoinToNairaDto: SetCoinToNairaDto) {
+  //   return this.walletService.setCoinToNaira(setCoinToNairaDto.exchangeValue);
+  // }
 
   @UseGuards(JwtAuthGuard)
   @Post('admin/allocate-coins')
-  async allocateCoins(@Body() allocateCoins: AllocateCoinsDto) {
-    return this.walletService.allocateCoins(
-      allocateCoins.userEmail,
-      allocateCoins.allocation,
-    );
-  }
-
   @UseGuards(JwtAuthGuard)
   @Post('admin/allocate-coins-to-all')
   async allocateCoinsToAll(@Body() allocateCoins: AllocateCoinsDto) {
@@ -59,16 +51,6 @@ export class WalletController {
     return this.walletService.allocateCoinsToSpecificUsers(
       allocateCoins.userEmails,
       allocateCoins.allocation,
-    );
-  }
-
-  // @UseGuards(JwtAuthGuard)
-  @Post('send-coins')
-  async sendCoins(@Body() sendCoinsDto: SendCoinsDto) {
-    return this.walletService.sendCoins(
-      sendCoinsDto.fromUserEmail,
-      sendCoinsDto.toUserEmail,
-      sendCoinsDto.amount,
     );
   }
 }

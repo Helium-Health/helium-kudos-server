@@ -1,4 +1,3 @@
-// wallet.service.ts
 import {
   BadRequestException,
   Injectable,
@@ -6,18 +5,15 @@ import {
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Model, Connection } from 'mongoose';
+// import { UpdateCurrencyDto } from 'src/currency/dto/currency.dto';
 import { Wallet } from 'src/schemas/wallet.schema';
-import { Coin } from 'src/schemas/coin.schema';
-import { User } from 'src/schemas/user.schema';
-import { Currency } from 'src/schemas/Currency.schema';
+import { CurrencyService } from 'src/currency/currency.service';
 
 @Injectable()
 export class WalletService {
   constructor(
+    private readonly currencyService: CurrencyService,
     @InjectModel(Wallet.name) private walletModel: Model<Wallet>,
-    @InjectModel(Coin.name) private coinModel: Model<Coin>,
-    @InjectModel(Currency.name) private currencyModel: Model<Currency>,
-    @InjectModel(User.name) private userModel: Model<User>,
     @InjectConnection() private readonly connection: Connection,
   ) {}
   async createWallet(userEmail: string): Promise<Wallet> {
@@ -63,26 +59,15 @@ export class WalletService {
     };
   }
   //Admin can set naira equivalence of coin
-  async setCoinToNaira(value: number) {
-    let currency = await this.currencyModel.findOne();
-    if (!currency) {
-      currency = new this.currencyModel();
-    }
-    currency.coinToNaira = value;
-    return currency.save();
-  }
+  // async setCoinToNaira(value: number) {
+  //   const updateCurrencyDto: UpdateCurrencyDto = {
+  //     currencyName: 'Naira',
+  //     newCoinToCurrency: value,
+  //   };
 
-  async allocateCoins(userEmail: string, allocation: number) {
-    const wallet = await this.walletModel.findOne({ userEmail });
-    if (!wallet) {
-      throw new NotFoundException('Wallet not found for user');
-    }
-    if (allocation < 0) {
-      throw new BadRequestException('Allocation must be a positive number');
-    }
-    wallet.availableToGive = allocation;
-    return wallet.save();
-  }
+  //   // Call the update method from CoinService
+  //   return this.currencyService.update(updateCurrencyDto);
+  // }
 
   async allocateCoinsToAll(allocation: number) {
     if (allocation < 0) {
