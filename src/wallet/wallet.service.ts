@@ -99,47 +99,4 @@ export class WalletService {
 
     return wallets;
   }
-  async sendCoins(fromUserEmail: string, toUserEmail: string, amount: number) {
-    // Start a session
-    const session = await this.connection.startSession();
-    session.startTransaction(); // Begin transaction
-
-    try {
-      const fromWallet = await this.walletModel
-        .findOne({ userEmail: fromUserEmail })
-        .session(session);
-      const toWallet = await this.walletModel
-        .findOne({ userEmail: toUserEmail })
-        .session(session);
-
-      if (!fromWallet || !toWallet) {
-        throw new NotFoundException('Wallets not found');
-      }
-
-      if (fromWallet.availableToGive < amount) {
-        throw new BadRequestException('Insufficient balance to give');
-      }
-
-      // Deduct from the sender's wallet
-      fromWallet.availableToGive -= amount;
-      // Add to the receiver's wallet
-      toWallet.earnedBalance += amount;
-
-      // Save both wallets within the transaction
-      await fromWallet.save({ session });
-      await toWallet.save({ session });
-
-      // Commit the transaction
-      await session.commitTransaction();
-
-      return { success: true, message: 'Coins sent successfully' };
-    } catch (error) {
-      // If an error occurs, abort the transaction
-      await session.abortTransaction();
-      throw error; // Rethrow the error so it can be handled elsewhere
-    } finally {
-      // End the session
-      session.endSession();
-    }
-  }
 }
