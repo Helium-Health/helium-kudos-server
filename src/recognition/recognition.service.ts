@@ -159,6 +159,7 @@ export class RecognitionService {
                 },
               },
             },
+            commentCount: { $size: { $ifNull: ['$comments', []] } },
           },
         },
         { $skip: skip },
@@ -176,5 +177,32 @@ export class RecognitionService {
         totalPages: Math.ceil(totalCount / limit),
       },
     };
+  }
+
+  async addCommentToRecognition(
+    recognitionId: Types.ObjectId,
+    commentId: Types.ObjectId,
+  ) {
+    return this.recognitionModel.findByIdAndUpdate(
+      recognitionId,
+      { $push: { comments: commentId } },
+      { new: true },
+    );
+  }
+
+  async recognitionExists(recognitionId: Types.ObjectId): Promise<boolean> {
+    const recognition = await this.recognitionModel.findById(recognitionId);
+    return !!recognition;
+  }
+
+  async removeCommentFromRecognition(
+    recognitionId: Types.ObjectId,
+    commentId: Types.ObjectId,
+  ) {
+    return this.recognitionModel.findByIdAndUpdate(
+      recognitionId,
+      { $pull: { comments: commentId } },
+      { new: true },
+    );
   }
 }
