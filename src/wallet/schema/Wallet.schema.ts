@@ -1,10 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-export type CoinbankDocument = Document & Coinbank;
+export type WalletDocument = Document & Wallet;
 
 @Schema({ timestamps: true })
-export class Coinbank {
+export class Wallet {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   userId: Types.ObjectId; // Reference to User entity
 
@@ -15,4 +15,4 @@ export class Coinbank {
   coinsAvailable: number;
 }
 
-export const CoinbankSchema = SchemaFactory.createForClass(Coinbank);
+export const WalletSchema = SchemaFactory.createForClass(Wallet);
