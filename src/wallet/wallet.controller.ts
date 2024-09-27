@@ -1,10 +1,6 @@
 import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
 import { WalletService } from './wallet.service';
-import {
-  AllocateCoinsDto,
-  AllocateCoinsToUsersDto,
-  // SetCoinToNairaDto,
-} from './dto/wallet.dto';
+import { AllocateCoinsDto, AllocateCoinsToUsersDto } from './dto/wallet.dto';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 
 @Controller('wallet')
@@ -28,12 +24,6 @@ export class WalletController {
   async getAvailableToGiveBalance(@Param('userEmail') userEmail: string) {
     return this.walletService.getAvailableToGiveBalance(userEmail);
   }
-
-  // @UseGuards(JwtAuthGuard)
-  // @Post('admin/set-coin-to-naira')
-  // async setCoinToNaira(@Body() setCoinToNairaDto: SetCoinToNairaDto) {
-  //   return this.walletService.setCoinToNaira(setCoinToNairaDto.exchangeValue);
-  // }
 
   @UseGuards(JwtAuthGuard)
   @Post('admin/allocate-coins')

@@ -58,17 +58,6 @@ export class WalletService {
       availableToGive: wallet.availableToGive,
     };
   }
-  //Admin can set naira equivalence of coin
-  // async setCoinToNaira(value: number) {
-  //   const updateCurrencyDto: UpdateCurrencyDto = {
-  //     currencyName: 'Naira',
-  //     newCoinToCurrency: value,
-  //   };
-
-  //   // Call the update method from CoinService
-  //   return this.currencyService.update(updateCurrencyDto);
-  // }
-
   async allocateCoinsToAll(allocation: number) {
     if (allocation < 0) {
       throw new BadRequestException('Allocation must be a positive number');
