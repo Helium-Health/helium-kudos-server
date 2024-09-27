@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ClientSession, Types } from 'mongoose';
 import { Wallet } from './schema/Wallet.schema';
@@ -25,6 +29,40 @@ export class WalletService {
       .findOneAndUpdate(
         { userId },
         { $inc: { earnedCoins: amount } },
+        { session, new: true, upsert: false },
+      )
+      .then((result) => {
+        if (!result) {
+          throw new NotFoundException(`Wallet not found for user ${userId}`);
+        }
+        return result;
+      });
+  }
+  async decrementGivableCoins(
+    userId: Types.ObjectId,
+    amount: number,
+    session: ClientSession,
+  ) {
+    const wallet = await this.walletModel
+      .findOne({ userId })
+      .session(session)
+      .exec();
+
+    // Check if the wallet exists
+    if (!wallet) {
+      throw new NotFoundException(`Wallet not found for user ${userId}`);
+    }
+
+    // Check if the user has enough givable coins
+    if (wallet.coinsAvailable < amount) {
+      throw new BadRequestException(
+        `Insufficient givable coins for user ${userId}`,
+      );
+    }
+    return this.walletModel
+      .findOneAndUpdate(
+        { userId },
+        { $inc: { earnedCoins: -amount } },
         { session, new: true, upsert: false },
       )
       .then((result) => {

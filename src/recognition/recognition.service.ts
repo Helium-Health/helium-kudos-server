@@ -12,6 +12,7 @@ import { UserRecognitionRole } from 'src/user-recognition/schema/UserRecognition
 import { UsersService } from 'src/users/users.service';
 import { WalletService } from 'src/wallet/wallet.service';
 import { CompanyValues } from 'src/constants/companyValues';
+import { TransactionsService } from 'src/transactions/transactions.service';
 
 @Injectable()
 export class RecognitionService {
@@ -20,6 +21,7 @@ export class RecognitionService {
     private userRecognitionService: UserRecognitionService,
     private walletService: WalletService,
     private usersService: UsersService,
+    private transactionService: TransactionsService,
   ) {}
 
   async createRecognition(
@@ -76,15 +78,26 @@ export class RecognitionService {
       ];
       await this.userRecognitionService.createMany(userRecognitions, session);
 
-      // Update receiver's coin bank
+      // Update receiver's and sender's wallet
       for (const receiverId of receiverIds) {
         await this.walletService.incrementEarnedCoins(
           new Types.ObjectId(receiverId),
           coinAmount,
           session,
         );
+        await this.walletService.decrementGivableCoins(
+          new Types.ObjectId(senderId),
+          coinAmount,
+          session,
+        );
+        //Save transaction between sender and user
+        await this.transactionService.createTransaction(
+          new Types.ObjectId(senderId),
+          new Types.ObjectId(receiverId),
+          coinAmount,
+          session,
+        );
       }
-
       await session.commitTransaction();
       return newRecognition;
     } catch (error) {
