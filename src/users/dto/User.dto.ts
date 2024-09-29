@@ -5,7 +5,7 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
-import { UserRole } from 'src/schemas/User.schema';
+import { UserRole } from 'src/users/schema/User.schema';
 
 export class CreateUserDto {
   @IsNotEmpty()

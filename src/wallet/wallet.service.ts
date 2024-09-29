@@ -4,9 +4,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { Model, Connection } from 'mongoose';
+import { Model, Connection, Types, ClientSession } from 'mongoose';
 // import { UpdateCurrencyDto } from 'src/currency/dto/currency.dto';
-import { Wallet } from 'src/schemas/wallet.schema';
+import { Wallet } from 'src/wallet/schema/Wallet.schema';
 import { CurrencyService } from 'src/currency/currency.service';
 
 @Injectable()
@@ -16,48 +16,99 @@ export class WalletService {
     @InjectModel(Wallet.name) private walletModel: Model<Wallet>,
     @InjectConnection() private readonly connection: Connection,
   ) {}
-  async createWallet(userEmail: string): Promise<Wallet> {
-    if (!userEmail) {
-      throw new BadRequestException(
-        'User email is required to create a wallet',
-      );
-    }
+  async createWallet(
+    userId: Types.ObjectId,
+    session: ClientSession,
+  ): Promise<Wallet> {
     const newWallet = new this.walletModel({
-      userEmail, // Link the wallet to the user
-      earnedBalance: 0,
-      availableToGive: 0,
+      userId,
+      earnedCoins: 0,
+      coinsAvailable: 0,
     });
-    return await newWallet.save();
+    return newWallet.save({ session });
   }
-  async getUserBalances(userEmail: string) {
-    const wallet = await this.walletModel.findOne({ userEmail });
+  async getUserBalances(userId: Types.ObjectId) {
+    const wallet = await this.walletModel.findOne({ _id: userId });
     if (!wallet) {
       throw new NotFoundException('User wallet not found');
     }
     return {
-      earnedBalance: wallet.earnedBalance,
-      availableToGive: wallet.availableToGive,
+      earnedBalance: wallet.earnedCoins,
+      availableToGive: wallet.coinsAvailable,
     };
   }
-  async getEarnedCoinBalance(userEmail: string) {
-    const wallet = await this.walletModel.findOne({ userEmail });
+  async getEarnedCoinBalance(userId: Types.ObjectId) {
+    const wallet = await this.walletModel.findOne({ _id: userId });
     if (!wallet) {
       throw new NotFoundException('User wallet not found');
     }
     return {
-      earnedBalance: wallet.earnedBalance,
+      earnedBalance: wallet.earnedCoins,
     };
   }
 
-  async getAvailableToGiveBalance(userEmail: string) {
-    const wallet = await this.walletModel.findOne({ userEmail });
+  async getAvailableToGive(userId: Types.ObjectId) {
+    const wallet = await this.walletModel.findOne({ _id: userId });
     if (!wallet) {
       throw new NotFoundException('User wallet not found');
     }
     return {
-      availableToGive: wallet.availableToGive,
+      availableToGive: wallet.coinsAvailable,
     };
   }
+  async incrementEarnedCoins(
+    userId: Types.ObjectId,
+    amount: number,
+    session: ClientSession,
+  ) {
+    return this.walletModel
+      .findOneAndUpdate(
+        { userId },
+        { $inc: { earnedCoins: amount } },
+        { session, new: true, upsert: false },
+      )
+      .then((result) => {
+        if (!result) {
+          throw new NotFoundException(`Wallet not found for user ${userId}`);
+        }
+        return result;
+      });
+  }
+  async decrementGivableCoins(
+    userId: Types.ObjectId,
+    amount: number,
+    session: ClientSession,
+  ) {
+    const wallet = await this.walletModel
+      .findOne({ userId })
+      .session(session)
+      .exec();
+
+    // Check if the wallet exists
+    if (!wallet) {
+      throw new NotFoundException(`Wallet not found for user ${userId}`);
+    }
+
+    // Check if the user has enough givable coins
+    if (wallet.coinsAvailable < amount) {
+      throw new BadRequestException(
+        `Insufficient givable coins for user ${userId}`,
+      );
+    }
+    return this.walletModel
+      .findOneAndUpdate(
+        { userId },
+        { $inc: { earnedCoins: -amount } },
+        { session, new: true, upsert: false },
+      )
+      .then((result) => {
+        if (!result) {
+          throw new NotFoundException(`Wallet not found for user ${userId}`);
+        }
+        return result;
+      });
+  }
+
   async allocateCoinsToAll(allocation: number) {
     if (allocation < 0) {
       throw new BadRequestException('Allocation must be a positive number');
@@ -68,20 +119,23 @@ export class WalletService {
       throw new NotFoundException('No wallets found');
     }
     const updatedWallets = wallets.map((wallet) => {
-      wallet.availableToGive = allocation;
+      wallet.coinsAvailable = allocation;
       return wallet.save();
     });
     await Promise.all(updatedWallets);
     return wallets;
   }
-  async allocateCoinsToSpecificUsers(userEmails: string[], allocation: number) {
+  async allocateCoinsToSpecificUsers(
+    userIds: Types.ObjectId[],
+    allocation: number,
+  ) {
     if (allocation < 0) {
       throw new BadRequestException('Allocation must be a positive number');
     }
 
-    // Find wallets of the specific users by their emails
+    // Find wallets of the specific users by their Ids
     const wallets = await this.walletModel.find({
-      userEmail: { $in: userEmails },
+      _id: { $in: userIds },
     });
 
     if (wallets.length === 0) {
@@ -90,7 +144,7 @@ export class WalletService {
 
     // Update the wallets of the specified users
     const updatedWallets = wallets.map((wallet) => {
-      wallet.availableToGive = allocation;
+      wallet.coinsAvailable = allocation;
       return wallet.save();
     });
 

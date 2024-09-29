@@ -2,31 +2,36 @@ import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
 import { WalletService } from './wallet.service';
 import { AllocateCoinsDto, AllocateCoinsToUsersDto } from './dto/wallet.dto';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
+import { Types } from 'mongoose';
 
 @Controller('wallet')
 export class WalletController {
   constructor(private readonly walletService: WalletService) {}
 
+  /**
+   * Retrieves the balance information for a specific user.
+   *
+   * @param userId - The unique identifier of the user whose balances are to be fetched.
+   * @returns A promise that resolves to the user's balance information.
+   */
   @UseGuards(JwtAuthGuard)
-  @Get(':userEmail')
-  async getUserBalances(@Param('userEmail') userEmail: string) {
-    return this.walletService.getUserBalances(userEmail);
+  @Get(':userId')
+  async getUserBalances(@Param('userId') userId: Types.ObjectId) {
+    return this.walletService.getUserBalances(userId);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('total-earned-coins/:userEmail')
-  async getEarnedCoinBalance(@Param('userEmail') userEmail: string) {
-    return this.walletService.getEarnedCoinBalance(userEmail);
+  @Get('earned-coins/:userId')
+  async getEarnedCoinBalance(@Param('userId') userId: Types.ObjectId) {
+    return this.walletService.getEarnedCoinBalance(userId);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('available-to-give/:userEmail')
-  async getAvailableToGiveBalance(@Param('userEmail') userEmail: string) {
-    return this.walletService.getAvailableToGiveBalance(userEmail);
+  @Get('available-coins/:userId')
+  async getAvailableToGiveBalance(@Param('userId') userId: Types.ObjectId) {
+    return this.walletService.getAvailableToGive(userId);
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Post('admin/allocate-coins')
   @UseGuards(JwtAuthGuard)
   @Post('admin/allocate-coins-to-all')
   async allocateCoinsToAll(@Body() allocateCoins: AllocateCoinsDto) {
@@ -39,7 +44,7 @@ export class WalletController {
     @Body() allocateCoins: AllocateCoinsToUsersDto,
   ) {
     return this.walletService.allocateCoinsToSpecificUsers(
-      allocateCoins.userEmails,
+      allocateCoins.userIds,
       allocateCoins.allocation,
     );
   }
