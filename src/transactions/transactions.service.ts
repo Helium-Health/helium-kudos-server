@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 // import { UpdateTransactionDto } from './dto/transaction.dto';
-import { Transaction } from 'src/schemas/transaction.schema';
+import { Transaction } from 'src/transactions/schema/transaction.schema';
 import { ClientSession, Model, Types } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 
@@ -30,19 +30,18 @@ export class TransactionsService {
     }
   }
 
-  findAll() {
-    return `This action returns all transactions`;
+  // Returns all transactions
+  async findAll(): Promise<Transaction[]> {
+    return await this.transactionModel.find().exec(); // Fetch all transactions from the database
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} transaction`;
+  // Returns a single transaction by ID
+  async findOne(id: Types.ObjectId): Promise<Transaction> {
+    return await this.transactionModel.findById(id).exec(); // Fetch the transaction by ID
   }
 
-  // update(id: number, updateTransactionDto: UpdateTransactionDto) {
-  //   return `This action updates a #${id} transaction`;
-  // }
-
-  remove(id: number) {
-    return `This action removes a #${id} transaction`;
+  // Removes a transaction by ID
+  async remove(id: Types.ObjectId): Promise<Transaction> {
+    return await this.transactionModel.findByIdAndDelete(id).exec(); // Remove the transaction from the database
   }
 }

@@ -16,7 +16,6 @@ import { TransactionsModule } from 'src/transactions/transactions.module';
     UserRecognitionModule,
     WalletModule,
     UsersModule,
-    RecognitionModule,
     TransactionsModule,
   ],
   controllers: [RecognitionController],
