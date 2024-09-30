@@ -12,6 +12,7 @@ import { UserRecognitionRole } from 'src/user-recognition/schema/UserRecognition
 import { UsersService } from 'src/users/users.service';
 import { WalletService } from 'src/wallet/wallet.service';
 import { CompanyValues } from 'src/constants/companyValues';
+import { ClientSession } from 'mongodb';
 
 @Injectable()
 export class RecognitionService {
@@ -63,6 +64,7 @@ export class RecognitionService {
 
       // Create UserRecognition entries
       const userRecognitions = [
+        // TODO: deprecate sender detail in userRecognition table and update recognition aggregation
         {
           userId: new Types.ObjectId(senderId),
           recognitionId: newRecognition._id,
@@ -159,6 +161,7 @@ export class RecognitionService {
                 },
               },
             },
+            commentCount: { $size: { $ifNull: ['$comments', []] } },
           },
         },
         { $skip: skip },
@@ -176,5 +179,40 @@ export class RecognitionService {
         totalPages: Math.ceil(totalCount / limit),
       },
     };
+  }
+
+  async addCommentToRecognition(
+    recognitionId: Types.ObjectId,
+    commentId: Types.ObjectId,
+    session?: ClientSession,
+  ) {
+    return this.recognitionModel.findByIdAndUpdate(
+      recognitionId,
+      { $push: { comments: commentId } },
+      { session, new: true },
+    );
+  }
+
+  async getRecognitionById(
+    recognitionId: Types.ObjectId,
+    options = {},
+  ): Promise<boolean> {
+    const recognition = await this.recognitionModel.findById(
+      recognitionId,
+      null,
+      options,
+    );
+    return !!recognition;
+  }
+
+  async removeCommentFromRecognition(
+    recognitionId: Types.ObjectId,
+    commentId: Types.ObjectId,
+  ) {
+    return this.recognitionModel.findByIdAndUpdate(
+      recognitionId,
+      { $pull: { comments: commentId } },
+      { new: true },
+    );
   }
 }

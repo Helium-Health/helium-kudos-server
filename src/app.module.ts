@@ -10,6 +10,7 @@ import { RecognitionModule } from './recognition/recognition.module';
 import { CompanyModule } from './company/company.module';
 import { UserRecognitionModule } from './user-recognition/user-recognition.module';
 import { WalletModule } from './wallet/wallet.module';
+import { CommentModule } from './comment/comment.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { WalletModule } from './wallet/wallet.module';
     CompanyModule,
     UserRecognitionModule,
     WalletModule,
+    CommentModule,
     // PassportModule.register({ session: true }),
   ],
   controllers: [AppController],
