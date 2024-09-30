@@ -12,6 +12,7 @@ import { UserRecognitionRole } from 'src/user-recognition/schema/UserRecognition
 import { UsersService } from 'src/users/users.service';
 import { WalletService } from 'src/wallet/wallet.service';
 import { CompanyValues } from 'src/constants/companyValues';
+import { ClientSession } from 'mongodb';
 
 @Injectable()
 export class RecognitionService {
@@ -63,6 +64,7 @@ export class RecognitionService {
 
       // Create UserRecognition entries
       const userRecognitions = [
+        // TODO: deprecate sender detail in userRecognition table and update recognition aggregation
         {
           userId: new Types.ObjectId(senderId),
           recognitionId: newRecognition._id,
@@ -182,16 +184,24 @@ export class RecognitionService {
   async addCommentToRecognition(
     recognitionId: Types.ObjectId,
     commentId: Types.ObjectId,
+    session?: ClientSession,
   ) {
     return this.recognitionModel.findByIdAndUpdate(
       recognitionId,
       { $push: { comments: commentId } },
-      { new: true },
+      { session, new: true },
     );
   }
 
-  async getRecognitionById(recognitionId: Types.ObjectId): Promise<boolean> {
-    const recognition = await this.recognitionModel.findById(recognitionId);
+  async getRecognitionById(
+    recognitionId: Types.ObjectId,
+    options = {},
+  ): Promise<boolean> {
+    const recognition = await this.recognitionModel.findById(
+      recognitionId,
+      null,
+      options,
+    );
     return !!recognition;
   }
 
