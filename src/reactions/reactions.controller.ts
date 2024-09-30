@@ -11,7 +11,7 @@ import {
   AddReactionDto,
   // UpdateReactionDto
 } from './dto/reaction.dto';
-import { Recognition } from 'src/schemas/recognitions.schema';
+import { Recognition } from 'src/recognition/schema/Recognition.schema';
 import { Types } from 'mongoose';
 
 @Controller('reactions')

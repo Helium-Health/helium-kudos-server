@@ -5,7 +5,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 import {
   Recognition,
   RecognitionSchema,
-} from 'src/schemas/recognitions.schema';
+} from 'src/recognition/schema/Recognition.schema';
 import { Reaction, ReactionSchema } from './schema/reactions.schema';
 import { User, UserSchema } from 'src/users/schema/User.schema';
 import { UsersService } from 'src/users/users.service';

@@ -1,16 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Recognition } from 'src/schemas/recognitions.schema';
+import { Recognition } from 'src/recognition/schema/Recognition.schema';
 import { Reaction } from './schema/reactions.schema';
 import { UsersService } from 'src/users/users.service';
+import { RecognitionService } from 'src/recognition/recognition.service';
 
 @Injectable()
 export class ReactionService {
   constructor(
-    @InjectModel(Recognition.name) private recognitionModel: Model<Recognition>,
     @InjectModel(Reaction.name) private reactionModel: Model<Reaction>,
     private userService: UsersService,
+    private recognitionService: RecognitionService,
   ) {}
 
   async addReaction(
@@ -18,8 +19,8 @@ export class ReactionService {
     userId: Types.ObjectId,
     reactionType: string,
   ): Promise<Recognition> {
-    // Validate the recognition
-    const recognition = await this.recognitionModel.findById(recognitionId);
+    // Validate the recognition using the recognitionService
+    const recognition = await this.recognitionService.findById(recognitionId);
     if (!recognition) {
       throw new NotFoundException('Recognition not found');
     }
@@ -38,9 +39,11 @@ export class ReactionService {
     });
     await newReaction.save();
 
-    // Add the reaction to the recognition's reactions array
-    recognition.reactions.push(newReaction);
-    await recognition.save();
+    // Use recognitionService to update the recognition's reactions
+    await this.recognitionService.addReactionToRecognition(
+      recognitionId,
+      newReaction,
+    );
 
     return recognition;
   }

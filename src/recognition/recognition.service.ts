@@ -12,6 +12,7 @@ import { UserRecognitionRole } from 'src/user-recognition/schema/UserRecognition
 import { UsersService } from 'src/users/users.service';
 import { WalletService } from 'src/wallet/wallet.service';
 import { CompanyValues } from 'src/constants/companyValues';
+import { Reaction } from 'src/reactions/schema/reactions.schema';
 
 @Injectable()
 export class RecognitionService {
@@ -98,6 +99,27 @@ export class RecognitionService {
     } finally {
       session.endSession();
     }
+  }
+
+  async findById(recognitionId: Types.ObjectId): Promise<Recognition> {
+    const recognition = await this.recognitionModel.findById(recognitionId);
+    if (!recognition) {
+      throw new NotFoundException('Recognition not found');
+    }
+    return recognition;
+  }
+
+  async addReactionToRecognition(
+    recognitionId: Types.ObjectId,
+    reaction: Reaction,
+  ): Promise<void> {
+    const recognition = await this.recognitionModel.findById(recognitionId);
+    if (!recognition) {
+      throw new NotFoundException('Recognition not found');
+    }
+
+    recognition.reactions.push(reaction._id);
+    await recognition.save();
   }
 
   async getAllRecognitions(page: number, limit: number) {

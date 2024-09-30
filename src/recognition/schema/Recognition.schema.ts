@@ -17,6 +17,9 @@ export class Recognition {
 
   @Prop({ type: [String], enum: CompanyValues, default: [] })
   companyValues: CompanyValues[];
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Reaction' }] })
+  reactions: Types.Array<Types.ObjectId>;
 }
 
 export const RecognitionSchema = SchemaFactory.createForClass(Recognition);
