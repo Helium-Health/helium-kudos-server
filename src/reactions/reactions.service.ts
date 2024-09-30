@@ -3,19 +3,19 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Recognition } from 'src/schemas/recognitions.schema';
 import { Reaction } from './schema/reactions.schema';
-import { User } from 'src/users/schema/User.schema';
+import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class ReactionService {
   constructor(
     @InjectModel(Recognition.name) private recognitionModel: Model<Recognition>,
     @InjectModel(Reaction.name) private reactionModel: Model<Reaction>,
-    @InjectModel(User.name) private userModel: Model<User>,
+    private userService: UsersService,
   ) {}
 
   async addReaction(
-    recognitionId: string,
-    userId: string,
+    recognitionId: Types.ObjectId,
+    userId: Types.ObjectId,
     reactionType: string,
   ): Promise<Recognition> {
     // Validate the recognition
@@ -25,16 +25,16 @@ export class ReactionService {
     }
 
     // Validate the user who is reacting
-    const user = await this.userModel.findById(userId);
+    const user = await this.userService.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
     // Create the reaction, associating it with the user and recognition
     const newReaction = new this.reactionModel({
-      userId: user._id,
-      recognitionId: recognition._id,
-      reactionType: reactionType,
+      userId,
+      recognitionId,
+      reactionType,
     });
     await newReaction.save();
 

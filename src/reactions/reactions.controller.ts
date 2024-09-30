@@ -10,7 +10,7 @@ import { ReactionService } from './reactions.service';
 import {
   AddReactionDto,
   // UpdateReactionDto
-} from './dto/create-reaction.dto';
+} from './dto/reaction.dto';
 import { Recognition } from 'src/schemas/recognitions.schema';
 import { Types } from 'mongoose';
 
@@ -20,7 +20,7 @@ export class ReactionsController {
 
   @Post(':recognitionId/reactions')
   async addReaction(
-    @Param('recognitionId') recognitionId: string,
+    @Param('recognitionId') recognitionId: Types.ObjectId,
     @Body() addReactionDto: AddReactionDto,
   ): Promise<Recognition> {
     return this.reactionsService.addReaction(

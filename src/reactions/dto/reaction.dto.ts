@@ -1,13 +1,14 @@
 import { IsString, IsNotEmpty } from 'class-validator';
+import { Types } from 'mongoose';
 
 export class AddReactionDto {
   @IsString()
   @IsNotEmpty()
-  recognitionId: string;
+  recognitionId: Types.ObjectId;
 
   @IsString()
   @IsNotEmpty()
-  userId: string;
+  userId: Types.ObjectId;
 
   @IsString()
   @IsNotEmpty()
@@ -16,11 +17,11 @@ export class AddReactionDto {
 export class UpdateReactionDto {
   @IsString()
   @IsNotEmpty()
-  recognitionId: string;
+  recognitionId: Types.ObjectId;
 
   @IsString()
   @IsNotEmpty()
-  userId: string;
+  userId: Types.ObjectId;
 
   @IsString()
   @IsNotEmpty()

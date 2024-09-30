@@ -8,6 +8,7 @@ import {
 } from 'src/schemas/recognitions.schema';
 import { Reaction, ReactionSchema } from './schema/reactions.schema';
 import { User, UserSchema } from 'src/users/schema/User.schema';
+import { UsersService } from 'src/users/users.service';
 
 @Module({
   imports: [
@@ -18,6 +19,6 @@ import { User, UserSchema } from 'src/users/schema/User.schema';
     ]),
   ],
   controllers: [ReactionsController],
-  providers: [ReactionService],
+  providers: [ReactionService, UsersService],
 })
 export class ReactionsModule {}
