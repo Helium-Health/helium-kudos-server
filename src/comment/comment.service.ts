@@ -16,7 +16,7 @@ export class CommentService {
     userId: string,
     { recognitionId, content }: CreateCommentDto,
   ) {
-    const recognitionExists = await this.recognitionService.recognitionExists(
+    const recognitionExists = await this.recognitionService.getRecognitionById(
       new Types.ObjectId(recognitionId),
     );
     if (!recognitionExists) {

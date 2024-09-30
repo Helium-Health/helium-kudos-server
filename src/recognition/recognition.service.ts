@@ -190,7 +190,7 @@ export class RecognitionService {
     );
   }
 
-  async recognitionExists(recognitionId: Types.ObjectId): Promise<boolean> {
+  async getRecognitionById(recognitionId: Types.ObjectId): Promise<boolean> {
     const recognition = await this.recognitionModel.findById(recognitionId);
     return !!recognition;
   }
