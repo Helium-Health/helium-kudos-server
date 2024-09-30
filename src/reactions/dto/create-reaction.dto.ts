@@ -13,3 +13,16 @@ export class AddReactionDto {
   @IsNotEmpty()
   reactionType: string;
 }
+export class UpdateReactionDto {
+  @IsString()
+  @IsNotEmpty()
+  recognitionId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  userId: string;
+
+  @IsString()
+  @IsNotEmpty()
+  reactionType: string;
+}

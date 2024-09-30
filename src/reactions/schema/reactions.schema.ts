@@ -1,6 +1,6 @@
 import { Schema, Prop, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { User } from './User.schema';
+import { User } from 'src/users/schema/User.schema';
 
 @Schema({ timestamps: true })
 export class Reaction extends Document {

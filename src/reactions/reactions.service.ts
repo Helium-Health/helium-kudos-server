@@ -2,8 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Recognition } from 'src/schemas/recognitions.schema';
-import { Reaction } from 'src/schemas/reactions.schema';
-import { User } from 'src/schemas/User.schema';
+import { Reaction } from './schema/reactions.schema';
+import { User } from 'src/users/schema/User.schema';
 
 @Injectable()
 export class ReactionService {

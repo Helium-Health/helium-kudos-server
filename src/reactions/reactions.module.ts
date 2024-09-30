@@ -6,8 +6,8 @@ import {
   Recognition,
   RecognitionSchema,
 } from 'src/schemas/recognitions.schema';
-import { Reaction, ReactionSchema } from 'src/schemas/reactions.schema';
-import { User, UserSchema } from 'src/schemas/User.schema';
+import { Reaction, ReactionSchema } from './schema/reactions.schema';
+import { User, UserSchema } from 'src/users/schema/User.schema';
 
 @Module({
   imports: [

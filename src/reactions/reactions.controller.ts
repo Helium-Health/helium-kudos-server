@@ -1,7 +1,15 @@
-import { Controller, Post, Body, Param } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Param,
+  // Patch
+} from '@nestjs/common';
 import { ReactionService } from './reactions.service';
-import { AddReactionDto } from './dto/create-reaction.dto';
-// import { UpdateReactionDto } from './dto/update-reaction.dto';
+import {
+  AddReactionDto,
+  // UpdateReactionDto
+} from './dto/create-reaction.dto';
 import { Recognition } from 'src/schemas/recognitions.schema';
 
 @Controller('reactions')
@@ -19,6 +27,18 @@ export class ReactionsController {
       addReactionDto.reactionType,
     );
   }
+
+  // @Patch(':recognitionId/reactions')
+  // async updateReaction(
+  //   @Param('recognitionId') recognitionId: string, // Extracts recognitionId from URL
+  //   @Body() updateReactionDto: UpdateReactionDto, // Extracts new reaction type from request body
+  // ): Promise<Recognition> {
+  //   return this.reactionsService.updateReaction(
+  //     updateReactionDto.recognitionId,
+  //     updateReactionDto.userId,
+  //     updateReactionDto.reactionType,
+  //   );
+  // }
 
   // @Delete(':id')
   // remove(@Param('id') id: string) {

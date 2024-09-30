@@ -4,13 +4,13 @@ import { Document, Types } from 'mongoose';
 @Schema({ timestamps: true })
 export class Recognition extends Document {
   @Prop({ required: true })
-  senderId: string;
+  senderId: Types.ObjectId;
 
   @Prop({ required: true })
   message: string;
 
   @Prop({ type: Number, required: true })
-  coinsAwarded: number;
+  coinsAmount: number;
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Reaction' }] })
   reactions: Types.Array<Types.ObjectId>;
