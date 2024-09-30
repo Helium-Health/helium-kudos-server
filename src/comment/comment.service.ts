@@ -16,26 +16,40 @@ export class CommentService {
     userId: string,
     { recognitionId, content }: CreateCommentDto,
   ) {
-    const recognitionExists = await this.recognitionService.recognitionExists(
-      new Types.ObjectId(recognitionId),
-    );
-    if (!recognitionExists) {
-      throw new NotFoundException('Recognition not found');
+    const session = await this.commentModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      const recognitionExists =
+        await this.recognitionService.getRecognitionById(
+          new Types.ObjectId(recognitionId),
+          { session },
+        );
+      if (!recognitionExists) {
+        throw new NotFoundException('Recognition not found');
+      }
+
+      const comment = new this.commentModel({
+        userId: new Types.ObjectId(userId),
+        recognitionId: new Types.ObjectId(recognitionId),
+        content: content,
+      });
+      await comment.save({ session });
+
+      await this.recognitionService.addCommentToRecognition(
+        new Types.ObjectId(recognitionId),
+        comment._id,
+        session,
+      );
+
+      await session.commitTransaction();
+      return comment;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
     }
-
-    const comment = new this.commentModel({
-      userId: new Types.ObjectId(userId),
-      recognitionId: new Types.ObjectId(recognitionId),
-      content: content,
-    });
-    await comment.save();
-
-    await this.recognitionService.addCommentToRecognition(
-      new Types.ObjectId(recognitionId),
-      comment._id,
-    );
-
-    return comment;
   }
 
   async getCommentsByRecognition(recognitionId: string) {

@@ -14,6 +14,7 @@ import { WalletService } from 'src/wallet/wallet.service';
 import { CompanyValues } from 'src/constants/companyValues';
 import { TransactionService } from 'src/transaction/transaction.service';
 import { EntityType } from 'src/schemas/Transaction.schema';
+import { ClientSession } from 'mongodb';
 
 @Injectable()
 export class RecognitionService {
@@ -76,11 +77,12 @@ export class RecognitionService {
 
       // Create UserRecognition entries
       const userRecognitions = [
-        // {
-        //   userId: new Types.ObjectId(senderId),
-        //   recognitionId: newRecognition._id,
-        //   role: UserRecognitionRole.SENDER,
-        // },
+        // TODO: deprecate sender detail in userRecognition table and update recognition aggregation
+        {
+          userId: new Types.ObjectId(senderId),
+          recognitionId: newRecognition._id,
+          role: UserRecognitionRole.SENDER,
+        },
         ...receiverIds.map((userId) => ({
           userId: new Types.ObjectId(userId),
           recognitionId: newRecognition._id,
@@ -213,16 +215,24 @@ export class RecognitionService {
   async addCommentToRecognition(
     recognitionId: Types.ObjectId,
     commentId: Types.ObjectId,
+    session?: ClientSession,
   ) {
     return this.recognitionModel.findByIdAndUpdate(
       recognitionId,
       { $push: { comments: commentId } },
-      { new: true },
+      { session, new: true },
     );
   }
 
-  async recognitionExists(recognitionId: Types.ObjectId): Promise<boolean> {
-    const recognition = await this.recognitionModel.findById(recognitionId);
+  async getRecognitionById(
+    recognitionId: Types.ObjectId,
+    options = {},
+  ): Promise<boolean> {
+    const recognition = await this.recognitionModel.findById(
+      recognitionId,
+      null,
+      options,
+    );
     return !!recognition;
   }
 
