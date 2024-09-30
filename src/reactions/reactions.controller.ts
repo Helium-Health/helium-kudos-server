@@ -7,10 +7,7 @@ import {
   // Patch
 } from '@nestjs/common';
 import { ReactionService } from './reactions.service';
-import {
-  AddReactionDto,
-  // UpdateReactionDto
-} from './dto/reaction.dto';
+import { UpdateReactionDto } from './dto/reaction.dto';
 import { Recognition } from 'src/recognition/schema/Recognition.schema';
 import { Types } from 'mongoose';
 
@@ -21,12 +18,12 @@ export class ReactionsController {
   @Post(':recognitionId/reactions')
   async addReaction(
     @Param('recognitionId') recognitionId: Types.ObjectId,
-    @Body() addReactionDto: AddReactionDto,
+    @Body() updateReactionDto: UpdateReactionDto,
   ): Promise<Recognition> {
     return this.reactionsService.addReaction(
-      addReactionDto.recognitionId,
-      addReactionDto.userId,
-      addReactionDto.reactionType,
+      updateReactionDto.recognitionId,
+      updateReactionDto.userId,
+      updateReactionDto.reactionType,
     );
   }
 
