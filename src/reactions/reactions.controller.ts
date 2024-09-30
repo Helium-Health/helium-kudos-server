@@ -3,6 +3,7 @@ import {
   Post,
   Body,
   Param,
+  Delete,
   // Patch
 } from '@nestjs/common';
 import { ReactionService } from './reactions.service';
@@ -11,6 +12,7 @@ import {
   // UpdateReactionDto
 } from './dto/create-reaction.dto';
 import { Recognition } from 'src/schemas/recognitions.schema';
+import { Types } from 'mongoose';
 
 @Controller('reactions')
 export class ReactionsController {
@@ -28,20 +30,8 @@ export class ReactionsController {
     );
   }
 
-  // @Patch(':recognitionId/reactions')
-  // async updateReaction(
-  //   @Param('recognitionId') recognitionId: string, // Extracts recognitionId from URL
-  //   @Body() updateReactionDto: UpdateReactionDto, // Extracts new reaction type from request body
-  // ): Promise<Recognition> {
-  //   return this.reactionsService.updateReaction(
-  //     updateReactionDto.recognitionId,
-  //     updateReactionDto.userId,
-  //     updateReactionDto.reactionType,
-  //   );
-  // }
-
-  // @Delete(':id')
-  // remove(@Param('id') id: string) {
-  //   return this.reactionsService.remove(+id);
-  // }
+  @Delete(':id')
+  remove(@Param('id') id: Types.ObjectId) {
+    return this.reactionsService.remove(id);
+  }
 }

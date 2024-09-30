@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { Recognition } from 'src/schemas/recognitions.schema';
 import { Reaction } from './schema/reactions.schema';
 import { User } from 'src/users/schema/User.schema';
@@ -43,5 +43,14 @@ export class ReactionService {
     await recognition.save();
 
     return recognition;
+  }
+  async remove(id: Types.ObjectId): Promise<void> {
+    const objectId = new Types.ObjectId(id);
+
+    const reaction = await this.reactionModel.findByIdAndDelete(objectId);
+
+    if (!reaction) {
+      throw new NotFoundException('Reaction not found');
+    }
   }
 }
