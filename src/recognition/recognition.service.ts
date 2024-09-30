@@ -34,6 +34,12 @@ export class RecognitionService {
       (value) => !Object.values(CompanyValues).includes(value),
     );
 
+    if (receiverIds.length === 0) {
+      throw new BadRequestException(
+        'At least one receiver is required for recognition',
+      );
+    }
+
     if (invalidValues.length > 0) {
       throw new BadRequestException(
         `Invalid company values: ${invalidValues.join(', ')}`,
@@ -101,7 +107,7 @@ export class RecognitionService {
 
       // Update receiver's coin bank
       for (const receiverId of receiverIds) {
-        await this.walletService.incrementearnedBalance(
+        await this.walletService.incrementEarnedBalance(
           new Types.ObjectId(receiverId),
           coinAmount,
           session,

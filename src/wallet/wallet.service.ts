@@ -20,7 +20,7 @@ export class WalletService {
     return newWallet.save({ session });
   }
 
-  async incrementearnedBalance(
+  async incrementEarnedBalance(
     userId: Types.ObjectId,
     amount: number,
     session: ClientSession,
