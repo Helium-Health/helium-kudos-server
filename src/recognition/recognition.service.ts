@@ -12,6 +12,8 @@ import { UserRecognitionRole } from 'src/user-recognition/schema/UserRecognition
 import { UsersService } from 'src/users/users.service';
 import { WalletService } from 'src/wallet/wallet.service';
 import { CompanyValues } from 'src/constants/companyValues';
+import { TransactionService } from 'src/transaction/transaction.service';
+import { EntityType } from 'src/schemas/Transaction.schema';
 import { ClientSession } from 'mongodb';
 
 @Injectable()
@@ -19,6 +21,7 @@ export class RecognitionService {
   constructor(
     @InjectModel(Recognition.name) private recognitionModel: Model<Recognition>,
     private userRecognitionService: UserRecognitionService,
+    private transactionService: TransactionService,
     private walletService: WalletService,
     private usersService: UsersService,
   ) {}
@@ -30,6 +33,12 @@ export class RecognitionService {
     const invalidValues = companyValues.filter(
       (value) => !Object.values(CompanyValues).includes(value),
     );
+
+    if (receiverIds.length === 0) {
+      throw new BadRequestException(
+        'At least one receiver is required for recognition',
+      );
+    }
 
     if (invalidValues.length > 0) {
       throw new BadRequestException(
@@ -47,6 +56,16 @@ export class RecognitionService {
 
     if (!areValidUsers) {
       throw new BadRequestException('One or more receiver IDs are invalid');
+    }
+
+    const totalCoinAmount = coinAmount * receiverIds.length;
+
+    const hasEnoughCoins = await this.walletService.hasEnoughCoins(
+      new Types.ObjectId(senderId),
+      totalCoinAmount,
+    );
+    if (!hasEnoughCoins) {
+      throw new BadRequestException("Insufficient coins in sender's wallet");
     }
 
     const session = await this.recognitionModel.db.startSession();
@@ -76,13 +95,31 @@ export class RecognitionService {
           role: UserRecognitionRole.RECEIVER,
         })),
       ];
+
       await this.userRecognitionService.createMany(userRecognitions, session);
+
+      // Deduct coins from sender
+      await this.walletService.deductCoins(
+        new Types.ObjectId(senderId),
+        totalCoinAmount,
+        session,
+      );
 
       // Update receiver's coin bank
       for (const receiverId of receiverIds) {
-        await this.walletService.incrementEarnedCoins(
+        await this.walletService.incrementEarnedBalance(
           new Types.ObjectId(receiverId),
           coinAmount,
+          session,
+        );
+        await this.transactionService.recordTransactions(
+          {
+            senderId: new Types.ObjectId(senderId),
+            receiverId: new Types.ObjectId(receiverId),
+            amount: coinAmount,
+            entityId: newRecognition._id,
+            entityType: EntityType.RECOGNITION,
+          },
           session,
         );
       }
