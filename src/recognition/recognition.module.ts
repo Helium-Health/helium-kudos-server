@@ -6,12 +6,14 @@ import { Recognition, RecognitionSchema } from './schema/Recognition.schema';
 import { UserRecognitionModule } from 'src/user-recognition/user-recognition.module';
 import { UsersModule } from 'src/users/users.module';
 import { WalletModule } from 'src/wallet/wallet.module';
+import { TransactionModule } from 'src/transaction/transaction.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Recognition.name, schema: RecognitionSchema },
     ]),
+    TransactionModule,
     UserRecognitionModule,
     WalletModule,
     UsersModule,

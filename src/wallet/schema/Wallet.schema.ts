@@ -9,10 +9,10 @@ export class Wallet {
   userId: Types.ObjectId; // Reference to User entity
 
   @Prop({ type: Number, required: true, default: 0 })
-  earnedCoins: number;
+  earnedBalance: number;
 
   @Prop({ type: Number, required: true, default: 0 })
-  coinsAvailable: number;
+  giveableBalance: number;
 }
 
 export const WalletSchema = SchemaFactory.createForClass(Wallet);

@@ -11,6 +11,7 @@ import { CompanyModule } from './company/company.module';
 import { UserRecognitionModule } from './user-recognition/user-recognition.module';
 import { WalletModule } from './wallet/wallet.module';
 import { CommentModule } from './comment/comment.module';
+import { TransactionModule } from './transaction/transaction.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { CommentModule } from './comment/comment.module';
     UserRecognitionModule,
     WalletModule,
     CommentModule,
+    TransactionModule,
     // PassportModule.register({ session: true }),
   ],
   controllers: [AppController],
