@@ -8,7 +8,7 @@ export class Reaction extends Document {
   userId: User;
 
   @Prop({ type: Types.ObjectId, ref: 'Recognition', required: true })
-  recognitionId: string;
+  recognitionId: Types.ObjectId;
 
   @Prop({ required: true })
   reactionType: string;

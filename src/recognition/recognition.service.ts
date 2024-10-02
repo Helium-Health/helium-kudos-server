@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { ClientSession, Model, Types } from 'mongoose';
 import { Recognition } from './schema/Recognition.schema';
 import { CreateRecognitionDto } from './dto/CreateRecognition.dto';
 import { UserRecognitionService } from 'src/user-recognition/user-recognition.service';
@@ -109,17 +109,57 @@ export class RecognitionService {
     return recognition;
   }
 
+  // async addReactionToRecognition(
+  //   recognitionId: Types.ObjectId,
+  //   reaction: Reaction,
+  // ): Promise<void> {
+  //   const recognition = await this.recognitionModel.findById(recognitionId);
+  //   if (!recognition) {
+  //     throw new NotFoundException('Recognition not found');
+  //   }
+
+  //   recognition.reactions.push(reaction._id as Types.ObjectId);
+  //   await recognition.save();
+  // }
+
   async addReactionToRecognition(
     recognitionId: Types.ObjectId,
     reaction: Reaction,
+    session?: ClientSession, // Optional session for transaction
   ): Promise<void> {
-    const recognition = await this.recognitionModel.findById(recognitionId);
+    const recognition = await this.recognitionModel
+      .findById(recognitionId)
+      .session(session) // Attach session if provided
+      .exec(); // Execute query
+
     if (!recognition) {
       throw new NotFoundException('Recognition not found');
     }
 
-    recognition.reactions.push(reaction._id);
-    await recognition.save();
+    recognition.reactions.push(reaction._id as Types.ObjectId);
+
+    // Save the recognition with the session (if provided)
+    await recognition.save({ session });
+  }
+  async removeReactionFromRecognition(
+    recognitionId: Types.ObjectId,
+    reactionId: Types.ObjectId,
+    session: ClientSession, // Add session parameter to handle transaction
+  ): Promise<void> {
+    const recognition = await this.recognitionModel
+      .findById(recognitionId)
+      .session(session);
+    if (!recognition) {
+      throw new NotFoundException('Recognition not found');
+    }
+
+    // Remove the reactionId from the recognition's reactions array
+    recognition.reactions = recognition.reactions.filter(
+      (r: Types.ObjectId) => !r.equals(reactionId),
+    );
+
+    // Save the recognition document within the transaction
+    await recognition.save({ session });
   }
 
   async getAllRecognitions(page: number, limit: number) {

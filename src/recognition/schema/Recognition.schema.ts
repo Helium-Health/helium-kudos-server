@@ -19,7 +19,7 @@ export class Recognition {
   companyValues: CompanyValues[];
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Reaction' }] })
-  reactions: Types.Array<Types.ObjectId>;
+  reactions: Types.ObjectId[];
 }
 
 export const RecognitionSchema = SchemaFactory.createForClass(Recognition);

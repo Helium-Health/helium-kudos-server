@@ -4,14 +4,37 @@ import { ReactionsController } from './reactions.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Reaction, ReactionSchema } from './schema/reactions.schema';
 import { UsersService } from 'src/users/users.service';
+import { RecognitionService } from 'src/recognition/recognition.service';
+import { User, UserSchema } from 'src/users/schema/User.schema';
+import { WalletService } from 'src/wallet/wallet.service';
+import {
+  Recognition,
+  RecognitionSchema,
+} from 'src/recognition/schema/Recognition.schema';
+import { UserRecognitionService } from 'src/user-recognition/user-recognition.service';
+import {
+  UserRecognition,
+  UserRecognitionSchema,
+} from 'src/user-recognition/schema/UserRecognition.schema';
+import { Wallet, WalletSchema } from 'src/wallet/schema/Wallet.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
+      { name: UserRecognition.name, schema: UserRecognitionSchema },
+      { name: Wallet.name, schema: WalletSchema },
+      { name: Recognition.name, schema: RecognitionSchema },
       { name: Reaction.name, schema: ReactionSchema },
+      { name: User.name, schema: UserSchema },
     ]),
   ],
   controllers: [ReactionsController],
-  providers: [ReactionService, UsersService],
+  providers: [
+    ReactionService,
+    UsersService,
+    UserRecognitionService,
+    RecognitionService,
+    WalletService,
+  ],
 })
 export class ReactionsModule {}
