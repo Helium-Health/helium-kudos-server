@@ -20,6 +20,12 @@ export class Recognition {
 
   @Prop({ type: [String], enum: CompanyValues, default: [] })
   companyValues: CompanyValues[];
+
+  // @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }] })
+  // receiverIds: Types.ObjectId[];
+
+  @Prop({ type: Boolean, default: false })
+  isAuto: boolean; // Flag to indicate if recognition is auto-generated
 }
 
 export const RecognitionSchema = SchemaFactory.createForClass(Recognition);
