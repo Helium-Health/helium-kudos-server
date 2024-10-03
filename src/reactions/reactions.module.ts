@@ -17,6 +17,8 @@ import {
   UserRecognitionSchema,
 } from 'src/user-recognition/schema/UserRecognition.schema';
 import { Wallet, WalletSchema } from 'src/wallet/schema/Wallet.schema';
+import { TransactionService } from 'src/transaction/transaction.service';
+import { Transaction, TransactionSchema } from 'src/schemas/Transaction.schema';
 
 @Module({
   imports: [
@@ -26,6 +28,7 @@ import { Wallet, WalletSchema } from 'src/wallet/schema/Wallet.schema';
       { name: Recognition.name, schema: RecognitionSchema },
       { name: Reaction.name, schema: ReactionSchema },
       { name: User.name, schema: UserSchema },
+      { name: Transaction.name, schema: TransactionSchema },
     ]),
   ],
   controllers: [ReactionsController],
@@ -35,6 +38,7 @@ import { Wallet, WalletSchema } from 'src/wallet/schema/Wallet.schema';
     UserRecognitionService,
     RecognitionService,
     WalletService,
+    TransactionService,
   ],
 })
 export class ReactionsModule {}
