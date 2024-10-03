@@ -18,9 +18,10 @@ export class CreateRecognitionDto {
   @ArrayNotEmpty()
   receiverIds: string[];
 
+  @IsOptional()
   @IsArray()
   @IsEnum(CompanyValues, { each: true })
-  companyValues: CompanyValues[];
+  companyValues?: CompanyValues[];
 
   @IsOptional()
   @IsNumber()
