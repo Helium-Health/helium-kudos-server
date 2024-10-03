@@ -15,39 +15,6 @@ export class ReactionService {
     @InjectConnection() private readonly connection: Connection,
   ) {}
 
-  // async addReaction(
-  //   recognitionId: Types.ObjectId,
-  //   userId: Types.ObjectId,
-  //   reactionType: string,
-  // ): Promise<Recognition> {
-  //   // Validate the recognition using the recognitionService
-  //   const recognition = await this.recognitionService.findById(recognitionId);
-  //   if (!recognition) {
-  //     throw new NotFoundException('Recognition not found');
-  //   }
-
-  //   // Validate the user who is reacting
-  //   const user = await this.userService.findById(userId);
-  //   if (!user) {
-  //     throw new NotFoundException('User not found');
-  //   }
-
-  //   // Create the reaction, associating it with the user and recognition
-  //   const newReaction = new this.reactionModel({
-  //     userId,
-  //     recognitionId,
-  //     reactionType,
-  //   });
-  //   await newReaction.save();
-
-  //   // Use recognitionService to update the recognition's reactions
-  //   await this.recognitionService.addReactionToRecognition(
-  //     recognitionId,
-  //     newReaction,
-  //   );
-
-  //   return recognition;
-  // }
   async addReaction(
     recognitionId: Types.ObjectId,
     userId: Types.ObjectId,
@@ -57,19 +24,16 @@ export class ReactionService {
     session.startTransaction();
 
     try {
-      // Step 1: Validate the recognition using recognitionService (outside transaction)
       const recognition = await this.recognitionService.findById(recognitionId);
       if (!recognition) {
         throw new NotFoundException('Recognition not found');
       }
 
-      // Step 2: Validate the user using userService (outside transaction)
       const user = await this.userService.findById(userId);
       if (!user) {
         throw new NotFoundException('User not found');
       }
 
-      // Step 3: Create the reaction inside the transaction
       const newReaction = new this.reactionModel({
         userId,
         recognitionId,
@@ -77,23 +41,20 @@ export class ReactionService {
       });
       await newReaction.save({ session });
 
-      // Step 4: Update the recognition's reactions inside the transaction
       await this.recognitionService.addReactionToRecognition(
         recognitionId,
         newReaction,
-        session, // Pass the session to this method
+        session,
       );
 
-      // Step 5: Commit the transaction
       await session.commitTransaction();
 
       return recognition;
     } catch (error) {
-      // Step 6: Abort the transaction if any error occurs
       await session.abortTransaction();
       throw error;
     } finally {
-      session.endSession(); // End the session
+      session.endSession();
     }
   }
 
@@ -129,5 +90,47 @@ export class ReactionService {
     } finally {
       session.endSession();
     }
+  }
+
+  async getReactionsByRecognitionId(
+    recognitionId: Types.ObjectId,
+  ): Promise<any> {
+    const reactions = await this.reactionModel.aggregate([
+      { $match: { recognitionId } },
+
+      // Lookup user details from the 'users' collection using userId in the reaction
+      {
+        $lookup: {
+          from: 'users', // Name of the collection that holds user data
+          localField: 'userId', // Field in Reaction model
+          foreignField: '_id', // Field in User model
+          as: 'user', // Output array containing user information
+        },
+      },
+
+      // Unwind the user array to get individual user details
+      { $unwind: '$user' },
+
+      // Group by reactionType
+      {
+        $group: {
+          _id: '$reactionType', // Group by reactionType
+          users: { $push: '$user.name' }, // Collect user names
+          count: { $sum: 1 }, // Count the number of reactions for each reactionType
+        },
+      },
+
+      // Format the output
+      {
+        $project: {
+          _id: 0, // Exclude the _id field
+          reactionType: '$_id', // Name the grouped field as reactionType
+          users: 1, // Include the list of users
+          count: 1, // Include the count of reactions
+        },
+      },
+    ]);
+
+    return { reactions };
   }
 }

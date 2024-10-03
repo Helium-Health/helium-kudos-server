@@ -109,28 +109,15 @@ export class RecognitionService {
     return recognition;
   }
 
-  // async addReactionToRecognition(
-  //   recognitionId: Types.ObjectId,
-  //   reaction: Reaction,
-  // ): Promise<void> {
-  //   const recognition = await this.recognitionModel.findById(recognitionId);
-  //   if (!recognition) {
-  //     throw new NotFoundException('Recognition not found');
-  //   }
-
-  //   recognition.reactions.push(reaction._id as Types.ObjectId);
-  //   await recognition.save();
-  // }
-
   async addReactionToRecognition(
     recognitionId: Types.ObjectId,
     reaction: Reaction,
-    session?: ClientSession, // Optional session for transaction
+    session?: ClientSession,
   ): Promise<void> {
     const recognition = await this.recognitionModel
       .findById(recognitionId)
-      .session(session) // Attach session if provided
-      .exec(); // Execute query
+      .session(session)
+      .exec();
 
     if (!recognition) {
       throw new NotFoundException('Recognition not found');
@@ -138,7 +125,6 @@ export class RecognitionService {
 
     recognition.reactions.push(reaction._id as Types.ObjectId);
 
-    // Save the recognition with the session (if provided)
     await recognition.save({ session });
   }
   async removeReactionFromRecognition(
