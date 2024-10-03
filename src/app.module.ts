@@ -10,6 +10,8 @@ import { RecognitionModule } from './recognition/recognition.module';
 import { CompanyModule } from './company/company.module';
 import { UserRecognitionModule } from './user-recognition/user-recognition.module';
 import { WalletModule } from './wallet/wallet.module';
+import { CommentModule } from './comment/comment.module';
+import { TransactionModule } from './transaction/transaction.module';
 import { ReactionsModule } from './reactions/reactions.module';
 
 @Module({
@@ -22,6 +24,8 @@ import { ReactionsModule } from './reactions/reactions.module';
     CompanyModule,
     UserRecognitionModule,
     WalletModule,
+    CommentModule,
+    TransactionModule,
     ReactionsModule,
     // PassportModule.register({ session: true }),
   ],
