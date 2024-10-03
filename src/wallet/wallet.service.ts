@@ -4,37 +4,78 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { Model, Connection, Types, ClientSession } from 'mongoose';
-// import { UpdateCurrencyDto } from 'src/currency/dto/currency.dto';
-import { Wallet } from 'src/wallet/schema/Wallet.schema';
-import { CurrencyService } from 'src/currency/currency.service';
+import { Model, ClientSession, Types, Connection } from 'mongoose';
+import { Wallet } from './schema/Wallet.schema';
 
 @Injectable()
 export class WalletService {
   constructor(
-    private readonly currencyService: CurrencyService,
     @InjectModel(Wallet.name) private walletModel: Model<Wallet>,
     @InjectConnection() private readonly connection: Connection,
   ) {}
-  async createWallet(
-    userId: Types.ObjectId,
-    session: ClientSession,
-  ): Promise<Wallet> {
+
+  async createWallet(userId: Types.ObjectId, session: ClientSession) {
     const newWallet = new this.walletModel({
       userId,
-      earnedCoins: 0,
-      coinsAvailable: 0,
+      earnedBalance: 0,
+      giveableBalance: 0,
     });
     return newWallet.save({ session });
   }
+
+  async incrementEarnedBalance(
+    userId: Types.ObjectId,
+    amount: number,
+    session: ClientSession,
+  ) {
+    return this.walletModel
+      .findOneAndUpdate(
+        { userId },
+        { $inc: { earnedBalance: amount } },
+        { session, new: true, upsert: false },
+      )
+      .then((result) => {
+        if (!result) {
+          throw new NotFoundException(`Wallet not found for user ${userId}`);
+        }
+        return result;
+      });
+  }
+
+  async hasEnoughCoins(
+    userId: Types.ObjectId,
+    amount: number,
+  ): Promise<boolean> {
+    const wallet = await this.walletModel.findOne({ userId });
+    return wallet.giveableBalance >= amount;
+  }
+
+  async deductCoins(
+    userId: Types.ObjectId,
+    amount: number,
+    session: ClientSession,
+  ) {
+    const wallet = await this.walletModel.findOneAndUpdate(
+      { userId, giveableBalance: { $gte: amount } },
+      { $inc: { giveableBalance: -amount } },
+      { new: true, session },
+    );
+
+    if (!wallet) {
+      throw new BadRequestException('Insufficient balance');
+    }
+
+    return wallet;
+  }
+
   async getUserBalances(userId: Types.ObjectId) {
     const wallet = await this.walletModel.findOne({ _id: userId });
     if (!wallet) {
       throw new NotFoundException('User wallet not found');
     }
     return {
-      earnedBalance: wallet.earnedCoins,
-      availableToGive: wallet.coinsAvailable,
+      earnedBalance: wallet.earnedBalance,
+      availableToGive: wallet.giveableBalance,
     };
   }
   async getEarnedCoinBalance(userId: Types.ObjectId) {
@@ -43,7 +84,7 @@ export class WalletService {
       throw new NotFoundException('User wallet not found');
     }
     return {
-      earnedBalance: wallet.earnedCoins,
+      earnedBalance: wallet.earnedBalance,
     };
   }
 
@@ -53,10 +94,10 @@ export class WalletService {
       throw new NotFoundException('User wallet not found');
     }
     return {
-      availableToGive: wallet.coinsAvailable,
+      availableToGive: wallet.giveableBalance,
     };
   }
-  async incrementEarnedCoins(
+  async increBaearnedBalance(
     userId: Types.ObjectId,
     amount: number,
     session: ClientSession,
@@ -90,7 +131,7 @@ export class WalletService {
     }
 
     // Check if the user has enough givable coins
-    if (wallet.coinsAvailable < amount) {
+    if (wallet.giveableBalance < amount) {
       throw new BadRequestException(
         `Insufficient givable coins for user ${userId}`,
       );
@@ -119,7 +160,7 @@ export class WalletService {
       throw new NotFoundException('No wallets found');
     }
     const updatedWallets = wallets.map((wallet) => {
-      wallet.coinsAvailable = allocation;
+      wallet.giveableBalance = allocation;
       return wallet.save();
     });
     await Promise.all(updatedWallets);
@@ -144,7 +185,7 @@ export class WalletService {
 
     // Update the wallets of the specified users
     const updatedWallets = wallets.map((wallet) => {
-      wallet.coinsAvailable = allocation;
+      wallet.giveableBalance = allocation;
       return wallet.save();
     });
 

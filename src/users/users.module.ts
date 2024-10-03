@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { User, UserSchema } from 'src/users/schema/User.schema';
+import { User, UserSchema } from './schema/User.schema';
 import { UsersService } from './users.service';
 import { UsersController } from './users.controller';
 import { WalletModule } from 'src/wallet/wallet.module';
 import { Wallet, WalletSchema } from 'src/wallet/schema/Wallet.schema';
-
 @Module({
   imports: [
     WalletModule,
@@ -16,6 +15,7 @@ import { Wallet, WalletSchema } from 'src/wallet/schema/Wallet.schema';
       },
       { name: Wallet.name, schema: WalletSchema },
     ]),
+    WalletModule,
   ],
   providers: [UsersService],
   exports: [UsersService],
