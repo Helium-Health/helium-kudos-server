@@ -28,7 +28,12 @@ export class RecognitionService {
 
   async createRecognition(
     senderId: string,
-    { receiverIds, message, coinAmount, companyValues }: CreateRecognitionDto,
+    {
+      receiverIds,
+      message,
+      coinAmount = 0,
+      companyValues = [],
+    }: CreateRecognitionDto,
   ) {
     const invalidValues = companyValues.filter(
       (value) => !Object.values(CompanyValues).includes(value),
@@ -84,11 +89,11 @@ export class RecognitionService {
       // Create UserRecognition entries
       const userRecognitions = [
         // TODO: deprecate sender detail in userRecognition table and update recognition aggregation
-        {
-          userId: new Types.ObjectId(senderId),
-          recognitionId: newRecognition._id,
-          role: UserRecognitionRole.SENDER,
-        },
+        // {
+        //   userId: new Types.ObjectId(senderId),
+        //   recognitionId: newRecognition._id,
+        //   role: UserRecognitionRole.SENDER,
+        // },
         ...receiverIds.map((userId) => ({
           userId: new Types.ObjectId(userId),
           recognitionId: newRecognition._id,
@@ -98,27 +103,13 @@ export class RecognitionService {
 
       await this.userRecognitionService.createMany(userRecognitions, session);
 
-      // Deduct coins from sender
-      await this.walletService.deductCoins(
-        new Types.ObjectId(senderId),
-        totalCoinAmount,
-        session,
-      );
-
-      // Update receiver's coin bank
-      for (const receiverId of receiverIds) {
-        await this.walletService.incrementEarnedBalance(
-          new Types.ObjectId(receiverId),
-          coinAmount,
-          session,
-        );
-        await this.transactionService.recordTransactions(
+      if (coinAmount > 0) {
+        this.claimCoin(
           {
             senderId: new Types.ObjectId(senderId),
-            receiverId: new Types.ObjectId(receiverId),
-            amount: coinAmount,
-            entityId: newRecognition._id,
-            entityType: EntityType.RECOGNITION,
+            receiverIds,
+            coinAmount,
+            recognitionId: newRecognition._id,
           },
           session,
         );
@@ -136,6 +127,45 @@ export class RecognitionService {
       throw error;
     } finally {
       session.endSession();
+    }
+  }
+
+  async claimCoin(
+    {
+      senderId,
+      receiverIds,
+      coinAmount,
+      recognitionId,
+    }: {
+      senderId: Types.ObjectId;
+      coinAmount: number;
+      receiverIds: string[];
+      recognitionId: Types.ObjectId;
+    },
+    session: ClientSession,
+  ) {
+    const totalCoinAmount = coinAmount * receiverIds.length;
+
+    // Deduct coins from sender
+    await this.walletService.deductCoins(senderId, totalCoinAmount, session);
+
+    // Update receiver's coin bank
+    for (const receiverId of receiverIds) {
+      await this.walletService.incrementEarnedBalance(
+        new Types.ObjectId(receiverId),
+        coinAmount,
+        session,
+      );
+      await this.transactionService.recordTransactions(
+        {
+          senderId: new Types.ObjectId(senderId),
+          receiverId: new Types.ObjectId(receiverId),
+          amount: coinAmount,
+          entityId: recognitionId,
+          entityType: EntityType.RECOGNITION,
+        },
+        session,
+      );
     }
   }
 
