@@ -1,6 +1,9 @@
 import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
 import { WalletService } from './wallet.service';
-import { AllocateCoinsDto, AllocateCoinsToUsersDto } from './dto/wallet.dto';
+import {
+  AllocateCoinsToAllDto,
+  AllocateCoinsToUserDto,
+} from './dto/wallet.dto';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 import { Types } from 'mongoose';
 
@@ -47,34 +50,24 @@ export class WalletController {
     return this.walletService.getAvailableToGive(userId);
   }
 
-  /**
-   * Allocate coins to all users.
-   * This endpoint is protected by JWT authentication.
-   *
-   * @param allocateCoins - Data Transfer Object containing the allocation details.
-   * @returns A promise that resolves to the result of the coin allocation operation.
-   */
   @UseGuards(JwtAuthGuard)
   @Post('admin/allocate-coins-to-all')
-  async allocateCoinsToAll(@Body() allocateCoins: AllocateCoinsDto) {
-    return this.walletService.allocateCoinsToAll(allocateCoins.allocation);
+  async allocateCoinsToAll(
+    @Body() allocateCoinsToAllDto: AllocateCoinsToAllDto,
+  ) {
+    return this.walletService.allocateCoinsToAll(
+      allocateCoinsToAllDto.allocation,
+    );
   }
 
-  /**
-   * Controller method to allocate coins to specific users.
-   * This method is protected by JWT authentication.
-   *
-   * @param allocateCoins - Data Transfer Object containing user IDs and allocation details.
-   * @returns A promise that resolves to the result of the coin allocation operation.
-   */
   @UseGuards(JwtAuthGuard)
-  @Post('admin/allocate-coins-to-users')
-  async allocateCoinsToSpecificUsers(
-    @Body() allocateCoins: AllocateCoinsToUsersDto,
+  @Post('admin/allocate-coins')
+  async allocateCoinsToSpecificUser(
+    @Body() allocateCoinsToUserDto: AllocateCoinsToUserDto,
   ) {
-    return this.walletService.allocateCoinsToSpecificUsers(
-      allocateCoins.userIds,
-      allocateCoins.allocation,
+    return this.walletService.allocateCoinsToSpecificUser(
+      allocateCoinsToUserDto.userId,
+      allocateCoinsToUserDto.allocation,
     );
   }
 }

@@ -1,11 +1,13 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Model, ClientSession, Types, Connection } from 'mongoose';
 import { Wallet } from './schema/Wallet.schema';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class WalletService {
@@ -13,6 +15,23 @@ export class WalletService {
     @InjectModel(Wallet.name) private walletModel: Model<Wallet>,
     @InjectConnection() private readonly connection: Connection,
   ) {}
+  private readonly logger = new Logger(WalletService.name);
+
+  @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT)
+  async handleCron() {
+    this.logger.log('Monthly coin allocation started...');
+    try {
+      const allocation = 100;
+      await this.allocateCoinsToAll(allocation);
+      this.logger.log('Monthly coin allocation completed successfully.');
+    } catch (error) {
+      this.logger.error(
+        `Monthly coin allocation failed: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
 
   async createWallet(userId: Types.ObjectId, session: ClientSession) {
     const newWallet = new this.walletModel({
@@ -97,101 +116,92 @@ export class WalletService {
       availableToGive: wallet.giveableBalance,
     };
   }
-  async increBaearnedBalance(
-    userId: Types.ObjectId,
-    amount: number,
-    session: ClientSession,
-  ) {
-    return this.walletModel
-      .findOneAndUpdate(
-        { userId },
-        { $inc: { earnedCoins: amount } },
-        { session, new: true, upsert: false },
-      )
-      .then((result) => {
-        if (!result) {
-          throw new NotFoundException(`Wallet not found for user ${userId}`);
-        }
-        return result;
-      });
-  }
-  async decrementGivableCoins(
-    userId: Types.ObjectId,
-    amount: number,
-    session: ClientSession,
-  ) {
-    const wallet = await this.walletModel
-      .findOne({ userId })
-      .session(session)
-      .exec();
-
-    // Check if the wallet exists
-    if (!wallet) {
-      throw new NotFoundException(`Wallet not found for user ${userId}`);
-    }
-
-    // Check if the user has enough givable coins
-    if (wallet.giveableBalance < amount) {
-      throw new BadRequestException(
-        `Insufficient givable coins for user ${userId}`,
-      );
-    }
-    return this.walletModel
-      .findOneAndUpdate(
-        { userId },
-        { $inc: { earnedCoins: -amount } },
-        { session, new: true, upsert: false },
-      )
-      .then((result) => {
-        if (!result) {
-          throw new NotFoundException(`Wallet not found for user ${userId}`);
-        }
-        return result;
-      });
-  }
 
   async allocateCoinsToAll(allocation: number) {
     if (allocation < 0) {
+      this.logger.warn('Invalid allocation: Negative value');
       throw new BadRequestException('Allocation must be a positive number');
     }
-    const wallets = await this.walletModel.find();
 
-    if (wallets.length === 0) {
-      throw new NotFoundException('No wallets found');
+    const session = await this.connection.startSession();
+    session.startTransaction(); // Start the transaction
+
+    try {
+      // Find all wallets
+      const wallets = await this.walletModel.find().session(session).exec();
+
+      if (!wallets || wallets.length === 0) {
+        this.logger.warn('No wallets found for allocation');
+        throw new NotFoundException('No wallets found');
+      }
+
+      // Update all wallets using updateMany within the transaction
+      const result = await this.walletModel.updateMany(
+        {}, // Empty filter to update all wallets
+        { $set: { giveableBalance: allocation } }, // Set allocation value
+        { session }, // Ensure the update is part of the transaction
+      );
+
+      if (result.modifiedCount === 0) {
+        this.logger.warn('No wallets were updated');
+      } else {
+        this.logger.log(
+          `Successfully allocated ${allocation} coins to ${result.modifiedCount} wallets.`,
+        );
+      }
+
+      // Commit the transaction
+      await session.commitTransaction();
+      this.logger.log('Transaction committed successfully.');
+
+      return result;
+    } catch (error) {
+      // If an error occurs, abort the transaction
+      await session.abortTransaction();
+      this.logger.error('Transaction aborted due to an error: ', error.message);
+      throw error;
+    } finally {
+      session.endSession(); // End the session regardless of the outcome
     }
-    const updatedWallets = wallets.map((wallet) => {
-      wallet.giveableBalance = allocation;
-      return wallet.save();
-    });
-    await Promise.all(updatedWallets);
-    return wallets;
   }
-  async allocateCoinsToSpecificUsers(
-    userIds: Types.ObjectId[],
+
+  async allocateCoinsToSpecificUser(
+    userId: Types.ObjectId,
     allocation: number,
   ) {
     if (allocation < 0) {
       throw new BadRequestException('Allocation must be a positive number');
     }
 
-    // Find wallets of the specific users by their Ids
-    const wallets = await this.walletModel.find({
-      _id: { $in: userIds },
-    });
+    // Start a new session for the transaction
+    const session = await this.walletModel.db.startSession();
+    session.startTransaction();
 
-    if (wallets.length === 0) {
-      throw new NotFoundException('No wallets found for the specified users');
-    }
+    try {
+      // Find the wallet of the specific user by their Id within the transaction session
+      const wallet = await this.walletModel
+        .findOne({ userId: userId })
+        .session(session);
 
-    // Update the wallets of the specified users
-    const updatedWallets = wallets.map((wallet) => {
+      if (!wallet) {
+        throw new NotFoundException('Wallet not found for the specified user');
+      }
+
+      // Update the wallet balance
       wallet.giveableBalance = allocation;
-      return wallet.save();
-    });
+      await wallet.save({ session });
 
-    // Wait for all wallet updates to complete
-    await Promise.all(updatedWallets);
+      // Commit the transaction
+      await session.commitTransaction();
+      session.endSession();
 
-    return wallets;
+      return wallet;
+    } catch (error) {
+      // Abort the transaction in case of an error
+      await session.abortTransaction();
+      session.endSession();
+
+      throw error; // Rethrow the error to handle it outside
+    }
   }
 }

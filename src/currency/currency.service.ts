@@ -3,30 +3,29 @@ import {
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { CreateCurrencyDto } from './dto/currency.dto';
-import { UpdateCurrencyDto } from './dto/currency.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Currency } from 'src/currency/schema/Currency.schema';
 import { Model } from 'mongoose';
+import { CurrencyDto } from './dto/currency.dto';
 
 @Injectable()
 export class CurrencyService {
   constructor(
     @InjectModel(Currency.name) private currencyModel: Model<Currency>,
   ) {}
-  async create(createCurrencyDto: CreateCurrencyDto) {
+  async create(currencyDto: CurrencyDto) {
     try {
       const currencyExist = await this.currencyModel.findOne({
-        currencyName: createCurrencyDto.currencyName,
+        currency: currencyDto.currency,
       });
       if (currencyExist) {
         throw new ConflictException(
-          `Currency with name ${createCurrencyDto.currencyName} already exists`,
+          `Currency with name ${currencyDto.currency} already exists`,
         );
       }
       const currency = new this.currencyModel({
-        currencyName: createCurrencyDto.currencyName,
-        coinToCurrency: createCurrencyDto.coinToCurrency,
+        currencyName: currencyDto.currency,
+        coinToCurrency: currencyDto.rate,
       });
 
       return currency.save();
@@ -37,38 +36,28 @@ export class CurrencyService {
     }
   }
 
-  findAll() {
-    return `This action returns all currency`;
+  async findByCurrencyName(currencyName: string): Promise<Currency | null> {
+    return this.currencyModel.findOne({ currency: currencyName }).exec();
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} currency`;
-  }
-
-  async update(updateCurrencyDto: UpdateCurrencyDto) {
+  async update(currencyDto: CurrencyDto) {
     const currency = await this.currencyModel.findOne({
-      currencyName: updateCurrencyDto.currencyName,
+      currency: currencyDto.currency,
     });
     if (!currency) {
-      throw new Error(
-        `Currency with name ${updateCurrencyDto.currencyName} not found`,
-      );
+      throw new Error(`Currency with name ${currencyDto.currency} not found`);
     }
-    currency.currencyName = updateCurrencyDto.currencyName;
-    currency.coinToCurrency = updateCurrencyDto.newCoinToCurrency;
+    currency.currency = currencyDto.currency;
+    currency.rate = currencyDto.rate;
     return currency.save();
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} currency`;
-  }
-
-  async setCoinToCurrency(name: string, value: number) {
-    let currency = await this.currencyModel.findById(name);
+  async setRate(currencyName: string, newRate: number) {
+    let currency = await this.currencyModel.findById(currencyName);
     if (!currency) {
       currency = new this.currencyModel();
     }
-    currency.coinToCurrency = value;
+    currency.rate = newRate;
     return currency.save();
   }
 }

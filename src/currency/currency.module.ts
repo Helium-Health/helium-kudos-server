@@ -3,6 +3,7 @@ import { CurrencyService } from './currency.service';
 import { CurrencyController } from './currency.controller';
 import { Currency, CurrencySchema } from 'src/currency/schema/Currency.schema';
 import { MongooseModule } from '@nestjs/mongoose';
+import { CurrencySeeder } from './seeds/currency.seed';
 
 @Module({
   imports: [
@@ -11,7 +12,7 @@ import { MongooseModule } from '@nestjs/mongoose';
     ]),
   ],
   controllers: [CurrencyController],
-  providers: [CurrencyService],
+  providers: [CurrencyService, CurrencySeeder],
   exports: [CurrencyService],
 })
 export class CurrencyModule {}

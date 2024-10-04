@@ -1,11 +1,14 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './utils/transform.interceptor';
+import { CurrencySeeder } from './currency/seeds/currency.seed';
 // import * as session from 'express-session';
 // import * as passport from 'passport';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const currencySeeder = app.get(CurrencySeeder);
+  await currencySeeder.seed();
   app.setGlobalPrefix('api');
   app.enableCors({
     origin: 'http://localhost:3000',

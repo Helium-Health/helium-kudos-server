@@ -13,6 +13,7 @@ import { WalletModule } from './wallet/wallet.module';
 import { CommentModule } from './comment/comment.module';
 import { TransactionModule } from './transaction/transaction.module';
 import { CurrencyModule } from './currency/currency.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { CurrencyModule } from './currency/currency.module';
     WalletModule,
     CurrencyModule,
     // PassportModule.register({ session: true }),
+    ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
   providers: [AppService],

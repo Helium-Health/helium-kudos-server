@@ -4,9 +4,9 @@ import { Document } from 'mongoose';
 @Schema()
 export class Currency extends Document {
   @Prop({ required: true, unique: true })
-  currencyName: string;
+  currency: string;
 
   @Prop({ required: true })
-  coinToCurrency: number;
+  rate: number;
 }
 export const CurrencySchema = SchemaFactory.createForClass(Currency);

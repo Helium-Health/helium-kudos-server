@@ -1,37 +1,16 @@
-import {
-  IsNumber,
-  IsString,
-  IsPositive,
-  IsArray,
-  IsMongoId,
-} from 'class-validator';
+import { IsNumber, IsPositive, IsMongoId } from 'class-validator';
 import { Types } from 'mongoose';
 
-export class AllocateCoinsDto {
-  @IsString()
-  userId: Types.ObjectId;
-
+export class AllocateCoinsToAllDto {
   @IsNumber()
   @IsPositive()
   allocation: number;
 }
-export class AllocateCoinsToUsersDto {
+export class AllocateCoinsToUserDto {
   @IsNumber()
   @IsPositive()
   allocation: number;
 
-  @IsArray()
   @IsMongoId({ each: true })
-  userIds: Types.ObjectId[];
-}
-export class SendCoinsDto {
-  @IsString()
-  fromUserEmail: string;
-
-  @IsString()
-  toUserEmail: string;
-
-  @IsNumber()
-  @IsPositive()
-  amount: number;
+  userId: Types.ObjectId;
 }
