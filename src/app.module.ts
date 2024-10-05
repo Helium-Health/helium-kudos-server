@@ -14,6 +14,7 @@ import { CommentModule } from './comment/comment.module';
 import { TransactionModule } from './transaction/transaction.module';
 import { CurrencyModule } from './currency/currency.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { AllocationsModule } from './allocations/allocations.module';
 
 @Module({
   imports: [
@@ -27,10 +28,10 @@ import { ScheduleModule } from '@nestjs/schedule';
     WalletModule,
     CommentModule,
     TransactionModule,
-    WalletModule,
     CurrencyModule,
     // PassportModule.register({ session: true }),
     ScheduleModule.forRoot(),
+    AllocationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

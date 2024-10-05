@@ -36,7 +36,7 @@ export class CurrencyService {
     }
   }
 
-  async findByCurrencyName(currencyName: string): Promise<Currency | null> {
+  async getCurrency(currencyName: string): Promise<Currency | null> {
     return this.currencyModel.findOne({ currency: currencyName }).exec();
   }
 
@@ -49,15 +49,6 @@ export class CurrencyService {
     }
     currency.currency = currencyDto.currency;
     currency.rate = currencyDto.rate;
-    return currency.save();
-  }
-
-  async setRate(currencyName: string, newRate: number) {
-    let currency = await this.currencyModel.findById(currencyName);
-    if (!currency) {
-      currency = new this.currencyModel();
-    }
-    currency.rate = newRate;
     return currency.save();
   }
 }

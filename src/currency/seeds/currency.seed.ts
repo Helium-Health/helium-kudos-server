@@ -8,12 +8,12 @@ export class CurrencySeeder {
 
   constructor(private readonly currencyService: CurrencyService) {}
 
-  async seed(): Promise<void> {
+  async seedCurrency(): Promise<void> {
     const currencies: CurrencyDto[] = [{ currency: 'NGN', rate: 100 }];
 
     for (const currencyDto of currencies) {
       try {
-        const currencyExists = await this.currencyService.findByCurrencyName(
+        const currencyExists = await this.currencyService.getCurrency(
           currencyDto.currency,
         );
 

@@ -7,7 +7,6 @@ import {
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Model, ClientSession, Types, Connection } from 'mongoose';
 import { Wallet } from './schema/Wallet.schema';
-import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class WalletService {
@@ -16,22 +15,6 @@ export class WalletService {
     @InjectConnection() private readonly connection: Connection,
   ) {}
   private readonly logger = new Logger(WalletService.name);
-
-  @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT)
-  async handleCron() {
-    this.logger.log('Monthly coin allocation started...');
-    try {
-      const allocation = 100;
-      await this.allocateCoinsToAll(allocation);
-      this.logger.log('Monthly coin allocation completed successfully.');
-    } catch (error) {
-      this.logger.error(
-        `Monthly coin allocation failed: ${error.message}`,
-        error.stack,
-      );
-      throw error;
-    }
-  }
 
   async createWallet(userId: Types.ObjectId, session: ClientSession) {
     const newWallet = new this.walletModel({
@@ -108,7 +91,7 @@ export class WalletService {
   }
 
   async getAvailableToGive(userId: Types.ObjectId) {
-    const wallet = await this.walletModel.findOne({ _id: userId });
+    const wallet = await this.walletModel.findOne({ userId: userId });
     if (!wallet) {
       throw new NotFoundException('User wallet not found');
     }
