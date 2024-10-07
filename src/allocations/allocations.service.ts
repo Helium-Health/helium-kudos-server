@@ -11,9 +11,10 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 @Injectable()
 export class AllocationsService {
   constructor(
-    @InjectModel(Allocation.name) private allocationModel: Model<Allocation>,
+    @InjectModel(Allocation.name)
+    private readonly allocationModel: Model<Allocation>,
     private readonly walletService: WalletService,
-    private schedulerRegistry: SchedulerRegistry,
+    private readonly schedulerRegistry: SchedulerRegistry,
   ) {}
 
   private readonly logger = new Logger(AllocationsService.name);

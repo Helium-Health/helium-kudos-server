@@ -6,12 +6,12 @@ import {
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Model, ClientSession, Types, Connection } from 'mongoose';
-import { Wallet } from './schema/Wallet.schema';
+import { Wallet, WalletDocument } from './schema/Wallet.schema';
 
 @Injectable()
 export class WalletService {
   constructor(
-    @InjectModel(Wallet.name) private walletModel: Model<Wallet>,
+    @InjectModel(Wallet.name) private readonly walletModel: Model<Wallet>,
     @InjectConnection() private readonly connection: Connection,
   ) {}
   private readonly logger = new Logger(WalletService.name);
@@ -71,30 +71,23 @@ export class WalletService {
   }
 
   async getUserBalances(userId: Types.ObjectId) {
-    const wallet = await this.walletModel.findOne({ userId: userId });
-    if (!wallet) {
-      throw new NotFoundException('User wallet not found');
-    }
+    const wallet = await this.findWalletByUserId(userId);
+
     return {
       earnedBalance: wallet.earnedBalance,
       availableToGive: wallet.giveableBalance,
     };
   }
   async getEarnedCoinBalance(userId: Types.ObjectId) {
-    const wallet = await this.walletModel.findOne({ _id: userId });
-    if (!wallet) {
-      throw new NotFoundException('User wallet not found');
-    }
+    const wallet = await this.findWalletByUserId(userId);
+
     return {
       earnedBalance: wallet.earnedBalance,
     };
   }
 
   async getAvailableToGive(userId: Types.ObjectId) {
-    const wallet = await this.walletModel.findOne({ userId: userId });
-    if (!wallet) {
-      throw new NotFoundException('User wallet not found');
-    }
+    const wallet = await this.findWalletByUserId(userId);
     return {
       availableToGive: wallet.giveableBalance,
     };
@@ -186,5 +179,15 @@ export class WalletService {
 
       throw error; // Rethrow the error to handle it outside
     }
+  }
+
+  async findWalletByUserId(userId: Types.ObjectId): Promise<WalletDocument> {
+    const wallet = await this.walletModel.findOne({ userId }).exec();
+
+    if (!wallet) {
+      throw new NotFoundException(`Wallet not found for userId: ${userId}`);
+    }
+
+    return wallet;
   }
 }

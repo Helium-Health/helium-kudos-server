@@ -11,17 +11,17 @@ export class WalletController {
 
   @Get(':userId')
   async getUserBalances(@Param('userId') userId: Types.ObjectId) {
-    return this.walletService.getUserBalances(userId);
+    return this.walletService.getUserBalances(new Types.ObjectId(userId));
   }
 
   @Get('earned-coins/:userId')
   async getEarnedCoinBalance(@Param('userId') userId: Types.ObjectId) {
-    return this.walletService.getEarnedCoinBalance(userId);
+    return this.walletService.getEarnedCoinBalance(new Types.ObjectId(userId));
   }
 
   @Get('available-coins/:userId')
   async getAvailableToGiveBalance(@Param('userId') userId: Types.ObjectId) {
-    return this.walletService.getAvailableToGive(userId);
+    return this.walletService.getAvailableToGive(new Types.ObjectId(userId));
   }
 
   @Post('admin/allocate-coins-to-all')
@@ -33,13 +33,13 @@ export class WalletController {
     );
   }
 
-  @Post('admin/allocate-coins:userId')
+  @Post('admin/allocate-coins/:userId')
   async allocateCoinsToSpecificUser(
     @Param('userId') userId: Types.ObjectId,
     @Body() allocateCoinsToUserDto: AllocateCoinsToUserDto,
   ) {
     return this.walletService.allocateCoinsToSpecificUser(
-      userId,
+      new Types.ObjectId(userId),
       allocateCoinsToUserDto.allocation,
     );
   }
