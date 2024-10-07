@@ -1,9 +1,6 @@
 import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
 import { WalletService } from './wallet.service';
-import {
-  AllocateCoinsToAllDto,
-  AllocateCoinsToUserDto,
-} from './dto/wallet.dto';
+import { AllocateCoinsToUserDto } from './dto/wallet.dto';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 import { Types } from 'mongoose';
 
@@ -29,7 +26,7 @@ export class WalletController {
 
   @Post('admin/allocate-coins-to-all')
   async allocateCoinsToAll(
-    @Body() allocateCoinsToAllDto: AllocateCoinsToAllDto,
+    @Body() allocateCoinsToAllDto: AllocateCoinsToUserDto,
   ) {
     return this.walletService.allocateCoinsToAll(
       allocateCoinsToAllDto.allocation,

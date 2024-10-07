@@ -71,7 +71,7 @@ export class WalletService {
   }
 
   async getUserBalances(userId: Types.ObjectId) {
-    const wallet = await this.walletModel.findOne({ _id: userId });
+    const wallet = await this.walletModel.findOne({ userId: userId });
     if (!wallet) {
       throw new NotFoundException('User wallet not found');
     }
