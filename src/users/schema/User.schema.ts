@@ -32,14 +32,12 @@ export class User {
 
   @Prop({ type: Date })
   birthday: boolean;
-  // Relationships (references to other collections)
+
   @Prop({ type: Types.ObjectId, ref: 'Wallet' })
   wallet: Types.Array<Types.ObjectId>;
+
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Recognition' }] })
   recognitions: Types.Array<Types.ObjectId>;
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Milestone' }] })
-  milestones: Types.Array<Types.ObjectId>;
 }
 
 // Create schema using the class
