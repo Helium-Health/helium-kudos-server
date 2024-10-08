@@ -25,7 +25,7 @@ export class CurrencyService {
       }
       const currency = new this.currencyModel({
         currencyName: currencyDto.currency,
-        coinToCurrency: currencyDto.rate,
+        rate: currencyDto.rate,
       });
 
       return currency.save();
