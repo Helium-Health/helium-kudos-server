@@ -282,4 +282,8 @@ export class RecognitionService {
       { new: true },
     );
   }
+
+  async getRecognitionsSortedByRecent(): Promise<Recognition[]> {
+    return this.recognitionModel.find().sort({ createdAt: -1 }).exec();
+  }
 }
