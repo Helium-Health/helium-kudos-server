@@ -1,26 +1,27 @@
-import { Controller, Post, Body, Param, Patch } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Param,
+  Patch,
+  UseGuards,
+} from '@nestjs/common';
 import { AllocationsService } from './allocations.service';
 import { CreateAllocationDto } from './dto/create-allocation.dto';
 import { UpdateAllocationDto } from './dto/update-allocation.dto';
+import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 
 @Controller('allocations')
 export class AllocationsController {
   constructor(private readonly allocationsService: AllocationsService) {}
 
-  // POST /allocations
-  // {
-  //   "allocationAmount": 1000,
-  //   "cadence": "0 0 1 * *"  // First day of every month at midnight
-  // }
+  @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body() createAllocationDto: CreateAllocationDto) {
     return this.allocationsService.create(createAllocationDto);
   }
 
-  //   PATCH /allocations/{id}
-  // {
-  //   "cadence": "0 0 * * *"  // Every day at midnight
-  // }
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   update(
     @Param('id') id: string,
