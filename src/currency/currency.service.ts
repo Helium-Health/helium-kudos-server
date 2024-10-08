@@ -24,7 +24,7 @@ export class CurrencyService {
         );
       }
       const currency = new this.currencyModel({
-        currencyName: currencyDto.currency,
+        currency: currencyDto.currency,
         rate: currencyDto.rate,
       });
 
