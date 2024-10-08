@@ -12,6 +12,9 @@ import { UserRecognitionModule } from './user-recognition/user-recognition.modul
 import { WalletModule } from './wallet/wallet.module';
 import { CommentModule } from './comment/comment.module';
 import { TransactionModule } from './transaction/transaction.module';
+import { CurrencyModule } from './currency/currency.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { AllocationsModule } from './allocations/allocations.module';
 
 @Module({
   imports: [
@@ -25,7 +28,10 @@ import { TransactionModule } from './transaction/transaction.module';
     WalletModule,
     CommentModule,
     TransactionModule,
+    CurrencyModule,
     // PassportModule.register({ session: true }),
+    ScheduleModule.forRoot(),
+    AllocationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
