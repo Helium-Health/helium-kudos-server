@@ -32,6 +32,8 @@ import { ReactionsModule } from './reactions/reactions.module';
     // PassportModule.register({ session: true }),
     ScheduleModule.forRoot(),
     AllocationsModule,
+    CurrencyModule,
+    ReactionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
