@@ -20,19 +20,19 @@ export class WalletController {
   @Get()
   async getUserBalances(@Request() req) {
     const userId = req.user.userId;
-    return this.walletService.getUserBalances(new Types.ObjectId(userId));
+    return this.walletService.getUserBalances(userId);
   }
 
   @Get('earned-coins/')
   async getEarnedCoinBalance(@Request() req) {
     const userId = req.user.userId;
-    return this.walletService.getEarnedCoinBalance(new Types.ObjectId(userId));
+    return this.walletService.getEarnedCoinBalance(userId);
   }
 
   @Get('available-coins/')
   async getAvailableToGiveBalance(@Request() req) {
     const userId = req.user.userId;
-    return this.walletService.getAvailableToGive(new Types.ObjectId(userId));
+    return this.walletService.getAvailableToGive(userId);
   }
 
   @Post('admin/allocate-coins-to-all')
