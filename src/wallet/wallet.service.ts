@@ -182,7 +182,8 @@ export class WalletService {
   }
 
   async findWalletByUserId(userId: string): Promise<WalletDocument> {
-    const wallet = await this.walletModel.findOne({ userId }).exec();
+    const userID = new Types.ObjectId(userId);
+    const wallet = await this.walletModel.findOne({ userId: userID }).exec();
 
     if (!wallet) {
       throw new NotFoundException(`Wallet not found for userId: ${userId}`);
