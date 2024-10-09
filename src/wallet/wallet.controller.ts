@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { WalletService } from './wallet.service';
 import { AllocateCoinsToUserDto } from './dto/wallet.dto';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
@@ -9,18 +17,21 @@ import { Types } from 'mongoose';
 export class WalletController {
   constructor(private readonly walletService: WalletService) {}
 
-  @Get(':userId')
-  async getUserBalances(@Param('userId') userId: Types.ObjectId) {
+  @Get()
+  async getUserBalances(@Request() req) {
+    const userId = req.user.userId;
     return this.walletService.getUserBalances(new Types.ObjectId(userId));
   }
 
-  @Get('earned-coins/:userId')
-  async getEarnedCoinBalance(@Param('userId') userId: Types.ObjectId) {
+  @Get('earned-coins/')
+  async getEarnedCoinBalance(@Request() req) {
+    const userId = req.user.userId;
     return this.walletService.getEarnedCoinBalance(new Types.ObjectId(userId));
   }
 
-  @Get('available-coins/:userId')
-  async getAvailableToGiveBalance(@Param('userId') userId: Types.ObjectId) {
+  @Get('available-coins/')
+  async getAvailableToGiveBalance(@Request() req) {
+    const userId = req.user.userId;
     return this.walletService.getAvailableToGive(new Types.ObjectId(userId));
   }
 
