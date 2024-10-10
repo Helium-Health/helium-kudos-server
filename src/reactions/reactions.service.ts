@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, Model, Types } from 'mongoose';
-import { Recognition } from 'src/recognition/schema/Recognition.schema';
 import { Reaction } from './schema/reactions.schema';
 import { UsersService } from 'src/users/users.service';
 import { RecognitionService } from 'src/recognition/recognition.service';
@@ -20,7 +19,7 @@ export class ReactionService {
     userId: Types.ObjectId,
     reactionType: string,
     shortcodes: string,
-  ): Promise<Recognition> {
+  ): Promise<Reaction> {
     const session = await this.connection.startSession();
     session.startTransaction();
 
@@ -51,7 +50,7 @@ export class ReactionService {
 
       await session.commitTransaction();
 
-      return recognition;
+      return newReaction;
     } catch (error) {
       await session.abortTransaction();
       throw error;
@@ -65,7 +64,7 @@ export class ReactionService {
     session.startTransaction();
 
     try {
-      // Step 1: Find the reaction by ID within the transaction
+      // Find the reaction by ID within the transaction
       const reaction = await this.reactionModel
         .findById(reactionId)
         .session(session);
@@ -73,14 +72,14 @@ export class ReactionService {
         throw new NotFoundException('Reaction not found');
       }
 
-      // Step 2: Use recognitionService to unlink the reactionId from the recognition
+      // Use recognitionService to unlink the reactionId from the recognition
       await this.recognitionService.removeReactionFromRecognition(
         reaction.recognitionId,
         reactionId,
         session, // Pass session to recognitionService for transaction handling
       );
 
-      // Step 3: Delete the reaction from the reaction document within the transaction
+      // Delete the reaction from the reaction document within the transaction
       await this.reactionModel.deleteOne({ _id: reactionId }).session(session);
 
       // Commit the transaction
@@ -93,6 +92,7 @@ export class ReactionService {
       session.endSession();
     }
   }
+
   async getReactionsByRecognitionId(
     recognitionId: Types.ObjectId,
   ): Promise<any> {

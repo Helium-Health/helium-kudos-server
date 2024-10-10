@@ -5,6 +5,7 @@ export class CreateReactionDto {
   @IsNotEmpty()
   recognitionId: Types.ObjectId;
 
+  @IsString()
   @IsNotEmpty()
   reactionType: string;
 

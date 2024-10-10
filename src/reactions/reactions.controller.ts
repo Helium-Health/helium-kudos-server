@@ -10,9 +10,9 @@ import {
 } from '@nestjs/common';
 import { ReactionService } from './reactions.service';
 import { CreateReactionDto } from './dto/reaction.dto';
-import { Recognition } from 'src/recognition/schema/Recognition.schema';
 import { Types } from 'mongoose';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
+import { Reaction } from './schema/reactions.schema';
 @UseGuards(JwtAuthGuard)
 @Controller('reactions/')
 export class ReactionsController {
@@ -22,7 +22,7 @@ export class ReactionsController {
   async addReaction(
     @Request() req,
     @Body() createReactionDto: CreateReactionDto,
-  ): Promise<Recognition> {
+  ): Promise<Reaction> {
     const userId = req.user.userId;
     return this.reactionsService.addReaction(
       createReactionDto.recognitionId,
@@ -38,6 +38,7 @@ export class ReactionsController {
   ): Promise<any> {
     return this.reactionsService.getReactionsByRecognitionId(recognitionId);
   }
+
   @UseGuards(JwtAuthGuard)
   @Delete(':reactionId')
   remove(@Param('reactionId') reactionId: Types.ObjectId) {
