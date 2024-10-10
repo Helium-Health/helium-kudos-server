@@ -12,6 +12,9 @@ export class Reaction extends Document {
 
   @Prop({ required: true })
   reactionType: string;
+
+  @Prop({ required: true })
+  shortcodes: string;
 }
 
 export const ReactionSchema = SchemaFactory.createForClass(Reaction);

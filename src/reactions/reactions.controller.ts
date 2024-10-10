@@ -5,38 +5,41 @@ import {
   Param,
   Get,
   Delete,
-  // UseGuards,
-  // Patch
+  Request,
+  UseGuards,
 } from '@nestjs/common';
 import { ReactionService } from './reactions.service';
-import { UpdateReactionDto } from './dto/reaction.dto';
+import { CreateReactionDto } from './dto/reaction.dto';
 import { Recognition } from 'src/recognition/schema/Recognition.schema';
 import { Types } from 'mongoose';
-// import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 
-@Controller('reactions')
+@Controller('reactions/')
 export class ReactionsController {
   constructor(private readonly reactionsService: ReactionService) {}
 
-  // @UseGuards(JwtAuthGuard)
-  @Post('reactions')
+  @UseGuards(JwtAuthGuard)
+  @Post()
   async addReaction(
-    @Body() updateReactionDto: UpdateReactionDto,
+    @Request() req,
+    @Body() createReactionDto: CreateReactionDto,
   ): Promise<Recognition> {
+    const userId = req.user.userId;
     return this.reactionsService.addReaction(
-      updateReactionDto.recognitionId,
-      updateReactionDto.userId,
-      updateReactionDto.reactionType,
+      createReactionDto.recognitionId,
+      userId,
+      createReactionDto.reactionType,
+      createReactionDto.shortcodes,
     );
   }
-  // @UseGuards(JwtAuthGuard)
+
   @Get(':recognitionId')
   async getReactionsByRecognitionId(
     @Param('recognitionId') recognitionId: Types.ObjectId,
   ): Promise<any> {
     return this.reactionsService.getReactionsByRecognitionId(recognitionId);
   }
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Delete(':reactionId')
   remove(@Param('reactionId') reactionId: Types.ObjectId) {
     return this.reactionsService.deleteReaction(reactionId);

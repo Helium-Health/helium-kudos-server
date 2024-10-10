@@ -19,6 +19,7 @@ export class ReactionService {
     recognitionId: Types.ObjectId,
     userId: Types.ObjectId,
     reactionType: string,
+    shortcodes: string,
   ): Promise<Recognition> {
     const session = await this.connection.startSession();
     session.startTransaction();
@@ -35,9 +36,10 @@ export class ReactionService {
       }
 
       const newReaction = new this.reactionModel({
-        userId,
-        recognitionId,
+        userId: new Types.ObjectId(userId),
+        recognitionId: new Types.ObjectId(recognitionId),
         reactionType,
+        shortcodes,
       });
       await newReaction.save({ session });
 
@@ -91,42 +93,42 @@ export class ReactionService {
       session.endSession();
     }
   }
-
   async getReactionsByRecognitionId(
     recognitionId: Types.ObjectId,
   ): Promise<any> {
     const reactions = await this.reactionModel.aggregate([
-      { $match: { recognitionId } },
-
-      // Lookup user details from the 'users' collection using userId in the reaction
       {
+        // Match reactions by the recognitionId
+        $match: { recognitionId: new Types.ObjectId(recognitionId) },
+      },
+      {
+        // Lookup to populate the user info from the User model
         $lookup: {
-          from: 'users', // Name of the collection that holds user data
-          localField: 'userId', // Field in Reaction model
-          foreignField: '_id', // Field in User model
-          as: 'user', // Output array containing user information
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'user',
         },
       },
-
-      // Unwind the user array to get individual user details
-      { $unwind: '$user' },
-
-      // Group by reactionType
       {
+        // Unwind the user array (since lookup results in an array)
+        $unwind: '$user',
+      },
+      {
+        // Group by the shortcodes and accumulate user names
         $group: {
-          _id: '$reactionType', // Group by reactionType
-          users: { $push: '$user.name' }, // Collect user names
-          count: { $sum: 1 }, // Count the number of reactions for each reactionType
+          _id: '$shortcodes',
+          users: { $push: '$user.name' }, // Fetch the 'name' field from the User schema
+          count: { $sum: 1 }, // Count the number of reactions per shortcode
         },
       },
-
-      // Format the output
       {
+        // Rename _id to "shortcodes" for clarity in the result
         $project: {
-          _id: 0, // Exclude the _id field
-          reactionType: '$_id', // Name the grouped field as reactionType
-          users: 1, // Include the list of users
-          count: 1, // Include the count of reactions
+          _id: 0,
+          shortcodes: '$_id',
+          users: 1,
+          count: 1,
         },
       },
     ]);

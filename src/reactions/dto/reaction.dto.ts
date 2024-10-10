@@ -1,16 +1,14 @@
 import { IsString, IsNotEmpty } from 'class-validator';
 import { Types } from 'mongoose';
 
-export class UpdateReactionDto {
-  @IsString()
+export class CreateReactionDto {
   @IsNotEmpty()
   recognitionId: Types.ObjectId;
 
-  @IsString()
   @IsNotEmpty()
-  userId: Types.ObjectId;
+  reactionType: string;
 
   @IsString()
   @IsNotEmpty()
-  reactionType: string;
+  shortcodes: string;
 }
