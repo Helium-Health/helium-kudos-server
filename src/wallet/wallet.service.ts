@@ -70,24 +70,24 @@ export class WalletService {
     return wallet;
   }
 
-  async getUserBalances(userId: Types.ObjectId) {
-    const wallet = await this.findWalletByUserId(userId);
+  async getUserBalances(userId: string) {
+    const wallet = await this.findWalletByUserId(new Types.ObjectId(userId));
 
     return {
       earnedBalance: wallet.earnedBalance,
       availableToGive: wallet.giveableBalance,
     };
   }
-  async getEarnedCoinBalance(userId: Types.ObjectId) {
-    const wallet = await this.findWalletByUserId(userId);
+  async getEarnedCoinBalance(userId: string) {
+    const wallet = await this.findWalletByUserId(new Types.ObjectId(userId));
 
     return {
       earnedBalance: wallet.earnedBalance,
     };
   }
 
-  async getAvailableToGive(userId: Types.ObjectId) {
-    const wallet = await this.findWalletByUserId(userId);
+  async getAvailableToGive(userId: string) {
+    const wallet = await this.findWalletByUserId(new Types.ObjectId(userId));
     return {
       availableToGive: wallet.giveableBalance,
     };
