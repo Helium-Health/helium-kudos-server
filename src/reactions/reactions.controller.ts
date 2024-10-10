@@ -13,12 +13,11 @@ import { CreateReactionDto } from './dto/reaction.dto';
 import { Recognition } from 'src/recognition/schema/Recognition.schema';
 import { Types } from 'mongoose';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
-
+@UseGuards(JwtAuthGuard)
 @Controller('reactions/')
 export class ReactionsController {
   constructor(private readonly reactionsService: ReactionService) {}
 
-  @UseGuards(JwtAuthGuard)
   @Post()
   async addReaction(
     @Request() req,
