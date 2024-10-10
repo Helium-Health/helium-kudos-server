@@ -26,6 +26,9 @@ export class Recognition {
 
   @Prop({ type: Boolean, default: false })
   isAuto: boolean; // Flag to indicate if recognition is auto-generated
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Reaction' }] })
+  reactions: Types.ObjectId[];
 }
 
 export const RecognitionSchema = SchemaFactory.createForClass(Recognition);
