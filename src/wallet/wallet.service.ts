@@ -71,7 +71,7 @@ export class WalletService {
   }
 
   async getUserBalances(userId: string) {
-    const wallet = await this.findWalletByUserId(userId);
+    const wallet = await this.findWalletByUserId(new Types.ObjectId(userId));
 
     return {
       earnedBalance: wallet.earnedBalance,
@@ -79,7 +79,7 @@ export class WalletService {
     };
   }
   async getEarnedCoinBalance(userId: string) {
-    const wallet = await this.findWalletByUserId(userId);
+    const wallet = await this.findWalletByUserId(new Types.ObjectId(userId));
 
     return {
       earnedBalance: wallet.earnedBalance,
@@ -87,7 +87,7 @@ export class WalletService {
   }
 
   async getAvailableToGive(userId: string) {
-    const wallet = await this.findWalletByUserId(userId);
+    const wallet = await this.findWalletByUserId(new Types.ObjectId(userId));
     return {
       availableToGive: wallet.giveableBalance,
     };
@@ -181,9 +181,8 @@ export class WalletService {
     }
   }
 
-  async findWalletByUserId(userId: string): Promise<WalletDocument> {
-    const userID = new Types.ObjectId(userId);
-    const wallet = await this.walletModel.findOne({ userId: userID }).exec();
+  async findWalletByUserId(userId: Types.ObjectId): Promise<WalletDocument> {
+    const wallet = await this.walletModel.findOne({ userId }).exec();
 
     if (!wallet) {
       throw new NotFoundException(`Wallet not found for userId: ${userId}`);
