@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Connection, Model, Types } from 'mongoose';
 import { Reaction } from './schema/reactions.schema';
@@ -33,11 +37,22 @@ export class ReactionService {
         throw new NotFoundException('User not found');
       }
 
+      const existingReaction = await this.reactionModel.findOne({
+        userId: new Types.ObjectId(userId),
+        recognitionId: new Types.ObjectId(recognitionId),
+        shortcodes,
+      });
+
+      if (existingReaction) {
+        throw new ConflictException('User has already added this reaction');
+      }
+
       const newReaction = new this.reactionModel({
         userId: new Types.ObjectId(userId),
         recognitionId: new Types.ObjectId(recognitionId),
         shortcodes,
       });
+
       await newReaction.save({ session });
 
       await this.recognitionService.addReactionToRecognition(
