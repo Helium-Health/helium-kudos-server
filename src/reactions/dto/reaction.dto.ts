@@ -7,9 +7,5 @@ export class CreateReactionDto {
 
   @IsString()
   @IsNotEmpty()
-  reactionType: string;
-
-  @IsString()
-  @IsNotEmpty()
   shortcodes: string;
 }

@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, Types } from 'mongoose';
-import { Recognition } from './schema/Recognition.schema';
+import { Recognition, RecognitionDocument } from './schema/Recognition.schema';
 import { CreateRecognitionDto } from './dto/CreateRecognition.dto';
 import { UserRecognitionService } from 'src/user-recognition/user-recognition.service';
 import { UserRecognitionRole } from 'src/user-recognition/schema/UserRecognition.schema';
@@ -169,8 +169,15 @@ export class RecognitionService {
     }
   }
 
-  async findById(recognitionId: Types.ObjectId): Promise<Recognition> {
-    const recognition = await this.recognitionModel.findById(recognitionId);
+  async findById(
+    recognitionId: Types.ObjectId,
+    session?: ClientSession,
+  ): Promise<RecognitionDocument> {
+    const query = this.recognitionModel.findById(recognitionId);
+    if (session) {
+      query.session(session);
+    }
+    const recognition = await query.exec();
     if (!recognition) {
       throw new NotFoundException('Recognition not found');
     }
@@ -182,37 +189,20 @@ export class RecognitionService {
     reaction: Reaction,
     session?: ClientSession,
   ): Promise<void> {
-    const recognition = await this.recognitionModel
-      .findById(recognitionId)
-      .session(session)
-      .exec();
-
-    if (!recognition) {
-      throw new NotFoundException('Recognition not found');
-    }
-
+    const recognition = await this.findById(recognitionId, session);
     recognition.reactions.push(reaction._id as Types.ObjectId);
-
     await recognition.save({ session });
   }
+
   async removeReactionFromRecognition(
     recognitionId: Types.ObjectId,
     reactionId: Types.ObjectId,
-    session: ClientSession, // Add session parameter to handle transaction
+    session: ClientSession,
   ): Promise<void> {
-    const recognition = await this.recognitionModel
-      .findById(recognitionId)
-      .session(session);
-    if (!recognition) {
-      throw new NotFoundException('Recognition not found');
-    }
-
-    // Remove the reactionId from the recognition's reactions array
+    const recognition = await this.findById(recognitionId, session);
     recognition.reactions = recognition.reactions.filter(
       (r: Types.ObjectId) => !r.equals(reactionId),
     );
-
-    // Save the recognition document within the transaction
     await recognition.save({ session });
   }
 
@@ -246,6 +236,45 @@ export class RecognitionService {
             as: 'receivers',
           },
         },
+        // Lookup for reactions associated with the recognition
+        {
+          $lookup: {
+            from: 'reactions',
+            let: { recognitionId: '$_id' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ['$recognitionId', '$$recognitionId'] },
+                },
+              },
+              {
+                $lookup: {
+                  from: 'users',
+                  localField: 'userId',
+                  foreignField: '_id',
+                  as: 'user',
+                },
+              },
+              { $unwind: '$user' },
+              {
+                $group: {
+                  _id: '$shortcodes',
+                  users: { $push: '$user.name' }, // Collect user names who reacted
+                  count: { $sum: 1 }, // Count reactions per shortcode
+                },
+              },
+              {
+                $project: {
+                  _id: 0,
+                  shortcode: '$_id', // Rename _id to shortcode for clarity
+                  users: 1,
+                  count: 1,
+                },
+              },
+            ],
+            as: 'reactions',
+          },
+        },
         {
           $project: {
             _id: 1,
@@ -276,6 +305,7 @@ export class RecognitionService {
               },
             },
             commentCount: { $size: { $ifNull: ['$comments', []] } },
+            reactions: 1, // Include reactions in the final output
           },
         },
         { $skip: skip },

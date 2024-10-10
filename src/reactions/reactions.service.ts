@@ -17,7 +17,6 @@ export class ReactionService {
   async addReaction(
     recognitionId: Types.ObjectId,
     userId: Types.ObjectId,
-    reactionType: string,
     shortcodes: string,
   ): Promise<Reaction> {
     const session = await this.connection.startSession();
@@ -37,7 +36,6 @@ export class ReactionService {
       const newReaction = new this.reactionModel({
         userId: new Types.ObjectId(userId),
         recognitionId: new Types.ObjectId(recognitionId),
-        reactionType,
         shortcodes,
       });
       await newReaction.save({ session });
@@ -93,46 +91,46 @@ export class ReactionService {
     }
   }
 
-  async getReactionsByRecognitionId(
-    recognitionId: Types.ObjectId,
-  ): Promise<any> {
-    const reactions = await this.reactionModel.aggregate([
-      {
-        // Match reactions by the recognitionId
-        $match: { recognitionId: new Types.ObjectId(recognitionId) },
-      },
-      {
-        // Lookup to populate the user info from the User model
-        $lookup: {
-          from: 'users',
-          localField: 'userId',
-          foreignField: '_id',
-          as: 'user',
-        },
-      },
-      {
-        // Unwind the user array (since lookup results in an array)
-        $unwind: '$user',
-      },
-      {
-        // Group by the shortcodes and accumulate user names
-        $group: {
-          _id: '$shortcodes',
-          users: { $push: '$user.name' }, // Fetch the 'name' field from the User schema
-          count: { $sum: 1 }, // Count the number of reactions per shortcode
-        },
-      },
-      {
-        // Rename _id to "shortcodes" for clarity in the result
-        $project: {
-          _id: 0,
-          shortcodes: '$_id',
-          users: 1,
-          count: 1,
-        },
-      },
-    ]);
+  // async getReactionsByRecognitionId(
+  //   recognitionId: Types.ObjectId,
+  // ): Promise<any> {
+  //   const reactions = await this.reactionModel.aggregate([
+  //     {
+  //       // Match reactions by the recognitionId
+  //       $match: { recognitionId: new Types.ObjectId(recognitionId) },
+  //     },
+  //     {
+  //       // Lookup to populate the user info from the User model
+  //       $lookup: {
+  //         from: 'users',
+  //         localField: 'userId',
+  //         foreignField: '_id',
+  //         as: 'user',
+  //       },
+  //     },
+  //     {
+  //       // Unwind the user array (since lookup results in an array)
+  //       $unwind: '$user',
+  //     },
+  //     {
+  //       // Group by the shortcodes and accumulate user names
+  //       $group: {
+  //         _id: '$shortcodes',
+  //         users: { $push: '$user.name' }, // Fetch the 'name' field from the User schema
+  //         count: { $sum: 1 }, // Count the number of reactions per shortcode
+  //       },
+  //     },
+  //     {
+  //       // Rename _id to "shortcodes" for clarity in the result
+  //       $project: {
+  //         _id: 0,
+  //         shortcodes: '$_id',
+  //         users: 1,
+  //         count: 1,
+  //       },
+  //     },
+  //   ]);
 
-    return { reactions };
-  }
+  //   return { reactions };
+  // }
 }

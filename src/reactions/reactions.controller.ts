@@ -27,16 +27,8 @@ export class ReactionsController {
     return this.reactionsService.addReaction(
       createReactionDto.recognitionId,
       userId,
-      createReactionDto.reactionType,
       createReactionDto.shortcodes,
     );
-  }
-
-  @Get(':recognitionId')
-  async getReactionsByRecognitionId(
-    @Param('recognitionId') recognitionId: Types.ObjectId,
-  ): Promise<any> {
-    return this.reactionsService.getReactionsByRecognitionId(recognitionId);
   }
 
   @UseGuards(JwtAuthGuard)

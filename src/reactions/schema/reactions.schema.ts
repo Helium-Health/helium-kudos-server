@@ -11,9 +11,6 @@ export class Reaction extends Document {
   recognitionId: Types.ObjectId;
 
   @Prop({ required: true })
-  reactionType: string;
-
-  @Prop({ required: true })
   shortcodes: string;
 }
 

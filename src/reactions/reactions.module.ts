@@ -19,26 +19,24 @@ import {
 import { Wallet, WalletSchema } from 'src/wallet/schema/Wallet.schema';
 import { TransactionService } from 'src/transaction/transaction.service';
 import { Transaction, TransactionSchema } from 'src/schemas/Transaction.schema';
+import { UserRecognitionModule } from 'src/user-recognition/user-recognition.module';
+import { WalletModule } from 'src/wallet/wallet.module';
+import { RecognitionModule } from 'src/recognition/recognition.module';
+import { UsersModule } from 'src/users/users.module';
+import { TransactionModule } from 'src/transaction/transaction.module';
 
 @Module({
   imports: [
+    UserRecognitionModule,
+    WalletModule,
+    RecognitionModule,
+    UsersModule,
+    TransactionModule,
     MongooseModule.forFeature([
-      { name: UserRecognition.name, schema: UserRecognitionSchema },
-      { name: Wallet.name, schema: WalletSchema },
-      { name: Recognition.name, schema: RecognitionSchema },
       { name: Reaction.name, schema: ReactionSchema },
-      { name: User.name, schema: UserSchema },
-      { name: Transaction.name, schema: TransactionSchema },
     ]),
   ],
   controllers: [ReactionsController],
-  providers: [
-    ReactionService,
-    UsersService,
-    UserRecognitionService,
-    RecognitionService,
-    WalletService,
-    TransactionService,
-  ],
+  providers: [ReactionService],
 })
 export class ReactionsModule {}
