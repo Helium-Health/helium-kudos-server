@@ -40,7 +40,7 @@ export class RecognitionController {
     return this.recognitionService.getAllRecognitions(page, limit);
   }
 
-  @Get('sorted')
+  @Get('recent')
   async getRecognitionsSortedByRecent(): Promise<Recognition[]> {
     return this.recognitionService.getRecognitionsSortedByRecent();
   }
