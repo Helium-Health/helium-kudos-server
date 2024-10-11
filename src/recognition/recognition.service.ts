@@ -282,6 +282,7 @@ export class RecognitionService {
             coinAmount: 1,
             companyValues: 1,
             createdAt: 1,
+            isAuto: 1, // Include isAuto field
             sender: {
               _id: '$sender._id',
               name: '$sender.name',
@@ -358,5 +359,9 @@ export class RecognitionService {
       { $pull: { comments: commentId } },
       { new: true },
     );
+  }
+
+  async getRecognitionsSortedByRecent(): Promise<Recognition[]> {
+    return this.recognitionModel.find().sort({ createdAt: -1 }).exec();
   }
 }
