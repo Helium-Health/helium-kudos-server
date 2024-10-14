@@ -71,7 +71,6 @@ export class ReactionService {
       session.endSession();
     }
   }
-
   async deleteReaction(
     recognitionId: Types.ObjectId,
     userId: Types.ObjectId,
