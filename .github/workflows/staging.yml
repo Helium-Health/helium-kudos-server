@@ -20,46 +20,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Run Trivy Vulnerability Scan on multiple files and file system
-        env:
-          TRIVY_USERNAME: ${{ secrets.DOCKER_USER }}
-          TRIVY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-        run: |
-          trivy fs \
-            --db-repository public.ecr.aws/aquasecurity/trivy-db \
-            --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
-            --scanners vuln \
-            --output trivy-results-repo.txt \
-            --severity HIGH,CRITICAL \
-             ./blob/dev/package.json \
-            
-                
-
-      - name: Build and push  Docker image
-        run: |
-          docker build -t onemed/helium-kudos-server-staging .
-          docker push onemed/helium-kudos-server-staging
-
-      - name: Run Trivy Vulnerability Scan
-        env:
-         TRIVY_USERNAME: ${{ secrets.DOCKER_USER }}
-         TRIVY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-        run: |
-         trivy image \
-            --db-repository public.ecr.aws/aquasecurity/trivy-db \
-            --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
-            --scanners vuln \
-            --output trivy-results-image.txt \
-            onemed/helium-kudos-server-staging:latest     
-
-      - name: Upload Trivy scan results to artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: trivy-results
-          path: |
-            trivy-results-repo.txt
-            trivy-results-image.txt           
+                            
 
       - name: Set up ArgoCD CLI
         run: |
