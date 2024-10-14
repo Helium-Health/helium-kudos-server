@@ -72,33 +72,72 @@ export class ReactionService {
     }
   }
 
-  async deleteReaction(reactionId: Types.ObjectId): Promise<void> {
+  // async deleteReaction(reactionId: Types.ObjectId): Promise<void> {
+  //   const session = await this.connection.startSession();
+  //   session.startTransaction();
+
+  //   try {
+  //     // Find the reaction by ID within the transaction
+  //     const reaction = await this.reactionModel
+  //       .findById(reactionId)
+  //       .session(session);
+  //     if (!reaction) {
+  //       throw new NotFoundException('Reaction not found');
+  //     }
+
+  //     // Use recognitionService to unlink the reactionId from the recognition
+  //     await this.recognitionService.removeReactionFromRecognition(
+  //       reaction.recognitionId,
+  //       reactionId,
+  //       session, // Pass session to recognitionService for transaction handling
+  //     );
+
+  //     // Delete the reaction from the reaction document within the transaction
+  //     await this.reactionModel.deleteOne({ _id: reactionId }).session(session);
+
+  //     // Commit the transaction
+  //     await session.commitTransaction();
+  //   } catch (error) {
+  //     // If any error occurs, abort the transaction
+  //     await session.abortTransaction();
+  //     throw error;
+  //   } finally {
+  //     session.endSession();
+  //   }
+  // }
+
+  async deleteReaction(
+    recognitionId: Types.ObjectId,
+    userId: Types.ObjectId,
+    shortcodes: string,
+  ): Promise<void> {
     const session = await this.connection.startSession();
     session.startTransaction();
 
     try {
-      // Find the reaction by ID within the transaction
       const reaction = await this.reactionModel
-        .findById(reactionId)
+        .findOne({
+          recognitionId: new Types.ObjectId(recognitionId),
+          userId: new Types.ObjectId(userId),
+          shortcodes,
+        })
         .session(session);
       if (!reaction) {
         throw new NotFoundException('Reaction not found');
       }
 
-      // Use recognitionService to unlink the reactionId from the recognition
       await this.recognitionService.removeReactionFromRecognition(
-        reaction.recognitionId,
-        reactionId,
-        session, // Pass session to recognitionService for transaction handling
+        reaction.recognitionId as Types.ObjectId,
+        reaction._id as Types.ObjectId,
+        session,
       );
 
-      // Delete the reaction from the reaction document within the transaction
-      await this.reactionModel.deleteOne({ _id: reactionId }).session(session);
+      await this.reactionModel
+        .deleteOne({ _id: reaction._id })
+        .session(session);
 
-      // Commit the transaction
       await session.commitTransaction();
     } catch (error) {
-      // If any error occurs, abort the transaction
       await session.abortTransaction();
       throw error;
     } finally {
