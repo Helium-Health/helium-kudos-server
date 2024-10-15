@@ -46,7 +46,6 @@ export class ReactionService {
       if (existingReaction) {
         throw new ConflictException('User has already added this reaction');
       }
-
       const newReaction = new this.reactionModel({
         userId: new Types.ObjectId(userId),
         recognitionId: new Types.ObjectId(recognitionId),
