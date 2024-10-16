@@ -31,8 +31,8 @@ jobs:
             --db-repository public.ecr.aws/aquasecurity/trivy-db \
             --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
             --scanners vuln \
-            --output trivy-results-image.txt \
             onemed/helium-kudos-server-staging
+
 
 
       - name: Upload Trivy scan results to artifacts
