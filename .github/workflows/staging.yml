@@ -20,29 +20,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
-
-      - name: Run Trivy Vulnerability Scan
-        env:
-         TRIVY_USERNAME: ${{ secrets.DOCKER_USER }}
-         TRIVY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-        run: |
-         trivy image \
-            --db-repository public.ecr.aws/aquasecurity/trivy-db \
-            --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
-            --scanners vuln \
-            onemed/helium-kudos-server-staging
-
-
-
-      - name: Upload Trivy scan results to artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: trivy-results
-          path: |
-            trivy-results-image.txt                       
-             
-                            
+                                                           
 
       - name: Set up ArgoCD CLI
         run: |
