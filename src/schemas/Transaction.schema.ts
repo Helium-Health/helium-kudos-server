@@ -50,5 +50,4 @@ export class Transaction {
   @Prop({ type: Date, default: Date.now })
   timestamp: Date;
 }
-
 export const TransactionSchema = SchemaFactory.createForClass(Transaction);
