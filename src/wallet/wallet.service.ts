@@ -44,6 +44,25 @@ export class WalletService {
       });
   }
 
+  async refundGiveableBalance(
+    userId: Types.ObjectId,
+    amount: number,
+    session: ClientSession,
+  ) {
+    return this.walletModel
+      .findOneAndUpdate(
+        { userId },
+        { $inc: { giveableBalance: amount } },
+        { session, new: true, upsert: false },
+      )
+      .then((result) => {
+        if (!result) {
+          throw new NotFoundException(`Wallet not found for user ${userId}`);
+        }
+        return result;
+      });
+  }
+
   async hasEnoughCoins(
     userId: Types.ObjectId,
     amount: number,

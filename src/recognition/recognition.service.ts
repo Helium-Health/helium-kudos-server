@@ -149,14 +149,13 @@ export class RecognitionService {
     // Deduct coins from sender
     await this.walletService.deductCoins(senderId, totalCoinAmount, session);
 
-    // Update receiver's coin bank
     for (const receiverId of receiverIds) {
-      await this.walletService.incrementEarnedBalance(
-        new Types.ObjectId(receiverId),
-        coinAmount,
-        session,
-      );
-      await this.transactionService.recordTransactions(
+      // await this.walletService.incrementEarnedBalance(
+      //   new Types.ObjectId(receiverId),
+      //   coinAmount,
+      //   session,
+      // );
+      await this.transactionService.recordDebitTransaction(
         {
           senderId: new Types.ObjectId(senderId),
           receiverId: new Types.ObjectId(receiverId),

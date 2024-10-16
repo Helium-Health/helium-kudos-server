@@ -51,7 +51,6 @@ export class ReactionService {
         recognitionId: new Types.ObjectId(recognitionId),
         shortcodes,
       });
-
       await newReaction.save({ session });
 
       await this.recognitionService.addReactionToRecognition(

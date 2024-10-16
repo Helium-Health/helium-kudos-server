@@ -3,9 +3,11 @@ import { TransactionService } from './transaction.service';
 import { TransactionController } from './transaction.controller';
 import { Transaction, TransactionSchema } from 'src/schemas/Transaction.schema';
 import { MongooseModule } from '@nestjs/mongoose';
+import { WalletModule } from 'src/wallet/wallet.module';
 
 @Module({
   imports: [
+    WalletModule,
     MongooseModule.forFeature([
       { name: Transaction.name, schema: TransactionSchema },
     ]),
