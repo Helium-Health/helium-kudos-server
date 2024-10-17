@@ -3,7 +3,7 @@ name: Deploy to Staging Environment
 on:
   push:
     branches:
-      - trivy
+      - trivyclone
 env:
   REGISTRY: docker.io
   IMAGE_NAME: ${{ github.repository }}
@@ -31,21 +31,20 @@ jobs:
          sudo apt-get update
          sudo apt-get install trivy -y
 
-      - name: Run Trivy Vulnerability Scan in repo mode
-        env:
-          TRIVY_USERNAME: ${{ secrets.DOCKER_USER }}
-          TRIVY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-          GITHUB_TOKEN: ${{ secrets.SUPER_PAT }}
-        run: |
-          trivy repo \
-            --db-repository public.ecr.aws/aquasecurity/trivy-db \
-            --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
-            --scanners vuln,secret \
-            --format table \
-            --ignore-unfixed  true \
-            --severity CRITICAL,HIGH
-            --output "trivy-results-repo.txt" \
-            https://github.com/Helium-Health/helium-kudos-server
+     # - name: Run Trivy Vulnerability Scan in repo mode
+     #   env:
+     #     TRIVY_USERNAME: ${{ secrets.DOCKER_USER }}
+     #     TRIVY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+     #   run: |
+     #     trivy repo \
+     #       --db-repository public.ecr.aws/aquasecurity/trivy-db \
+     #       --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
+     #       --scanners vuln \
+     #       --format table \
+     #       --ignore-unfixed  true \
+     #       --severity CRITICAL,HIGH
+     #       --output "trivy-results-repo.txt" \
+     #      https://github.com/Helium-Health/helium-kudos-server
    
       - name: Run Trivy Vulnerability Scan
         env:
@@ -56,18 +55,20 @@ jobs:
             --db-repository public.ecr.aws/aquasecurity/trivy-db \
             --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
             --scanners vuln \
-            --output trivy-results-image.txt \
-            onemed/helium-kudos-server-staging:latest
+            --format json \
+            --output trivy-results-image1.txt \ 
+            docker.io/onemed/helium-kudos-server-staging:latest
+
           
-      # - name: Run Trivy Vulnerability Scan on File System
-      #   run: |
-      #      trivy fs \
-      #        --db-repository public.ecr.aws/aquasecurity/trivy-db \
-      #        --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
-      #        --scanners vuln \
-      #        --output trivy-results-repo.txt \
-      #        --severity HIGH,CRITICAL \
-      #        .
+      - name: Run Trivy Vulnerability Scan on File System
+        run: |
+            trivy fs \
+              --db-repository public.ecr.aws/aquasecurity/trivy-db \
+              --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
+              --scanners vuln \
+              --output trivy-results-repo.txt \
+              --severity HIGH,CRITICAL \
+              .
 
 
       # - name: Set up ArgoCD CLI
