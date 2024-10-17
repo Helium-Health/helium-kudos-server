@@ -42,8 +42,8 @@ jobs:
             --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
             --scanners vuln,secret \
             --format table \
-            --ignore-unfixed  true \
-            --severity CRITICAL,HIGH
+            --ignore-unfixed \
+            --severity CRITICAL,HIGH \
             --output "trivy-results-repo.txt" \
             https://github.com/Helium-Health/helium-kudos-server
    
