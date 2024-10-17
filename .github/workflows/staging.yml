@@ -31,8 +31,21 @@ jobs:
          sudo apt-get update
          sudo apt-get install trivy -y
 
-        
-    
+      - name: Run Trivy Vulnerability Scan in repo mode
+        env:
+          TRIVY_USERNAME: ${{ secrets.DOCKER_USER }}
+          TRIVY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          trivy repo \
+            --db-repository public.ecr.aws/aquasecurity/trivy-db \
+            --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
+            --scanners vuln \
+            --format table \
+            --ignore-unfixed  true \
+            --severity CRITICAL,HIGH
+            --output "trivy-results-repo.txt" \
+            https://github.com/Helium-Health/helium-kudos-server
+   
       - name: Run Trivy Vulnerability Scan
         env:
          TRIVY_USERNAME: ${{ secrets.DOCKER_USER }}
@@ -45,29 +58,29 @@ jobs:
             --output trivy-results-image.txt \
             onemed/helium-kudos-server-staging:latest
           
-      - name: Run Trivy Vulnerability Scan on File System
-        run: |
-           trivy fs \
-             --db-repository public.ecr.aws/aquasecurity/trivy-db \
-             --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
-             --scanners vuln \
-             --output trivy-results-repo.txt \
-             --severity HIGH,CRITICAL \
-             .
+      # - name: Run Trivy Vulnerability Scan on File System
+      #   run: |
+      #      trivy fs \
+      #        --db-repository public.ecr.aws/aquasecurity/trivy-db \
+      #        --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
+      #        --scanners vuln \
+      #        --output trivy-results-repo.txt \
+      #        --severity HIGH,CRITICAL \
+      #        .
 
 
-      - name: Set up ArgoCD CLI
-        run: |
-          sudo curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-          sudo chmod +x /usr/local/bin/argocd
+      # - name: Set up ArgoCD CLI
+      #   run: |
+      #     sudo curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+      #     sudo chmod +x /usr/local/bin/argocd
 
-      - name: ArgoCD Login
-        run: |
-          yes | argocd login ${{ vars.ARGOCD_STAGING_URL }} --insecure --username ${{ secrets.ARGOCD_USERNAME }} --password  ${{ secrets.ARGOCD_PASSWORD }}
+      # - name: ArgoCD Login
+      #   run: |
+      #     yes | argocd login ${{ vars.ARGOCD_STAGING_URL }} --insecure --username ${{ secrets.ARGOCD_USERNAME }} --password  ${{ secrets.ARGOCD_PASSWORD }}
 
-      - name: ArgoCD Sync App
-        env:
-          APP_NAME: helium-kudos-server-staging
-        run: |
-          argocd app actions run $APP_NAME restart --kind Deployment --resource-name helium-kudos-server-staging --all
+      # - name: ArgoCD Sync App
+      #   env:
+      #     APP_NAME: helium-kudos-server-staging
+      #   run: |
+      #     argocd app actions run $APP_NAME restart --kind Deployment --resource-name helium-kudos-server-staging --all
           
