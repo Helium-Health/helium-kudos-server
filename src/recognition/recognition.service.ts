@@ -104,7 +104,7 @@ export class RecognitionService {
       await this.userRecognitionService.createMany(userRecognitions, session);
 
       if (coinAmount > 0) {
-        this.claimCoin(
+        await this.claimCoin(
           {
             senderId: new Types.ObjectId(senderId),
             receiverIds,
