@@ -3,6 +3,8 @@ import { Document, Types } from 'mongoose';
 
 export type ChallengeDocument = Document & Challenge;
 //
+//
+//
 @Schema({ timestamps: true })
 export class Challenge {
   @Prop({ type: String, required: true })
