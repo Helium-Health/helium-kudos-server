@@ -20,7 +20,29 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-                                                           
+
+      - name: Run Trivy vulnerability scanner in repo mode
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'repo'
+          hide-progress: false
+          format: 'table'
+          output: "trivy-results-repo.txt"
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'    
+
+      - name: Run Trivy Vulnerability Scan
+        env:
+         TRIVY_USERNAME: ${{ secrets.DOCKER_USER }}
+         TRIVY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+         trivy image \
+            --db-repository public.ecr.aws/aquasecurity/trivy-db \
+            --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
+            --scanners vuln \
+            --output trivy-results-image.txt \
+            onemed/helium-kudos-server-staging:latest
+          
 
       - name: Set up ArgoCD CLI
         run: |
