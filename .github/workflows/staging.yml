@@ -35,11 +35,12 @@ jobs:
         env:
           TRIVY_USERNAME: ${{ secrets.DOCKER_USER }}
           TRIVY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.SUPER_PAT }}
         run: |
           trivy repo \
             --db-repository public.ecr.aws/aquasecurity/trivy-db \
             --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
-            --scanners vuln \
+            --scanners vuln,secret \
             --format table \
             --ignore-unfixed  true \
             --severity CRITICAL,HIGH
