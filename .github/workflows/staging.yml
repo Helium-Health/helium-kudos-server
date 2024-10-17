@@ -42,6 +42,7 @@ jobs:
             --db-repository public.ecr.aws/aquasecurity/trivy-db \
             --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
             --scanners vuln \
+            --format json \  # Set output format to JSON
             --output trivy-results-image.json \
             onemed/helium-kudos-server-staging:latest
           
@@ -51,6 +52,7 @@ jobs:
              --db-repository public.ecr.aws/aquasecurity/trivy-db \
              --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
              --scanners vuln \
+             --format json \  # Set output format to JSON
              --output trivy-results-repo.json \
              --severity HIGH,CRITICAL \
              .
