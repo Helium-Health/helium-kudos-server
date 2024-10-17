@@ -58,6 +58,15 @@ jobs:
             --scanners vuln \
             --output trivy-results-image.txt \
             onemed/helium-kudos-server-staging:latest
+
+
+      - name: Upload Trivy scan results to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results
+          path: |
+            trivy-results-repo.txt
+            trivy-results-image.txt
           
       # - name: Run Trivy Vulnerability Scan on File System
       #   run: |
