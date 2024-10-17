@@ -21,16 +21,18 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Run Trivy vulnerability scanner in repo mode
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'repo'
-          hide-progress: false
-          format: 'table'
-          output: "trivy-results-repo.txt"
-          ignore-unfixed: true
-          severity: 'CRITICAL,HIGH'    
 
+      - name: Install Trivy
+        run: |
+         sudo apt-get update
+         sudo apt-get install wget apt-transport-https gnupg lsb-release -y
+         wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+         echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+         sudo apt-get update
+         sudo apt-get install trivy -y
+
+        
+    
       - name: Run Trivy Vulnerability Scan
         env:
          TRIVY_USERNAME: ${{ secrets.DOCKER_USER }}
@@ -43,6 +45,16 @@ jobs:
             --output trivy-results-image.txt \
             onemed/helium-kudos-server-staging:latest
           
+      - name: Run Trivy Vulnerability Scan on File System
+        run: |
+           trivy fs \
+             --db-repository public.ecr.aws/aquasecurity/trivy-db \
+             --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
+             --scanners vuln \
+             --output trivy-results-repo.txt \
+             --severity HIGH,CRITICAL \
+             ./blob/trivy/package.json
+
 
       - name: Set up ArgoCD CLI
         run: |
