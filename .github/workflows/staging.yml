@@ -42,9 +42,8 @@ jobs:
             --db-repository public.ecr.aws/aquasecurity/trivy-db \
             --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
             --scanners vuln \
-            --format json \  # Set output format to JSON
-            --output trivy-results-image.json \
-            docker.io/onemed/helium-kudos-server-staging:latest
+            --output trivy-results-image.txt \
+            onemed/helium-kudos-server-staging:latest
           
       - name: Run Trivy Vulnerability Scan on File System
         run: |
@@ -52,8 +51,7 @@ jobs:
              --db-repository public.ecr.aws/aquasecurity/trivy-db \
              --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
              --scanners vuln \
-             --format json \  # Set output format to JSON
-             --output trivy-results-repo.json \
+             --output trivy-results-repo.txt \
              --severity HIGH,CRITICAL \
              .
 
