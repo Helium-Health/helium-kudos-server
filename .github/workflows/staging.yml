@@ -42,7 +42,7 @@ jobs:
             --db-repository public.ecr.aws/aquasecurity/trivy-db \
             --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
             --scanners vuln \
-            --output trivy-results-image.txt \
+            --output trivy-results-image.json \
             onemed/helium-kudos-server-staging:latest
           
       - name: Run Trivy Vulnerability Scan on File System
@@ -51,7 +51,7 @@ jobs:
              --db-repository public.ecr.aws/aquasecurity/trivy-db \
              --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
              --scanners vuln \
-             --output trivy-results-repo.txt \
+             --output trivy-results-repo.json \
              --severity HIGH,CRITICAL \
              .
 
