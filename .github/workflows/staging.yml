@@ -51,13 +51,13 @@ jobs:
          TRIVY_USERNAME: ${{ secrets.DOCKER_USER }}
          TRIVY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: |
-         trivy image \
-            --db-repository public.ecr.aws/aquasecurity/trivy-db \
-            --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
-            --scanners vuln \
-            --format json \
-            --output trivy-results-image1.txt \ 
-            docker.io/onemed/helium-kudos-server-staging:latest
+         trivy image \                
+          --db-repository public.ecr.aws/aquasecurity/trivy-db \
+          --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
+          --scanners vuln \
+          --format json \
+          --output trivy-results-image2.txt \
+          docker.io/onemed/helium-kudos-server-staging:latest
 
           
       - name: Run Trivy Vulnerability Scan on File System
