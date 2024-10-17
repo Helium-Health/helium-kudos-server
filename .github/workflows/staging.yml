@@ -53,7 +53,7 @@ jobs:
              --scanners vuln \
              --output trivy-results-repo.txt \
              --severity HIGH,CRITICAL \
-             ./blob/trivy/package.json
+             .
 
 
       - name: Set up ArgoCD CLI
