@@ -6,11 +6,19 @@ export type TransactionDocument = Document & Transaction;
 export enum TransactionType {
   DEBIT = 'DEBIT',
   CREDIT = 'CREDIT',
+  REVERSAL = 'REVERSAL',
 }
 
 export enum EntityType {
   RECOGNITION = 'recognition',
   ORDER = 'order',
+}
+
+export enum Status {
+  SUCCESS = 'success',
+  FAILED = 'failed',
+  PENDING = 'pending',
+  REVERSED = 'reversed',
 }
 
 @Schema({ timestamps: true })
@@ -32,6 +40,12 @@ export class Transaction {
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: false })
   relatedUserId?: Types.ObjectId;
+
+  @Prop({ type: String, enum: Status, required: true })
+  status: Status;
+
+  @Prop({ type: Boolean, required: true })
+  approved: boolean;
 
   @Prop({ type: Date, default: Date.now })
   timestamp: Date;
