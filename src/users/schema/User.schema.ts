@@ -33,6 +33,12 @@ export class User {
   @Prop({ type: Date })
   birthday: boolean;
 
+  @Prop({ type: Date })
+  joinDate: Date;
+
+  @Prop({ type: Date })
+  dateOfBirth: Date;
+
   @Prop({ type: Types.ObjectId, ref: 'Wallet' })
   wallet: Types.Array<Types.ObjectId>;
 }
