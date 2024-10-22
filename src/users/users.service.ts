@@ -3,6 +3,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { User } from 'src/users/schema/User.schema';
 import { CreateUserDto } from './dto/User.dto';
+import { UpdateUserDto } from './dto/User-update.dto';
+
 import { WalletService } from 'src/wallet/wallet.service';
 
 @Injectable()
@@ -63,7 +65,7 @@ export class UsersService {
 
   async updateUser(
     id: string,
-    updateData: Partial<User>,
+    updateData: UpdateUserDto,
   ): Promise<User | null> {
     return this.userModel
       .findByIdAndUpdate(id, updateData, { new: true })
