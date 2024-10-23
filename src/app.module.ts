@@ -16,6 +16,7 @@ import { CurrencyModule } from './currency/currency.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AllocationsModule } from './allocations/allocations.module';
 import { ReactionsModule } from './reactions/reactions.module';
+import { ClaimModule } from './claim/claim.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { ReactionsModule } from './reactions/reactions.module';
     AllocationsModule,
     CurrencyModule,
     ReactionsModule,
+    ClaimModule,
   ],
   controllers: [AppController],
   providers: [AppService],
