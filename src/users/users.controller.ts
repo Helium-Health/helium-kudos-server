@@ -38,7 +38,7 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Patch()
+  @Patch('me')
   async update(
     @Request() req,
     @Body() updateUserDto: UpdateUserDto,
