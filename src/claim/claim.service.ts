@@ -201,7 +201,10 @@ export class ClaimService {
     }
 
     if (status) {
-      filter.status = status;
+      if (!(status in Status)) {
+        throw new BadRequestException(`Invalid status: ${status}`);
+      }
+      filter.status = status as Status;
     }
 
     return this.claimModel.find(filter).exec();
