@@ -16,7 +16,8 @@ import {
 @Injectable()
 export class TransactionService {
   constructor(
-    @InjectModel(Transaction.name) private transactionModel: Model<Transaction>,
+    @InjectModel(Transaction.name)
+    private readonly transactionModel: Model<Transaction>,
   ) {}
 
   async recordDebitTransaction(
@@ -38,6 +39,7 @@ export class TransactionService {
       entityId: transaction.entityId,
       relatedUserId: transaction.receiverId,
       status: transactionStatus.SUCCESS,
+      claimId: transaction.claimId,
     });
 
     const savedTransaction = await debitTransaction.save({ session });

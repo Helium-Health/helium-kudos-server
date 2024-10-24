@@ -12,18 +12,17 @@ import { UserRecognitionRole } from 'src/user-recognition/schema/UserRecognition
 import { UsersService } from 'src/users/users.service';
 import { WalletService } from 'src/wallet/wallet.service';
 import { CompanyValues } from 'src/constants/companyValues';
-import { TransactionService } from 'src/transaction/transaction.service';
 import { Reaction } from 'src/reactions/schema/reactions.schema';
 import { ClaimService } from 'src/claim/claim.service';
 
 @Injectable()
 export class RecognitionService {
   constructor(
-    @InjectModel(Recognition.name) private recognitionModel: Model<Recognition>,
-    private userRecognitionService: UserRecognitionService,
-    private transactionService: TransactionService,
-    private walletService: WalletService,
-    private usersService: UsersService,
+    @InjectModel(Recognition.name)
+    private readonly recognitionModel: Model<Recognition>,
+    private readonly userRecognitionService: UserRecognitionService,
+    private readonly walletService: WalletService,
+    private readonly usersService: UsersService,
     private readonly claimService: ClaimService,
   ) {}
 

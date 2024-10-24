@@ -19,20 +19,23 @@ import { InjectModel } from '@nestjs/mongoose';
 export class ClaimService {
   constructor(
     @InjectModel(Claim.name) private readonly claimModel: Model<ClaimDocument>,
-    private transactionService: TransactionService,
-    private walletService: WalletService,
+    private readonly transactionService: TransactionService,
+    private readonly walletService: WalletService,
   ) {}
-  async recordClaim({
-    senderId,
-    receiverId,
-    recognitionId,
-    coinAmount,
-  }: {
-    senderId: Types.ObjectId;
-    receiverId: Types.ObjectId;
-    recognitionId: Types.ObjectId;
-    coinAmount: number;
-  }): Promise<ClaimDocument> {
+  async recordClaim(
+    {
+      senderId,
+      receiverId,
+      recognitionId,
+      coinAmount,
+    }: {
+      senderId: Types.ObjectId;
+      receiverId: Types.ObjectId;
+      recognitionId: Types.ObjectId;
+      coinAmount: number;
+    },
+    session: ClientSession,
+  ): Promise<ClaimDocument> {
     const claim = new this.claimModel({
       senderId,
       receiverId,
@@ -42,7 +45,7 @@ export class ClaimService {
       approved: false,
     });
 
-    return claim.save();
+    return claim.save({ session });
   }
 
   async claimCoin(
@@ -64,12 +67,15 @@ export class ClaimService {
     await this.walletService.deductCoins(senderId, totalCoinAmount, session);
 
     for (const receiverId of receiverIds) {
-      const claim = await this.recordClaim({
-        senderId: new Types.ObjectId(senderId),
-        receiverId: new Types.ObjectId(receiverId),
-        recognitionId: recognitionId,
-        coinAmount: coinAmount,
-      });
+      const claim = await this.recordClaim(
+        {
+          senderId: new Types.ObjectId(senderId),
+          receiverId: new Types.ObjectId(receiverId),
+          recognitionId: recognitionId,
+          coinAmount: coinAmount,
+        },
+        session,
+      );
 
       await this.transactionService.recordDebitTransaction(
         {
