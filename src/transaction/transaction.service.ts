@@ -77,6 +77,7 @@ export class TransactionService {
         entityId: transaction.entityId,
         relatedUserId: transaction.senderId,
         status: transactionStatus.SUCCESS,
+        claimId: transaction.claimId,
       });
 
       await creditTransaction.save({ session });
