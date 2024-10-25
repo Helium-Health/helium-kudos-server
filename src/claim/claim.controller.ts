@@ -34,4 +34,8 @@ export class ClaimController {
   ): Promise<Claim[]> {
     return this.claimService.filterClaims(userId, status);
   }
+  @Get()
+  async getAllClaims(): Promise<Claim[]> {
+    return this.claimService.getAllClaims();
+  }
 }

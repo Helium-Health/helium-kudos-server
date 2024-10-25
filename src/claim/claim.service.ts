@@ -186,4 +186,7 @@ export class ClaimService {
 
     return this.claimModel.find(filter).exec();
   }
+  async getAllClaims(): Promise<Claim[]> {
+    return this.claimModel.find().exec();
+  }
 }
