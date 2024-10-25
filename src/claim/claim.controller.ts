@@ -4,15 +4,15 @@ import {
   Param,
   Patch,
   Query,
-  // UseGuards,
+  UseGuards,
 } from '@nestjs/common';
 import { ClaimService } from './claim.service';
 import { Types } from 'mongoose';
 import { Claim } from './schema/claim.schema';
-// import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
+import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 
 @Controller('claim')
-// @UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard)
 export class ClaimController {
   constructor(private readonly claimService: ClaimService) {}
 
