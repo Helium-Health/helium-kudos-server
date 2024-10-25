@@ -44,6 +44,25 @@ export class WalletService {
       });
   }
 
+  async refundGiveableBalance(
+    userId: Types.ObjectId,
+    amount: number,
+    session: ClientSession,
+  ) {
+    return this.walletModel
+      .findOneAndUpdate(
+        { userId },
+        { $inc: { giveableBalance: amount } },
+        { session, new: true, upsert: false },
+      )
+      .then((result) => {
+        if (!result) {
+          throw new NotFoundException(`Wallet not found for user ${userId}`);
+        }
+        return result;
+      });
+  }
+
   async hasEnoughCoins(
     userId: Types.ObjectId,
     amount: number,
@@ -100,10 +119,9 @@ export class WalletService {
     }
 
     const session = await this.connection.startSession();
-    session.startTransaction(); // Start the transaction
+    session.startTransaction();
 
     try {
-      // Find all wallets
       const wallets = await this.walletModel.find().session(session).exec();
 
       if (!wallets || wallets.length === 0) {
@@ -115,7 +133,7 @@ export class WalletService {
       const result = await this.walletModel.updateMany(
         {}, // Empty filter to update all wallets
         { $set: { giveableBalance: allocation } }, // Set allocation value
-        { session }, // Ensure the update is part of the transaction
+        { session },
       );
 
       if (result.modifiedCount === 0) {
@@ -126,7 +144,6 @@ export class WalletService {
         );
       }
 
-      // Commit the transaction
       await session.commitTransaction();
       this.logger.log('Transaction committed successfully.');
 
@@ -137,7 +154,7 @@ export class WalletService {
       this.logger.error('Transaction aborted due to an error: ', error.message);
       throw error;
     } finally {
-      session.endSession(); // End the session regardless of the outcome
+      session.endSession();
     }
   }
 
@@ -167,17 +184,15 @@ export class WalletService {
       wallet.giveableBalance = allocation;
       await wallet.save({ session });
 
-      // Commit the transaction
       await session.commitTransaction();
       session.endSession();
 
       return wallet;
     } catch (error) {
-      // Abort the transaction in case of an error
       await session.abortTransaction();
       session.endSession();
 
-      throw error; // Rethrow the error to handle it outside
+      throw error;
     }
   }
 
