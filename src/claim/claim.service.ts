@@ -168,6 +168,10 @@ export class ClaimService {
     userId?: Types.ObjectId,
     status?: string,
   ): Promise<Claim[]> {
+    if (!userId && !status) {
+      return this.claimModel.find().exec();
+    }
+
     const filter: any = {};
 
     if (userId) {
