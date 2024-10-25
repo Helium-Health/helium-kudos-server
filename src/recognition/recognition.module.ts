@@ -7,6 +7,7 @@ import { UsersModule } from 'src/users/users.module';
 import { WalletModule } from 'src/wallet/wallet.module';
 import { TransactionModule } from 'src/transaction/transaction.module';
 import { RecognitionSchema, Recognition } from './schema/Recognition.schema';
+import { ClaimModule } from 'src/claim/claim.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { RecognitionSchema, Recognition } from './schema/Recognition.schema';
     TransactionModule,
     UserRecognitionModule,
     WalletModule,
+    ClaimModule,
     UsersModule,
   ],
   controllers: [RecognitionController],
