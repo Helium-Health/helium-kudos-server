@@ -1,12 +1,13 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { CompanyValues } from 'src/constants/companyValues';
+import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
 
 export type RecognitionDocument = Document & Recognition;
 
 @Schema({ timestamps: true })
 export class Recognition {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'User' })
   senderId: Types.ObjectId; // Reference to the User entity for the sender
 
   @Prop({ type: String, required: true })
@@ -21,8 +22,8 @@ export class Recognition {
   @Prop({ type: [String], enum: CompanyValues, default: [] })
   companyValues: CompanyValues[];
 
-  // @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }] })
-  // receiverIds: Types.ObjectId[];
+  @Prop({ type: String, enum: MilestoneType, required: false })
+  milestoneType?: MilestoneType;
 
   @Prop({ type: Boolean, default: false })
   isAuto: boolean; // Flag to indicate if recognition is auto-generated

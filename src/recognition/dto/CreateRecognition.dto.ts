@@ -6,6 +6,7 @@ import {
   IsString,
   IsNumber,
   IsEnum,
+  Min,
 } from 'class-validator';
 import { CompanyValues } from 'src/constants/companyValues';
 
@@ -25,5 +26,6 @@ export class CreateRecognitionDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(0, { message: 'Coin amount must be a non-negative number' })
   coinAmount?: number;
 }

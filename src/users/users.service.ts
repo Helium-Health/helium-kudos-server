@@ -1,10 +1,12 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { User } from 'src/users/schema/User.schema';
-import { CreateUserDto } from './dto/User.dto';
-import { UpdateUserDto } from './dto/User-update.dto';
-
+import { User, UserDocument } from 'src/users/schema/User.schema';
+import { CreateUserDto, UpdateUserDto } from './dto/User.dto';
 import { WalletService } from 'src/wallet/wallet.service';
 
 @Injectable()
@@ -34,7 +36,6 @@ export class UsersService {
       session.endSession();
     }
   }
-
   // Method to find a user by email
   async findByEmail(email: string): Promise<User | null> {
     return this.userModel.findOne({ email }).exec();
@@ -67,12 +68,49 @@ export class UsersService {
     id: string,
     updateData: UpdateUserDto,
   ): Promise<User | null> {
-    return this.userModel
+    const updatedUser = await this.userModel
       .findByIdAndUpdate(id, updateData, { new: true })
       .exec();
+
+    if (!updatedUser) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+    return updatedUser;
   }
 
   async deleteUser(id: string): Promise<User | null> {
     return this.userModel.findByIdAndDelete(id).exec();
+  }
+
+  async findUsersByBirthday(
+    month: number,
+    day: number,
+  ): Promise<UserDocument[]> {
+    return this.userModel
+      .find({
+        $expr: {
+          $and: [
+            { $eq: [{ $month: '$dateOfBirth' }, month] },
+            { $eq: [{ $dayOfMonth: '$dateOfBirth' }, day] },
+          ],
+        },
+      })
+      .exec();
+  }
+
+  async findUsersByWorkAnniversary(
+    month: number,
+    day: number,
+  ): Promise<UserDocument[]> {
+    return this.userModel
+      .find({
+        $expr: {
+          $and: [
+            { $eq: [{ $month: '$joinDate' }, month] },
+            { $eq: [{ $dayOfMonth: '$joinDate' }, day] },
+          ],
+        },
+      })
+      .exec();
   }
 }
