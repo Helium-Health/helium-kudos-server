@@ -13,7 +13,10 @@ import { UsersService } from 'src/users/users.service';
 import { WalletService } from 'src/wallet/wallet.service';
 import { CompanyValues } from 'src/constants/companyValues';
 import { Reaction } from 'src/reactions/schema/reactions.schema';
+import { EntityType } from 'src/transaction/schema/Transaction.schema';
+import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
 import { ClaimService } from 'src/claim/claim.service';
+import { TransactionService } from 'src/transaction/transaction.service';
 
 @Injectable()
 export class RecognitionService {
@@ -24,6 +27,7 @@ export class RecognitionService {
     private readonly walletService: WalletService,
     private readonly usersService: UsersService,
     private readonly claimService: ClaimService,
+    private readonly transactionService: TransactionService,
   ) {}
 
   async createRecognition(
@@ -130,6 +134,69 @@ export class RecognitionService {
     }
   }
 
+  async createAutoRecognition({
+    receiverId,
+    message,
+    coinAmount = 0,
+    milestoneType,
+  }: {
+    receiverId: string;
+    message: string;
+    coinAmount?: number;
+    milestoneType: MilestoneType;
+  }) {
+    const session = await this.recognitionModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      const newRecognition = new this.recognitionModel({
+        message,
+        coinAmount,
+        isAuto: true,
+        milestoneType,
+      });
+      await newRecognition.save({ session });
+
+      // Create single UserRecognition entry
+      await this.userRecognitionService.create(
+        {
+          userId: new Types.ObjectId(receiverId),
+          recognitionId: newRecognition._id,
+          role: UserRecognitionRole.RECEIVER,
+        },
+        session,
+      );
+
+      if (coinAmount > 0) {
+        // Update receiver's coin bank
+        await this.walletService.incrementEarnedBalance(
+          new Types.ObjectId(receiverId),
+          coinAmount,
+          session,
+        );
+
+        // Record the transaction
+        await this.transactionService.recordAutoTransaction(
+          {
+            receiverId: new Types.ObjectId(receiverId),
+            amount: coinAmount,
+            entityId: newRecognition._id,
+            entityType: EntityType.RECOGNITION,
+          },
+          session,
+        );
+      }
+
+      await session.commitTransaction();
+      return newRecognition;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
   async findById(
     recognitionId: Types.ObjectId,
     session?: ClientSession,
@@ -173,6 +240,9 @@ export class RecognitionService {
     const [recognitions, totalCount] = await Promise.all([
       this.recognitionModel.aggregate([
         {
+          $sort: { createdAt: -1 },
+        },
+        {
           $lookup: {
             from: 'users',
             localField: 'senderId',
@@ -180,7 +250,11 @@ export class RecognitionService {
             as: 'sender',
           },
         },
-        { $unwind: '$sender' },
+        {
+          $addFields: {
+            sender: { $arrayElemAt: ['$sender', 0] },
+          },
+        },
         {
           $lookup: {
             from: 'userrecognitions',
@@ -320,9 +394,5 @@ export class RecognitionService {
       { $pull: { comments: commentId } },
       { new: true },
     );
-  }
-
-  async getRecognitionsSortedByRecent(): Promise<Recognition[]> {
-    return this.recognitionModel.find().sort({ createdAt: -1 }).exec();
   }
 }

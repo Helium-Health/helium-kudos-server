@@ -5,7 +5,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ClientSession, Model, Types } from 'mongoose';
-import { EntityType, transactionStatus } from 'src/schemas/Transaction.schema';
+import {
+  EntityType,
+  transactionStatus,
+} from 'src/transaction/schema/Transaction.schema';
 import { TransactionService } from 'src/transaction/transaction.service';
 import { WalletService } from 'src/wallet/wallet.service';
 import { Claim, ClaimDocument, Status } from './schema/claim.schema';

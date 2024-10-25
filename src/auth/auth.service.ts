@@ -23,33 +23,38 @@ export class AuthService {
   async validateUser(
     token: string,
   ): Promise<{ user: User; accessToken: string }> {
-    let userDetails = null; // Todo use correct type
-    const googleAuth = await this.oauthClient.verifyIdToken({
-      idToken: token,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
-
-    const payload = googleAuth.getPayload();
-
-    const userExists = await this.userModel.findOne({
-      email: payload.email,
-    });
-
-    if (userExists) {
-      console.log('User exists. Getting...');
-      userDetails = userExists;
-    } else {
-      console.log('User not found. Creating...');
-      userDetails = await this.userService.createUser({
-        email: payload.email,
-        name: payload.name,
-        picture: payload.picture,
-        verified: payload.email_verified || false,
+    try {
+      let userDetails = null; // Todo use correct type
+      const googleAuth = await this.oauthClient.verifyIdToken({
+        idToken: token,
+        audience: process.env.GOOGLE_CLIENT_ID,
       });
-    }
 
-    const jwtToken = this.generateJwtToken(userDetails);
-    return { user: userDetails, accessToken: jwtToken };
+      const payload = googleAuth.getPayload();
+
+      const userExists = await this.userModel.findOne({
+        email: payload.email,
+      });
+
+      if (userExists) {
+        console.log('User exists. Getting...');
+        userDetails = userExists;
+      } else {
+        console.log('User not found. Creating...');
+        userDetails = await this.userService.createUser({
+          email: payload.email,
+          name: payload.name,
+          picture: payload.picture,
+          verified: payload.email_verified || false,
+        });
+      }
+
+      const jwtToken = this.generateJwtToken(userDetails);
+      return { user: userDetails, accessToken: jwtToken };
+    } catch (e) {
+      console.log('Error in validateUser', e);
+      throw new Error('Error in validateUser');
+    }
   }
 
   generateJwtToken(
@@ -57,7 +62,7 @@ export class AuthService {
       _id: Types.ObjectId;
     },
   ) {
-    const payload = { email: user.email, sub: user._id };
+    const payload = { email: user.email, sub: user._id, role: user.role };
     return this.jwtService.sign(payload);
   }
 }
