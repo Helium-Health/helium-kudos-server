@@ -109,9 +109,9 @@ export class AllocationsService implements OnModuleInit {
     }
     //Every day by 2:40PM
     if (
-      cadence === '40 14 * * *' &&
+      cadence === '58 14 * * *' &&
       now.getHours() === 14 &&
-      now.getMinutes() === 40
+      now.getMinutes() === 58
     ) {
       return true;
     }
@@ -127,5 +127,10 @@ export class AllocationsService implements OnModuleInit {
 
     await this.walletService.allocateCoinsToAll(allocation.allocationAmount);
     this.logger.log('Coin allocation completed successfully for ID: ' + id);
+  }
+  async findAllocationByCadence(
+    cadence: string,
+  ): Promise<AllocationDocument | null> {
+    return this.allocationModel.findOne({ cadence }).exec();
   }
 }

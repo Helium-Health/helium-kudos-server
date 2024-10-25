@@ -168,6 +168,10 @@ export class ClaimService {
     userId?: Types.ObjectId,
     status?: string,
   ): Promise<Claim[]> {
+    if (!userId && !status) {
+      return this.claimModel.find().exec();
+    }
+
     const filter: any = {};
 
     if (userId) {
@@ -185,8 +189,5 @@ export class ClaimService {
     }
 
     return this.claimModel.find(filter).exec();
-  }
-  async getAllClaims(): Promise<Claim[]> {
-    return this.claimModel.find().exec();
   }
 }
