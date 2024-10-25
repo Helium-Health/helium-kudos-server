@@ -1,6 +1,9 @@
 import { IsNotEmpty, IsNumber, IsMongoId, IsEnum } from 'class-validator';
 import { Types } from 'mongoose';
-import { EntityType, transactionStatus } from 'src/schemas/Transaction.schema';
+import {
+  EntityType,
+  transactionStatus,
+} from 'src/transaction/schema/Transaction.schema';
 
 export class RecordTransactionDto {
   @IsMongoId()
