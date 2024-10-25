@@ -15,7 +15,7 @@ export class Claim {
   senderId?: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  receiverId?: Types.ObjectId;
+  receiverIds: Types.ObjectId[];
 
   @Prop({ type: String, required: true })
   recognitionId: string;
@@ -29,9 +29,6 @@ export class Claim {
     enum: Status,
   })
   status: Status;
-
-  @Prop({ type: Boolean, required: true })
-  approved: boolean;
 
   @Prop({ type: Date, default: Date.now })
   timestamp: Date;

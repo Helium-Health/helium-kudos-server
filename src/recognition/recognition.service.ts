@@ -107,7 +107,7 @@ export class RecognitionService {
         await this.claimService.claimCoin(
           {
             senderId: new Types.ObjectId(senderId),
-            receiverIds,
+            receiverIds: receiverIds.map((id) => new Types.ObjectId(id)),
             coinAmount,
             recognitionId: newRecognition._id,
           },

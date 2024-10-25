@@ -12,6 +12,7 @@ import {
   TransactionType,
   TransactionDocument,
 } from 'src/schemas/Transaction.schema';
+import { RecordTransactionDto } from './dto/Transaction.dto';
 
 @Injectable()
 export class TransactionService {
@@ -21,30 +22,28 @@ export class TransactionService {
   ) {}
 
   async recordDebitTransaction(
-    transaction: {
-      senderId: Types.ObjectId;
-      receiverId: Types.ObjectId;
-      amount: number;
-      entityId: Types.ObjectId;
-      entityType: EntityType;
-      claimId: Types.ObjectId;
-    },
+    transaction: RecordTransactionDto,
     session: ClientSession,
-  ): Promise<Types.ObjectId> {
-    const debitTransaction = new this.transactionModel({
-      userId: transaction.senderId,
-      amount: -transaction.amount,
-      type: TransactionType.DEBIT,
-      entityType: transaction.entityType,
-      entityId: transaction.entityId,
-      relatedUserId: transaction.receiverId,
-      status: transactionStatus.SUCCESS,
-      claimId: transaction.claimId,
-    });
+  ) {
+    try {
+      const debitTransaction = new this.transactionModel({
+        userId: transaction.senderId,
+        amount: -transaction.amount,
+        type: TransactionType.DEBIT,
+        entityType: transaction.entityType,
+        entityId: transaction.entityId,
+        relatedUserId: transaction.receiverId,
+        status: transactionStatus.SUCCESS,
+        claimId: transaction.claimId,
+      });
 
-    const savedTransaction = await debitTransaction.save({ session });
-
-    return savedTransaction._id;
+      await debitTransaction.save({ session });
+    } catch (error) {
+      console.error('Error processing debit transaction:', error);
+      throw new InternalServerErrorException(
+        'Failed to process debit transaction',
+      );
+    }
   }
 
   async getTransactionsByRecognition(recognitionId: Types.ObjectId) {
@@ -57,18 +56,10 @@ export class TransactionService {
   }
 
   async recordCreditTransaction(
-    transaction: {
-      senderId: Types.ObjectId;
-      receiverId: Types.ObjectId;
-      amount: number;
-      entityId: Types.ObjectId;
-      entityType: EntityType;
-      claimId: Types.ObjectId;
-    },
+    transaction: RecordTransactionDto,
     session: ClientSession,
   ) {
     try {
-      // Log credit transaction.
       const creditTransaction = new this.transactionModel({
         userId: transaction.receiverId,
         amount: transaction.amount,
@@ -76,14 +67,12 @@ export class TransactionService {
         entityType: transaction.entityType,
         entityId: transaction.entityId,
         relatedUserId: transaction.senderId,
-        status: transactionStatus.SUCCESS,
+        status: transaction.status,
         claimId: transaction.claimId,
       });
 
       await creditTransaction.save({ session });
-      await session.commitTransaction();
     } catch (error) {
-      await session.abortTransaction();
       console.error('Error processing credit transaction:', error);
 
       throw new InternalServerErrorException(
@@ -91,6 +80,7 @@ export class TransactionService {
       );
     }
   }
+
   async findTransactionByClaimId(
     claimId: Types.ObjectId,
     transactionType: TransactionType,

@@ -5,15 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ClientSession, Model, Types } from 'mongoose';
-import {
-  EntityType,
-  transactionStatus,
-  TransactionType,
-} from 'src/schemas/Transaction.schema';
+import { EntityType, transactionStatus } from 'src/schemas/Transaction.schema';
 import { TransactionService } from 'src/transaction/transaction.service';
 import { WalletService } from 'src/wallet/wallet.service';
 import { Claim, ClaimDocument, Status } from './schema/claim.schema';
 import { InjectModel } from '@nestjs/mongoose';
+import { ClaimDto } from './dto/claim.dto';
 
 @Injectable()
 export class ClaimService {
@@ -23,22 +20,12 @@ export class ClaimService {
     private readonly walletService: WalletService,
   ) {}
   async recordClaim(
-    {
-      senderId,
-      receiverId,
-      recognitionId,
-      coinAmount,
-    }: {
-      senderId: Types.ObjectId;
-      receiverId: Types.ObjectId;
-      recognitionId: Types.ObjectId;
-      coinAmount: number;
-    },
+    { senderId, receiverIds, recognitionId, coinAmount }: ClaimDto,
     session: ClientSession,
   ): Promise<ClaimDocument> {
     const claim = new this.claimModel({
       senderId,
-      receiverId,
+      receiverIds,
       recognitionId,
       amount: coinAmount,
       status: Status.PENDING,
@@ -49,34 +36,23 @@ export class ClaimService {
   }
 
   async claimCoin(
-    {
-      senderId,
-      receiverIds,
-      coinAmount,
-      recognitionId,
-    }: {
-      senderId: Types.ObjectId;
-      coinAmount: number;
-      receiverIds: string[];
-      recognitionId: Types.ObjectId;
-    },
+    { senderId, receiverIds, coinAmount, recognitionId }: ClaimDto,
     session: ClientSession,
   ) {
     const totalCoinAmount = coinAmount * receiverIds.length;
 
     await this.walletService.deductCoins(senderId, totalCoinAmount, session);
 
+    const claim = await this.recordClaim(
+      {
+        senderId: new Types.ObjectId(senderId),
+        receiverIds: receiverIds.map((id) => new Types.ObjectId(id)),
+        recognitionId: recognitionId,
+        coinAmount: coinAmount,
+      },
+      session,
+    );
     for (const receiverId of receiverIds) {
-      const claim = await this.recordClaim(
-        {
-          senderId: new Types.ObjectId(senderId),
-          receiverId: new Types.ObjectId(receiverId),
-          recognitionId: recognitionId,
-          coinAmount: coinAmount,
-        },
-        session,
-      );
-
       await this.transactionService.recordDebitTransaction(
         {
           senderId: new Types.ObjectId(senderId),
@@ -85,14 +61,11 @@ export class ClaimService {
           entityId: recognitionId,
           entityType: EntityType.RECOGNITION,
           claimId: claim._id as Types.ObjectId,
+          status: transactionStatus.SUCCESS,
         },
         session,
       );
     }
-  }
-
-  async getPendingClaims(): Promise<Claim[]> {
-    return this.claimModel.find({ status: Status.PENDING }).exec();
   }
 
   async approveClaim(claimId: Types.ObjectId) {
@@ -113,27 +86,28 @@ export class ClaimService {
       }
 
       claim.status = Status.APPROVED;
-      claim.approved = true;
       await claim.save({ session });
 
-      await this.walletService.incrementEarnedBalance(
-        new Types.ObjectId(claim.receiverId),
-        claim.amount,
-        session,
-      );
+      for (const receiverId of claim.receiverIds) {
+        await this.walletService.incrementEarnedBalance(
+          new Types.ObjectId(receiverId),
+          claim.amount,
+          session,
+        );
 
-      await this.transactionService.recordCreditTransaction(
-        {
-          senderId: claim.senderId,
-          receiverId: claim.receiverId,
-          amount: Math.abs(claim.amount),
-          entityId: new Types.ObjectId(claim.recognitionId),
-          entityType: EntityType.RECOGNITION,
-          claimId: claim._id as Types.ObjectId,
-        },
-        session,
-      );
-
+        await this.transactionService.recordCreditTransaction(
+          {
+            senderId: claim.senderId,
+            receiverId: new Types.ObjectId(receiverId),
+            amount: Math.abs(claim.amount),
+            entityId: new Types.ObjectId(claim.recognitionId),
+            entityType: EntityType.RECOGNITION,
+            claimId: claim._id as Types.ObjectId,
+            status: transactionStatus.SUCCESS,
+          },
+          session,
+        );
+      }
       await session.commitTransaction();
     } catch (error) {
       await session.abortTransaction();
@@ -147,9 +121,8 @@ export class ClaimService {
   async rejectClaim(claimId: Types.ObjectId) {
     const session = await this.claimModel.db.startSession();
     session.startTransaction();
-
     try {
-      const claim = await this.claimModel.findById(claimId).session(session);
+      const claim = await this.claimModel.findById(claimId);
 
       if (!claim) {
         throw new NotFoundException('Claim not found');
@@ -159,34 +132,32 @@ export class ClaimService {
         throw new BadRequestException('Claim is not pending');
       }
 
-      claim.status = Status.REJECTED;
-      claim.approved = false;
-      await claim.save({ session });
-
-      const debitTransaction =
-        await this.transactionService.findTransactionByClaimId(
-          claim._id as Types.ObjectId,
-          TransactionType.DEBIT,
+      for (const receiverId of claim.receiverIds) {
+        await this.transactionService.recordCreditTransaction(
+          {
+            senderId: claim.senderId,
+            receiverId: new Types.ObjectId(receiverId),
+            amount: Math.abs(claim.amount),
+            entityId: new Types.ObjectId(claim.recognitionId),
+            entityType: EntityType.RECOGNITION,
+            claimId: claim._id as Types.ObjectId,
+            status: transactionStatus.REVERSED,
+          },
           session,
         );
-
-      if (!debitTransaction) {
-        throw new NotFoundException('Associated debit transaction not found');
       }
-
-      debitTransaction.status = transactionStatus.REVERSED;
-      await debitTransaction.save({ session });
-
+      const totalCoinAmount = claim.amount * claim.receiverIds.length;
       await this.walletService.refundGiveableBalance(
         claim.senderId,
-        Math.abs(claim.amount),
+        totalCoinAmount,
         session,
       );
-
+      claim.status = Status.REJECTED;
+      await claim.save({ session });
       await session.commitTransaction();
     } catch (error) {
       await session.abortTransaction();
-      console.error('Error denying claim:', error);
+      console.error('Error rejecting claim:', error);
       throw new InternalServerErrorException('Failed to deny the claim');
     } finally {
       session.endSession();
@@ -207,7 +178,7 @@ export class ClaimService {
     }
 
     if (status) {
-      if (!(status in Status)) {
+      if (!Object.values(Status).includes(status as Status)) {
         throw new BadRequestException(`Invalid status: ${status}`);
       }
       filter.status = status as Status;

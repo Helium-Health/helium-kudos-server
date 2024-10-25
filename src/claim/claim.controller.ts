@@ -1,15 +1,20 @@
-import { Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Query,
+  // UseGuards,
+} from '@nestjs/common';
 import { ClaimService } from './claim.service';
 import { Types } from 'mongoose';
 import { Claim } from './schema/claim.schema';
+// import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 
 @Controller('claim')
+// @UseGuards(JwtAuthGuard)
 export class ClaimController {
   constructor(private readonly claimService: ClaimService) {}
-  @Get('pending')
-  async getPendingClaims(): Promise<Claim[]> {
-    return this.claimService.getPendingClaims();
-  }
 
   @Patch(':id/approve')
   async approveClaim(@Param('id') claimId: Types.ObjectId) {
