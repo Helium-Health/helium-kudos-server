@@ -28,7 +28,6 @@ export class ReactionsController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
   @Delete()
   remove(@Request() req, @Body() deleteReactionDto: ReactionDto) {
     const userId = req.user.userId;

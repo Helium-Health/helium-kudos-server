@@ -5,7 +5,7 @@ import {
   EntityType,
   Transaction,
   TransactionType,
-} from 'src/schemas/Transaction.schema';
+} from 'src/transaction/schema/Transaction.schema';
 
 @Injectable()
 export class TransactionService {
@@ -46,6 +46,27 @@ export class TransactionService {
       debitTransaction.save({ session }),
       creditTransaction.save({ session }),
     ]);
+  }
+
+  async recordAutoTransaction(
+    transaction: {
+      receiverId: Types.ObjectId;
+      amount: number;
+      entityId: Types.ObjectId;
+      entityType: EntityType;
+    },
+    session: ClientSession,
+  ) {
+    const creditTransaction = new this.transactionModel({
+      userId: transaction.receiverId,
+      amount: transaction.amount,
+      type: TransactionType.CREDIT,
+      entityType: transaction.entityType,
+      entityId: transaction.entityId,
+      isAuto: true,
+    });
+
+    return creditTransaction.save({ session });
   }
 
   async getTransactionsByRecognition(recognitionId: Types.ObjectId) {

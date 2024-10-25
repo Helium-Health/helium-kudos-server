@@ -35,6 +35,9 @@ export class Transaction {
 
   @Prop({ type: Date, default: Date.now })
   timestamp: Date;
+
+  @Prop({ type: Boolean, default: false })
+  isAuto: boolean; // Flag to indicate if transaction is auto-generated e.g. auto-generated milestone
 }
 
 export const TransactionSchema = SchemaFactory.createForClass(Transaction);

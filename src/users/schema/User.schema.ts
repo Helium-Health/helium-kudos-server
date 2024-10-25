@@ -31,9 +31,6 @@ export class User {
   verified: boolean;
 
   @Prop({ type: Date })
-  birthday: boolean;
-
-  @Prop({ type: Date })
   joinDate: Date;
 
   @Prop({ type: Date })

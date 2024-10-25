@@ -16,4 +16,9 @@ export class UserRecognitionService {
   ) {
     return this.userRecognitionModel.insertMany(userRecognitions, { session });
   }
+
+  async create(userRecognition: UserRecognition, session: ClientSession) {
+    const newUserRecognition = new this.userRecognitionModel(userRecognition);
+    return newUserRecognition.save({ session });
+  }
 }
