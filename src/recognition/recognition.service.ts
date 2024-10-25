@@ -12,19 +12,22 @@ import { UserRecognitionRole } from 'src/user-recognition/schema/UserRecognition
 import { UsersService } from 'src/users/users.service';
 import { WalletService } from 'src/wallet/wallet.service';
 import { CompanyValues } from 'src/constants/companyValues';
-import { TransactionService } from 'src/transaction/transaction.service';
 import { Reaction } from 'src/reactions/schema/reactions.schema';
 import { EntityType } from 'src/transaction/schema/Transaction.schema';
 import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
+import { ClaimService } from 'src/claim/claim.service';
+import { TransactionService } from 'src/transaction/transaction.service';
 
 @Injectable()
 export class RecognitionService {
   constructor(
-    @InjectModel(Recognition.name) private recognitionModel: Model<Recognition>,
-    private userRecognitionService: UserRecognitionService,
-    private transactionService: TransactionService,
-    private walletService: WalletService,
-    private usersService: UsersService,
+    @InjectModel(Recognition.name)
+    private readonly recognitionModel: Model<Recognition>,
+    private readonly userRecognitionService: UserRecognitionService,
+    private readonly walletService: WalletService,
+    private readonly usersService: UsersService,
+    private readonly claimService: ClaimService,
+    private readonly transactionService: TransactionService,
   ) {}
 
   async createRecognition(
@@ -105,10 +108,10 @@ export class RecognitionService {
       await this.userRecognitionService.createMany(userRecognitions, session);
 
       if (coinAmount > 0) {
-        this.claimCoin(
+        await this.claimService.claimCoin(
           {
             senderId: new Types.ObjectId(senderId),
-            receiverIds,
+            receiverIds: receiverIds.map((id) => new Types.ObjectId(id)),
             coinAmount,
             recognitionId: newRecognition._id,
           },
@@ -191,45 +194,6 @@ export class RecognitionService {
       throw error;
     } finally {
       session.endSession();
-    }
-  }
-
-  async claimCoin(
-    {
-      senderId,
-      receiverIds,
-      coinAmount,
-      recognitionId,
-    }: {
-      senderId: Types.ObjectId;
-      coinAmount: number;
-      receiverIds: string[];
-      recognitionId: Types.ObjectId;
-    },
-    session: ClientSession,
-  ) {
-    const totalCoinAmount = coinAmount * receiverIds.length;
-
-    // Deduct coins from sender
-    await this.walletService.deductCoins(senderId, totalCoinAmount, session);
-
-    // Update receiver's coin bank
-    for (const receiverId of receiverIds) {
-      await this.walletService.incrementEarnedBalance(
-        new Types.ObjectId(receiverId),
-        coinAmount,
-        session,
-      );
-      await this.transactionService.recordTransactions(
-        {
-          senderId: new Types.ObjectId(senderId),
-          receiverId: new Types.ObjectId(receiverId),
-          amount: coinAmount,
-          entityId: recognitionId,
-          entityType: EntityType.RECOGNITION,
-        },
-        session,
-      );
     }
   }
 

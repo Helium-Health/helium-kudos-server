@@ -12,6 +12,11 @@ export enum EntityType {
   RECOGNITION = 'recognition',
   ORDER = 'order',
 }
+export enum transactionStatus {
+  SUCCESS = 'success',
+  FAILED = 'failed',
+  REVERSED = 'reversed',
+}
 
 @Schema({ timestamps: true })
 export class Transaction {
@@ -32,6 +37,12 @@ export class Transaction {
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: false })
   relatedUserId?: Types.ObjectId;
+
+  @Prop({ type: String, enum: transactionStatus, required: true })
+  status: transactionStatus;
+
+  @Prop({ type: Types.ObjectId, ref: 'Claim', required: true })
+  claimId: Types.ObjectId;
 
   @Prop({ type: Date, default: Date.now })
   timestamp: Date;

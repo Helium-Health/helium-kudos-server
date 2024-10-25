@@ -87,7 +87,15 @@ export class AllocationsService {
       // This checks if it is the 1st day of January, April, July, or October at midnight
       return true;
     }
-
+    // Check for daily execution: '0 0 * * *'
+    if (
+      cadence === '0 0 * * *' &&
+      now.getHours() === 0 &&
+      now.getMinutes() === 0
+    ) {
+      // It's midnight, should execute daily
+      return true;
+    }
     return false;
   }
 

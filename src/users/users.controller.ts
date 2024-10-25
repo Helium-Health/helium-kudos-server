@@ -39,7 +39,6 @@ export class UsersController {
     return this.usersService.findByEmail(req.user.email);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Patch('me')
   async update(
     @Request() req,
