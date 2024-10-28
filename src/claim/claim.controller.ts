@@ -22,6 +22,7 @@ export class ClaimController {
     return { message: 'Claim approved successfully' };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('health')
   healthCheck() {
     return { message: 'ClaimController is up and running' };
