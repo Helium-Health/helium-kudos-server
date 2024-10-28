@@ -21,10 +21,52 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and push  Docker image
+      - name: Install Trivy
         run: |
-          docker build -t onemed/helium-kudos-server-staging .
-          docker push onemed/helium-kudos-server-staging
+         sudo apt-get update
+         sudo apt-get install wget apt-transport-https gnupg lsb-release -y
+         wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+         echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+         sudo apt-get update
+         sudo apt-get install trivy -y
+
+      - name: Run Trivy Vulnerability Scan in repo mode
+        env:
+          TRIVY_USERNAME: ${{ secrets.DOCKER_USER }}
+          TRIVY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.SUPER_PAT }}
+        run: |
+          trivy repo \
+            --db-repository public.ecr.aws/aquasecurity/trivy-db \
+            --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
+            --scanners vuln,secret \
+            --format table \
+            --ignore-unfixed \
+            --severity CRITICAL,HIGH \
+            --output "trivy-results-repo.txt" \
+            https://github.com/Helium-Health/helium-kudos-server
+   
+      - name: Run Trivy Vulnerability Scan
+        env:
+         TRIVY_USERNAME: ${{ secrets.DOCKER_USER }}
+         TRIVY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+         trivy image \
+            --db-repository public.ecr.aws/aquasecurity/trivy-db \
+            --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
+            --scanners vuln \
+            --output trivy-results-image.txt \
+            onemed/helium-kudos-server-staging:latest
+
+
+      - name: Upload Trivy scan results to artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-results
+          path: |
+            trivy-results-repo.txt
+            trivy-results-image.txt
+          
 
       - name: Set up ArgoCD CLI
         run: |

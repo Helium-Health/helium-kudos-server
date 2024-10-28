@@ -31,7 +31,10 @@ export class User {
   verified: boolean;
 
   @Prop({ type: Date })
-  birthday: boolean;
+  joinDate: Date;
+
+  @Prop({ type: Date })
+  dateOfBirth: Date;
 
   @Prop({ type: Types.ObjectId, ref: 'Wallet' })
   wallet: Types.Array<Types.ObjectId>;

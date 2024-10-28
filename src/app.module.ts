@@ -12,6 +12,12 @@ import { UserRecognitionModule } from './user-recognition/user-recognition.modul
 import { WalletModule } from './wallet/wallet.module';
 import { CommentModule } from './comment/comment.module';
 import { TransactionModule } from './transaction/transaction.module';
+import { CurrencyModule } from './currency/currency.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { AllocationsModule } from './allocations/allocations.module';
+import { ReactionsModule } from './reactions/reactions.module';
+import { MilestoneModule } from './milestone/milestone.module';
+import { ClaimModule } from './claim/claim.module';
 
 @Module({
   imports: [
@@ -26,6 +32,12 @@ import { TransactionModule } from './transaction/transaction.module';
     CommentModule,
     TransactionModule,
     // PassportModule.register({ session: true }),
+    ScheduleModule.forRoot(),
+    AllocationsModule,
+    CurrencyModule,
+    ReactionsModule,
+    MilestoneModule,
+    ClaimModule,
   ],
   controllers: [AppController],
   providers: [AppService],
