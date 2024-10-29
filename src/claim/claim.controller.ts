@@ -23,12 +23,6 @@ export class ClaimController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('health')
-  healthCheck() {
-    return { message: 'ClaimController is up and running' };
-  }
-
-  @UseGuards(JwtAuthGuard)
   @Patch(':id/reject')
   async rejectClaim(@Param('id') claimId: Types.ObjectId) {
     await this.claimService.rejectClaim(new Types.ObjectId(claimId));
