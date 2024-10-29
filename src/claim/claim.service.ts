@@ -170,17 +170,23 @@ export class ClaimService {
   async filterClaims(
     userId?: Types.ObjectId,
     status?: string,
+    page: number = 1,
+    limit: number = 10,
   ): Promise<Claim[]> {
-    if (!userId && !status) {
-      return this.claimModel.find().exec();
-    }
-
     const filter: any = {};
+
+    if (!userId && !status) {
+      return this.claimModel
+        .find()
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .exec();
+    }
 
     if (userId) {
       filter.$or = [
         { senderId: new Types.ObjectId(userId) },
-        { receiverId: new Types.ObjectId(userId) },
+        { receiverIds: { $in: [new Types.ObjectId(userId)] } },
       ];
     }
 
@@ -191,6 +197,10 @@ export class ClaimService {
       filter.status = status as Status;
     }
 
-    return this.claimModel.find(filter).exec();
+    return this.claimModel
+      .find(filter)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec();
   }
 }
