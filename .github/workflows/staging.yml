@@ -45,6 +45,11 @@ jobs:
             --severity CRITICAL,HIGH \
             --output "trivy-results-repo.txt" \
             https://github.com/Helium-Health/helium-kudos-server
+
+      - name: Build and push  Docker image
+        run: |
+          docker build -t onemed/helium-kudos-server-staging .
+          docker push onemed/helium-kudos-server-staging
    
       - name: Run Trivy Vulnerability Scan
         env:
