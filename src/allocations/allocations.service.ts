@@ -36,12 +36,28 @@ export class AllocationsService implements OnModuleInit {
   }
 
   async create(createAllocationDto: CreateAllocationDto): Promise<Allocation> {
+    const existingAllocations = await this.allocationModel.find().exec();
+
+    if (existingAllocations.length > 0) {
+      // Delete all existing allocations
+      await this.allocationModel.deleteMany({});
+      this.logger.warn('Existing allocations found and deleted.');
+
+      // Clear the in-memory allocation map
+      this.allocations.clear();
+    }
+
+    // Create the new allocation
     const createdAllocation = new this.allocationModel(createAllocationDto);
     await createdAllocation.save();
+
+    // Update the in-memory allocations map
     this.allocations.set(
       createdAllocation._id.toString(),
       createAllocationDto.cadence,
     );
+
+    this.logger.log(`New allocation created with ID: ${createdAllocation._id}`);
     return createdAllocation;
   }
 
@@ -68,7 +84,7 @@ export class AllocationsService implements OnModuleInit {
     return this.allocationModel.findOne().exec();
   }
 
-  @Cron('* * * * *')
+  @Cron('0 0 * * *')
   handleCron() {
     const now = new Date();
     this.logger.log(`Cron job running at ${now.toISOString()}`);
