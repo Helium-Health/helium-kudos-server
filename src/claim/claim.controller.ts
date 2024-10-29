@@ -34,8 +34,8 @@ export class ClaimController {
   async getAllClaims(
     @Query('userId') userId?: Types.ObjectId,
     @Query('status') status?: string,
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ): Promise<Claim[]> {
     return this.claimService.filterClaims(
       userId ? new Types.ObjectId(userId) : undefined,

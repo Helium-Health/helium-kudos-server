@@ -10,7 +10,7 @@ import { Allocation, AllocationDocument } from './schema/Allocation.schema';
 import { Model } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import { WalletService } from 'src/wallet/wallet.service';
-import { Cron } from '@nestjs/schedule';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class AllocationsService implements OnModuleInit {
@@ -84,7 +84,7 @@ export class AllocationsService implements OnModuleInit {
     return this.allocationModel.findOne().exec();
   }
 
-  @Cron('0 0 * * *')
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   handleCron() {
     const now = new Date();
     this.logger.log(`Cron job running at ${now.toISOString()}`);

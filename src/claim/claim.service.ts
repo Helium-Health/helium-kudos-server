@@ -175,11 +175,14 @@ export class ClaimService {
   ): Promise<Claim[]> {
     const filter: any = {};
 
+    const currentPage = page ?? 1;
+    const currentLimit = limit ?? 10;
+
     if (!userId && !status) {
       return this.claimModel
         .find()
-        .skip((page - 1) * limit)
-        .limit(limit)
+        .skip((currentPage - 1) * currentLimit)
+        .limit(currentLimit)
         .exec();
     }
 
@@ -199,8 +202,8 @@ export class ClaimService {
 
     return this.claimModel
       .find(filter)
-      .skip((page - 1) * limit)
-      .limit(limit)
+      .skip((currentPage - 1) * currentLimit)
+      .limit(currentLimit)
       .exec();
   }
 }
