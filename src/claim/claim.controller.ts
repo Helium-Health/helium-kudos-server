@@ -29,7 +29,7 @@ export class ClaimController {
     return { message: 'Claim rejected successfully' };
   }
 
-  // @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Get()
   async getAllClaims(
     @Query('userId') userId?: Types.ObjectId,
