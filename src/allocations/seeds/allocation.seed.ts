@@ -10,25 +10,12 @@ export class AllocationSeeder {
 
   async seedAllocations(): Promise<void> {
     const allocations: CreateAllocationDto[] = [
-      { allocationAmount: 500, cadence: '0 0 1 1,4,7,10 *' }, // Quarterly Allocation
-      { allocationAmount: 300, cadence: '00 10 * * *' }, // 10AM Daily
+      { allocationAmount: 300, cadence: '0 0 * * *' }, // Midnight daily
     ];
 
     for (const allocationDto of allocations) {
       try {
-        const allocationExists =
-          await this.allocationService.findAllocationByCadence(
-            allocationDto.cadence,
-          );
-
-        if (allocationExists) {
-          this.logger.log(
-            `Allocation with cadence ${allocationDto.cadence} already exists. Skipping.`,
-          );
-          continue;
-        }
-
-        // Create the allocation if it does not exist
+        // Directly create the allocation using the new create function in AllocationsService
         await this.allocationService.create(allocationDto);
         this.logger.log(
           `Allocation with cadence ${allocationDto.cadence} has been created.`,
