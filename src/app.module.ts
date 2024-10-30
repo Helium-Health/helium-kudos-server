@@ -18,6 +18,8 @@ import { AllocationsModule } from './allocations/allocations.module';
 import { ReactionsModule } from './reactions/reactions.module';
 import { MilestoneModule } from './milestone/milestone.module';
 import { ClaimModule } from './claim/claim.module';
+import { ProductModule } from './product/product.module';
+import { OrderModule } from './order/order.module';
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { ClaimModule } from './claim/claim.module';
     ReactionsModule,
     MilestoneModule,
     ClaimModule,
+    ProductModule,
+    OrderModule,
   ],
   controllers: [AppController],
   providers: [AppService],
