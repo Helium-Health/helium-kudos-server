@@ -201,15 +201,16 @@ export class ClaimService {
 
     const claimsWithUserDetails = await Promise.all(
       claims.map(async (claim) => {
-        const senderDetails = await this.userService.getUserDetails(
-          claim.senderId,
-        );
+        const senderDetails = await this.userService.findById(claim.senderId);
 
         const receiverDetails = await Promise.all(
           claim.receiverIds.map(async (receiverId) => {
-            const { name, picture } =
-              await this.userService.getUserDetails(receiverId);
-            return { _id: receiverId, name, picture };
+            const receiver = await this.userService.findById(receiverId);
+            return {
+              _id: receiverId,
+              name: receiver?.name,
+              picture: receiver?.picture,
+            };
           }),
         );
 
@@ -217,8 +218,8 @@ export class ClaimService {
           ...claim.toObject(),
           senderId: {
             _id: claim.senderId,
-            name: senderDetails.name,
-            picture: senderDetails.picture,
+            name: senderDetails?.name,
+            picture: senderDetails?.picture,
           },
           receiverIds: receiverDetails,
         };
