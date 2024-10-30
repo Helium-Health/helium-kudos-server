@@ -113,4 +113,11 @@ export class UsersService {
       })
       .exec();
   }
+  async getUserDetails(
+    userId: Types.ObjectId,
+  ): Promise<{ name: string; picture: string | undefined }> {
+    const user = await this.userModel.findById(userId, 'name picture').exec();
+    if (!user) throw new Error('User not found');
+    return { name: user.name, picture: user.picture };
+  }
 }

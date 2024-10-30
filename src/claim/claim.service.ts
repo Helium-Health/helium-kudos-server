@@ -14,6 +14,7 @@ import { WalletService } from 'src/wallet/wallet.service';
 import { Claim, ClaimDocument, Status } from './schema/claim.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClaimDto } from './dto/claim.dto';
+import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class ClaimService {
@@ -21,6 +22,7 @@ export class ClaimService {
     @InjectModel(Claim.name) private readonly claimModel: Model<ClaimDocument>,
     private readonly transactionService: TransactionService,
     private readonly walletService: WalletService,
+    private readonly userService: UsersService,
   ) {}
   async recordClaim(
     { senderId, receiverIds, recognitionId, coinAmount }: ClaimDto,
@@ -172,19 +174,10 @@ export class ClaimService {
     status?: string,
     page: number = 1,
     limit: number = 10,
-  ): Promise<Claim[]> {
+  ): Promise<any> {
     const filter: any = {};
-
     const currentPage = page ?? 1;
     const currentLimit = limit ?? 10;
-
-    if (!userId && !status) {
-      return this.claimModel
-        .find()
-        .skip((currentPage - 1) * currentLimit)
-        .limit(currentLimit)
-        .exec();
-    }
 
     if (userId) {
       filter.$or = [
@@ -200,10 +193,38 @@ export class ClaimService {
       filter.status = status as Status;
     }
 
-    return this.claimModel
+    const claims = await this.claimModel
       .find(filter)
       .skip((currentPage - 1) * currentLimit)
       .limit(currentLimit)
       .exec();
+
+    const claimsWithUserDetails = await Promise.all(
+      claims.map(async (claim) => {
+        const senderDetails = await this.userService.getUserDetails(
+          claim.senderId,
+        );
+
+        const receiverDetails = await Promise.all(
+          claim.receiverIds.map(async (receiverId) => {
+            const { name, picture } =
+              await this.userService.getUserDetails(receiverId);
+            return { _id: receiverId, name, picture };
+          }),
+        );
+
+        return {
+          ...claim.toObject(),
+          senderId: {
+            _id: claim.senderId,
+            name: senderDetails.name,
+            picture: senderDetails.picture,
+          },
+          receiverIds: receiverDetails,
+        };
+      }),
+    );
+
+    return claimsWithUserDetails;
   }
 }
