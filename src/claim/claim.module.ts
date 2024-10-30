@@ -5,9 +5,11 @@ import { Claim, ClaimSchema } from './schema/claim.schema';
 import { MongooseModule } from '@nestjs/mongoose';
 import { TransactionModule } from 'src/transaction/transaction.module';
 import { WalletModule } from 'src/wallet/wallet.module';
+import { UsersModule } from 'src/users/users.module';
 
 @Module({
   imports: [
+    UsersModule,
     TransactionModule,
     WalletModule,
     MongooseModule.forFeature([{ name: Claim.name, schema: ClaimSchema }]),

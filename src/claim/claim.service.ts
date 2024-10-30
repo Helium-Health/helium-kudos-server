@@ -14,6 +14,7 @@ import { WalletService } from 'src/wallet/wallet.service';
 import { Claim, ClaimDocument, Status } from './schema/claim.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClaimDto } from './dto/claim.dto';
+import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class ClaimService {
@@ -21,6 +22,7 @@ export class ClaimService {
     @InjectModel(Claim.name) private readonly claimModel: Model<ClaimDocument>,
     private readonly transactionService: TransactionService,
     private readonly walletService: WalletService,
+    private readonly userService: UsersService,
   ) {}
   async recordClaim(
     { senderId, receiverIds, recognitionId, coinAmount }: ClaimDto,
@@ -170,17 +172,17 @@ export class ClaimService {
   async filterClaims(
     userId?: Types.ObjectId,
     status?: string,
-  ): Promise<Claim[]> {
-    if (!userId && !status) {
-      return this.claimModel.find().exec();
-    }
-
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<any> {
     const filter: any = {};
+    const currentPage = page ?? 1;
+    const currentLimit = limit ?? 10;
 
     if (userId) {
       filter.$or = [
         { senderId: new Types.ObjectId(userId) },
-        { receiverId: new Types.ObjectId(userId) },
+        { receiverIds: { $in: [new Types.ObjectId(userId)] } },
       ];
     }
 
@@ -191,6 +193,39 @@ export class ClaimService {
       filter.status = status as Status;
     }
 
-    return this.claimModel.find(filter).exec();
+    const claims = await this.claimModel
+      .find(filter)
+      .skip((currentPage - 1) * currentLimit)
+      .limit(currentLimit)
+      .exec();
+
+    const claimsWithUserDetails = await Promise.all(
+      claims.map(async (claim) => {
+        const senderDetails = await this.userService.findById(claim.senderId);
+
+        const receiverDetails = await Promise.all(
+          claim.receiverIds.map(async (receiverId) => {
+            const receiver = await this.userService.findById(receiverId);
+            return {
+              _id: receiverId,
+              name: receiver?.name,
+              picture: receiver?.picture,
+            };
+          }),
+        );
+
+        return {
+          ...claim.toObject(),
+          senderId: {
+            _id: claim.senderId,
+            name: senderDetails?.name,
+            picture: senderDetails?.picture,
+          },
+          receiverIds: receiverDetails,
+        };
+      }),
+    );
+
+    return claimsWithUserDetails;
   }
 }
