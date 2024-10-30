@@ -16,12 +16,6 @@ export class Product {
 
   @Prop({ type: Number, required: true })
   quantity: number;
-
-  @Prop({ type: [String], required: false })
-  availableSizes?: string[];
-
-  @Prop({ type: [String], required: false })
-  availableColors?: string[];
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);

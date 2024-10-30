@@ -3,7 +3,6 @@ import { Document, Types } from 'mongoose';
 
 export type OrderDocument = Document & Order;
 
-// Step 1: Define Variant Options
 @Schema()
 class Variant {
   @Prop({ type: String, required: false, enum: ['S', 'M', 'L', 'XL'] })
@@ -17,7 +16,6 @@ class Variant {
   color?: string;
 }
 
-// Step 2: OrderItem Schema with Variant as an Object
 @Schema()
 export class OrderItem {
   @Prop({ type: Types.ObjectId, ref: 'Product', required: true })
@@ -33,19 +31,18 @@ export class OrderItem {
   quantity: number;
 
   @Prop({ type: Variant, required: false })
-  variant?: Variant; // Nested variant object for flexibility
+  variant?: Variant;
 }
 
 const OrderItemSchema = SchemaFactory.createForClass(OrderItem);
 
-// Step 3: Order Schema
 @Schema({ timestamps: true })
 export class Order {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   userId: Types.ObjectId;
 
   @Prop({ type: [OrderItemSchema], required: true })
-  items: OrderItem[];
+  item: OrderItem;
 
   @Prop({ type: Number, required: true })
   totalAmount: number;
