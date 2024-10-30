@@ -23,12 +23,6 @@ export class ClaimController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('health')
-  healthCheck() {
-    return { message: 'ClaimController is up and running' };
-  }
-
-  @UseGuards(JwtAuthGuard)
   @Patch(':id/reject')
   async rejectClaim(@Param('id') claimId: Types.ObjectId) {
     await this.claimService.rejectClaim(new Types.ObjectId(claimId));
@@ -40,7 +34,14 @@ export class ClaimController {
   async getAllClaims(
     @Query('userId') userId?: Types.ObjectId,
     @Query('status') status?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
   ): Promise<Claim[]> {
-    return this.claimService.filterClaims(userId, status);
+    return this.claimService.filterClaims(
+      userId ? new Types.ObjectId(userId) : undefined,
+      status,
+      page,
+      limit,
+    );
   }
 }
