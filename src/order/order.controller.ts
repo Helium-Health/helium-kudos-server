@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { Types } from 'mongoose';
-import { PlaceOrderDto } from './dto/order.dto';
+import { PlaceOrderRequestDto } from './dto/order.dto';
 import { Order } from './schema/Order.schema';
 
 @Controller('order')
@@ -20,15 +20,11 @@ export class OrderController {
   @Post('place')
   async placeOrder(
     @Request() req,
-    @Body() placeOrderDto: PlaceOrderDto,
+    @Body() placeOrderRequestDto: PlaceOrderRequestDto,
   ): Promise<Order> {
     const userId = req.user?.userId;
 
-    return this.orderService.placeOrder(
-      userId,
-      placeOrderDto.productId,
-      placeOrderDto.quantity,
-    );
+    return this.orderService.placeOrder(userId, placeOrderRequestDto.items);
   }
   @Get()
   async getOrders(

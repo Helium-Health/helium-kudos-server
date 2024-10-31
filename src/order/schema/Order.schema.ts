@@ -42,7 +42,7 @@ export class Order {
   userId: Types.ObjectId;
 
   @Prop({ type: [OrderItemSchema], required: true })
-  item: OrderItem;
+  items: OrderItem[];
 
   @Prop({ type: Number, required: true })
   totalAmount: number;
@@ -50,7 +50,7 @@ export class Order {
   @Prop({
     type: String,
     required: true,
-    enum: ['draft', 'pending', 'approved', 'purchased', 'canceled', 'failed'],
+    enum: ['pending', 'approved', 'purchased', 'canceled', 'failed'],
   })
   status: string;
 }

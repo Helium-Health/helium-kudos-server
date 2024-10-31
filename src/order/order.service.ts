@@ -8,6 +8,7 @@ import { Model, Types } from 'mongoose';
 import { Order, OrderDocument } from './schema/Order.schema';
 import { WalletService } from '../wallet/wallet.service';
 import { ProductService } from 'src/product/product.service';
+import { PlaceOrderDto } from './dto/order.dto';
 
 @Injectable()
 export class OrderService {
@@ -19,15 +20,33 @@ export class OrderService {
 
   async placeOrder(
     userId: Types.ObjectId,
-    productId: Types.ObjectId,
-    quantity: number = 1,
+    items: PlaceOrderDto[],
   ): Promise<Order> {
-    const product = await this.productService.findProductById(productId);
-    if (!product) {
-      throw new BadRequestException('Product not found');
-    }
+    let totalAmount = 0;
 
-    const totalAmount = product.price * quantity;
+    const orderItems = await Promise.all(
+      items.map(async (item) => {
+        const product = await this.productService.findProductById(
+          item.productId,
+        );
+        if (!product) {
+          throw new BadRequestException(
+            `Product with ID ${item.productId} not found`,
+          );
+        }
+
+        const itemTotal = product.price * item.quantity;
+        totalAmount += itemTotal;
+
+        return {
+          productId: item.productId,
+          name: product.name,
+          price: product.price,
+          quantity: item.quantity,
+          ...(item.variant && { variant: item.variant }),
+        };
+      }),
+    );
 
     const wallet = await this.walletService.getEarnedCoinBalance(
       userId.toString(),
@@ -48,12 +67,7 @@ export class OrderService {
 
       const order = new this.orderModel({
         userId,
-        item: {
-          productId,
-          name: product.name,
-          price: product.price,
-          quantity,
-        },
+        items: orderItems,
         totalAmount,
         status: 'pending',
       });
@@ -76,6 +90,7 @@ export class OrderService {
       throw new NotFoundException('Pending order not found');
     }
     order.status = 'approved';
+    //TODO: Call function to subtract product from inventory
     return order.save();
   }
 
