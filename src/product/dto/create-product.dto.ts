@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsNotEmpty,
   ValidateIf,
+  IsMongoId,
 } from 'class-validator';
 export class ProductVariantDto {
   @IsString()
@@ -38,9 +39,10 @@ export class CreateProductDto {
   @IsOptional()
   images?: string[];
 
-  @IsString()
+  @IsArray()
+  @IsMongoId({ each: true })
   @IsOptional()
-  category?: string;
+  categories?: string[];
 
   @ValidateIf((product) => !product.basePrice)
   @IsArray()

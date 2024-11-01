@@ -21,14 +21,13 @@ export class ProductService {
   ) {}
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
-    if (createProductDto.category) {
-      const category = await this.categoryModel.findById(
-        createProductDto.category,
-      );
-      if (!category) {
-        throw new NotFoundException(
-          `Category with ID ${createProductDto.category} not found`,
-        );
+    if (createProductDto.categories?.length) {
+      const categories = await this.categoryModel.find({
+        _id: { $in: createProductDto.categories },
+      });
+
+      if (categories.length !== createProductDto.categories.length) {
+        throw new NotFoundException('One or more categories not found');
       }
     }
 
@@ -36,45 +35,73 @@ export class ProductService {
     return product.save();
   }
 
-  async findAll(): Promise<ProductResponse[]> {
-    const products = await this.productModel.find().exec();
-    return products;
+  async findAll(
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{
+    data: ProductResponse[];
+    meta: {
+      totalCount: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> {
+    const skip = (page - 1) * limit;
+
+    const [products, totalCount] = await Promise.all([
+      this.productModel
+        .find()
+        .populate('categories')
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.productModel.countDocuments(),
+    ]);
+
+    return {
+      data: products,
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+      },
+    };
   }
 
   async findById(id: string): Promise<ProductResponse> {
     const product = await this.productModel
       .findById(new Types.ObjectId(id))
+      .populate('categories')
       .exec();
+
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
-    return product;
-  }
 
-  async findAllCategories(): Promise<Category[]> {
-    return this.categoryModel.find().exec();
+    return product;
   }
 
   async update(
     id: string,
     updateProductDto: UpdateProductDto,
   ): Promise<Product> {
-    if (updateProductDto.category) {
-      const category = await this.categoryModel.findById(
-        updateProductDto.category,
-      );
-      if (!category) {
-        throw new NotFoundException(
-          `Category with ID ${updateProductDto.category} not found`,
-        );
-      }
-    }
-
     const existingProduct = await this.productModel.findById(
       new Types.ObjectId(id),
     );
     if (!existingProduct) {
       throw new NotFoundException(`Product with ID ${id} not found`);
+    }
+
+    if (updateProductDto.categories?.length) {
+      const categories = await this.categoryModel.find({
+        _id: { $in: updateProductDto.categories },
+      });
+
+      if (categories.length !== updateProductDto.categories.length) {
+        throw new NotFoundException('One or more categories not found');
+      }
     }
 
     const updatedImages = updateProductDto.images
@@ -91,7 +118,12 @@ export class ProductService {
         { ...updateProductDto, images: updatedImages },
         { new: true },
       )
+      .populate('categories')
       .exec();
+  }
+
+  async findAllCategories(): Promise<Category[]> {
+    return this.categoryModel.find().exec();
   }
 
   async remove(id: string): Promise<void> {

@@ -33,8 +33,8 @@ export class Product {
   @Prop([String])
   images: string[];
 
-  @Prop({ type: Types.ObjectId, ref: 'Category' })
-  category: Types.ObjectId;
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Category' }] })
+  categories: Types.ObjectId[];
 
   @Prop({ type: [ProductVariant], default: [] })
   variants: ProductVariant[];
