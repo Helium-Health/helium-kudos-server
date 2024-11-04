@@ -1,6 +1,4 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 import { AuthModule } from './auth/auth.module';
@@ -18,6 +16,8 @@ import { AllocationsModule } from './allocations/allocations.module';
 import { ReactionsModule } from './reactions/reactions.module';
 import { MilestoneModule } from './milestone/milestone.module';
 import { ClaimModule } from './claim/claim.module';
+import { ProductModule } from './product/product.module';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -38,8 +38,10 @@ import { ClaimModule } from './claim/claim.module';
     ReactionsModule,
     MilestoneModule,
     ClaimModule,
+    ProductModule,
+    StorageModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
+  controllers: [],
+  providers: [],
 })
 export class AppModule {}
