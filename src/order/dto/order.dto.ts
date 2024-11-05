@@ -1,42 +1,52 @@
-import {
-  IsMongoId,
-  IsOptional,
-  IsInt,
-  Min,
-  IsEnum,
-  ValidateNested,
-  IsArray,
-} from 'class-validator';
-import { Types } from 'mongoose';
-import { Type } from 'class-transformer';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, Types } from 'mongoose';
 
-export class VariantDto {
-  @IsOptional()
-  @IsEnum(['S', 'M', 'L', 'XL'])
-  size?: string;
+export type OrderDocument = Document & Order;
 
-  @IsOptional()
-  @IsEnum(['Red', 'Blue', 'Green', 'Black'])
-  color?: string;
+@Schema()
+export class OrderItemVariant {
+  @Prop({ type: String, required: true })
+  variantType: string;
+
+  @Prop({ type: String, required: true })
+  value: string;
 }
 
-export class PlaceOrderDto {
-  @IsMongoId()
+@Schema()
+export class OrderItem {
+  @Prop({ type: Types.ObjectId, ref: 'Product', required: true })
   productId: Types.ObjectId;
 
-  @IsInt()
-  @IsOptional()
-  @Min(1)
-  quantity?: number = 1;
+  @Prop({ type: String, required: true })
+  name: string;
 
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => VariantDto)
-  variant?: VariantDto;
+  @Prop({ type: Number, required: true })
+  price: number;
+
+  @Prop({ type: Number, required: true })
+  quantity: number;
+
+  @Prop({ type: [OrderItemVariant], default: [] })
+  variants: OrderItemVariant[];
 }
-export class PlaceOrderRequestDto {
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => PlaceOrderDto)
-  items: PlaceOrderDto[];
+
+@Schema({ timestamps: true })
+export class Order {
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  userId: Types.ObjectId;
+
+  @Prop({ type: [OrderItem], required: true })
+  items: OrderItem[];
+
+  @Prop({ type: Number, required: true })
+  totalAmount: number;
+
+  @Prop({
+    type: String,
+    enum: ['pending', 'approved', 'rejected'],
+    default: 'pending',
+  })
+  status: string;
 }
+
+export const OrderSchema = SchemaFactory.createForClass(Order);

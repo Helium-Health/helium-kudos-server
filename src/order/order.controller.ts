@@ -10,8 +10,8 @@ import {
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { Types } from 'mongoose';
-import { PlaceOrderRequestDto } from './dto/order.dto';
 import { Order } from './schema/Order.schema';
+import { OrderItem } from './dto/order.dto';
 
 @Controller('order')
 export class OrderController {
@@ -20,19 +20,19 @@ export class OrderController {
   @Post('place')
   async placeOrder(
     @Request() req,
-    @Body() placeOrderRequestDto: PlaceOrderRequestDto,
+    @Body() orderItems: OrderItem[],
   ): Promise<Order> {
     const userId = req.user?.userId;
-
-    return this.orderService.placeOrder(userId, placeOrderRequestDto.items);
+    return this.orderService.placeOrder(userId, orderItems);
   }
+
   @Get()
   async getOrders(
     @Query('userId') userId?: string,
     @Query('status') status?: string,
     @Query('page') page = '1',
     @Query('limit') limit = '10',
-  ) {
+  ): Promise<{ orders: Order[]; total: number; totalPages: number }> {
     const userIdObj = userId ? new Types.ObjectId(userId) : undefined;
     const pageNumber = parseInt(page, 10);
     const limitNumber = parseInt(limit, 10);
@@ -46,18 +46,24 @@ export class OrderController {
   }
 
   @Patch('admin/approve/:orderId')
-  async approveOrder(@Param('orderId') orderId: Types.ObjectId) {
-    return this.orderService.approveOrder(orderId);
+  async approveOrder(@Param('orderId') orderId: string): Promise<Order> {
+    return this.orderService.approveOrder(new Types.ObjectId(orderId));
   }
 
   @Patch('admin/reject/:orderId')
-  async rejectOrder(@Param('orderId') orderId: Types.ObjectId) {
-    return this.orderService.rejectOrder(orderId);
+  async rejectOrder(@Param('orderId') orderId: string): Promise<Order> {
+    return this.orderService.rejectOrder(new Types.ObjectId(orderId));
   }
 
   @Patch('user/cancel/:orderId')
-  async cancelOrder(@Request() req, @Param('orderId') orderId: Types.ObjectId) {
-    const userId = req.user.userId;
-    return this.orderService.cancelOrder(userId, orderId);
+  async cancelOrder(
+    @Request() req,
+    @Param('orderId') orderId: string,
+  ): Promise<Order> {
+    const userId = req.user?.userId;
+    return this.orderService.cancelOrder(
+      new Types.ObjectId(userId),
+      new Types.ObjectId(orderId),
+    );
   }
 }

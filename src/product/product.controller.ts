@@ -1,17 +1,71 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  UseGuards,
+  ValidationPipe,
+  UsePipes,
+  Query,
+  DefaultValuePipe,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { ProductService } from './product.service';
-import { Product } from './schema/Product.schema';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
+import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
+import { AdminGuard } from 'src/auth/guards/admin.guard';
+import { CreateCategoryDto } from './dto/create-category.dto';
 
 @Controller('product')
+@UseGuards(JwtAuthGuard)
+@UsePipes(new ValidationPipe({ transform: true }))
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
+  @UseGuards(AdminGuard)
+  @Post()
+  create(@Body() createProductDto: CreateProductDto) {
+    return this.productService.create(createProductDto);
+  }
+
   @Get()
-  async getAllProducts(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
-    @Query('category') category?: string,
-  ): Promise<Product[]> {
-    return this.productService.findAllPaginated(page, limit, category);
+  findAll(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    return this.productService.findAll(page, limit);
+  }
+
+  @Get(':id')
+  findById(@Param('id') id: string) {
+    return this.productService.findById(id);
+  }
+
+  @UseGuards(AdminGuard)
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
+    return this.productService.update(id, updateProductDto);
+  }
+
+  @UseGuards(AdminGuard)
+  @Get('categories')
+  findAllCategories() {
+    return this.productService.findAllCategories();
+  }
+
+  @Post('categories')
+  @UseGuards(AdminGuard)
+  createCategory(@Body() createCategoryDto: CreateCategoryDto) {
+    return this.productService.createCategory(createCategoryDto);
+  }
+
+  @UseGuards(AdminGuard)
+  @Delete(':id')
+  remove(@Param('id') id: string) {
+    return this.productService.remove(id);
   }
 }
