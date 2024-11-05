@@ -7,12 +7,15 @@ import {
   Post,
   Query,
   Request,
+  UseGuards,
 } from '@nestjs/common';
 import { OrderService } from './order.service';
 import { Types } from 'mongoose';
 import { Order } from './schema/Order.schema';
 import { OrderItem } from './dto/order.dto';
+import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 
+@UseGuards(JwtAuthGuard)
 @Controller('order')
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
