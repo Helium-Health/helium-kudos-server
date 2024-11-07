@@ -7,7 +7,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product, ProductResponse } from './schema/product.schema';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { ClientSession, Model, Types } from 'mongoose';
 import { StorageService } from 'src/storage/storage.service';
 import { Category } from './schema/category.schema';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -149,37 +149,35 @@ export class ProductService {
   }
   async deductStock(
     productId: Types.ObjectId,
-    variantType: string,
-    variantValue: string,
+    variants: any[],
     quantity: number,
-    session: any,
-  ): Promise<void> {
-    const product = await this.productModel
-      .findById(productId)
-      .session(session);
-
+    session: ClientSession,
+  ) {
+    const product = await this.productModel.findById(productId);
     if (!product) {
-      throw new NotFoundException(`Product with ID ${productId} not found`);
+      throw new BadRequestException('Product not found');
     }
 
-    const variant = product.variants.find(
-      (v) => v.variantType === variantType && v.value === variantValue,
-    );
-
-    if (!variant) {
-      throw new BadRequestException(
-        `Variant ${variantValue} not found for product ${product.name}`,
+    for (const variant of variants) {
+      const variantMatch = product.variants.find(
+        (v) =>
+          v.variantType === variant.variantType && v.value === variant.value,
       );
-    }
+      if (!variantMatch) {
+        throw new BadRequestException(
+          `Variant ${variant.variantType}: ${variant.value} not found`,
+        );
+      }
 
-    if (variant.stock < quantity) {
-      throw new BadRequestException(
-        `Insufficient stock for variant ${variant.value} of product ${product.name}`,
-      );
-    }
+      if (variantMatch.stock < quantity) {
+        throw new BadRequestException(
+          `Not enough stock for ${variant.variantType} ${variant.value}`,
+        );
+      }
 
-    // Deduct the stock
-    variant.stock -= quantity;
-    await product.save({ session }); // Save the updated product with session
+      variantMatch.stock -= quantity;
+
+      await product.save({ session });
+    }
   }
 }

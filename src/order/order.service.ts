@@ -1,14 +1,13 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Order, OrderDocument } from './schema/Order.schema';
+import { Order, OrderDocument, OrderStatus } from './schema/Order.schema';
 import { WalletService } from '../wallet/wallet.service';
 import { ProductService } from 'src/product/product.service';
-import { OrderItem } from './dto/order.dto';
 
 @Injectable()
 export class OrderService {
@@ -17,6 +16,205 @@ export class OrderService {
     private walletService: WalletService,
     private productService: ProductService,
   ) {}
+  async placeOrder(
+    userId: string,
+    productData: {
+      productId: Types.ObjectId;
+      quantity: number;
+      variants?: { variantType: string; value: string }[];
+    }[],
+  ): Promise<Order> {
+    let totalAmount = 0;
+
+    const orderItems = await Promise.all(
+      productData.map(async (data) => {
+        const product = await this.productService.findById(
+          data.productId.toString(),
+        );
+        if (!product) {
+          throw new BadRequestException(
+            `Product with ID ${data.productId} not found`,
+          );
+        }
+
+        let price = product.basePrice;
+        const matchedVariants = [];
+
+        if (data.variants && data.variants.length > 0) {
+          for (const variant of data.variants) {
+            const matchedVariant = product.variants.find(
+              (v) =>
+                v.variantType === variant.variantType &&
+                v.value === variant.value,
+            );
+
+            if (!matchedVariant) {
+              throw new BadRequestException(
+                `Variant ${variant.variantType} - ${variant.value} not available for product ${product.name}`,
+              );
+            }
+
+            price = matchedVariant.price;
+            matchedVariants.push({
+              variantType: matchedVariant.variantType,
+              value: matchedVariant.value,
+              price: matchedVariant.price,
+            });
+          }
+        }
+
+        const itemTotal = price * data.quantity;
+        totalAmount += itemTotal;
+
+        return {
+          productId: data.productId,
+          name: product.name,
+          price,
+          quantity: data.quantity,
+          variants: matchedVariants,
+        };
+      }),
+    );
+
+    const wallet = await this.walletService.getEarnedCoinBalance(
+      userId.toString(),
+    );
+    if (wallet.earnedBalance < totalAmount) {
+      throw new BadRequestException('Insufficient earned balance');
+    }
+
+    const session = await this.orderModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      await this.walletService.deductEarnedBalance(
+        new Types.ObjectId(userId),
+        totalAmount,
+        session,
+      );
+
+      const order = new this.orderModel({
+        userId,
+        items: orderItems,
+        totalAmount,
+        status: OrderStatus.PENDING,
+      });
+
+      await order.save({ session });
+      await session.commitTransaction();
+      return order;
+    } catch (error) {
+      console.error('Order placement failed:', error);
+      await session.abortTransaction();
+      throw new BadRequestException('Order placement failed');
+    } finally {
+      session.endSession();
+    }
+  }
+
+  //   async placeOrder(
+  //     userId: Types.ObjectId,
+  //     items: {
+  //       productId: Types.ObjectId;
+  //       quantity: number;
+  //       variants?: { variantType: string; value: string }[];
+  //     }[],
+  //   ): Promise<Order> {
+  //     let totalAmount = 0;
+
+  //     const orderItems = await Promise.all(
+  //       items.map(async (item) => {
+  //         const product = await this.productService.findById(
+  //           item.productId.toString(),
+  //         );
+  //         if (!product) {
+  //           throw new BadRequestException(
+  //             `Product with ID ${item.productId} not found`,
+  //           );
+  //         }
+
+  //         let price = product.basePrice;
+  //         const matchedVariants = [];
+
+  //         if (item.variants && item.variants.length > 0) {
+  //           let highestVariantPrice = product.basePrice;
+
+  //           for (const itemVariant of item.variants) {
+  //             const matchedVariant = product.variants.find(
+  //               (v) =>
+  //                 v.variantType === itemVariant.variantType &&
+  //                 v.value === itemVariant.value,
+  //             );
+
+  //             if (!matchedVariant) {
+  //               throw new BadRequestException(
+  //                 `Variant ${itemVariant.variantType} - ${itemVariant.value} not available for product ${product.name}`,
+  //               );
+  //             }
+
+  //
+  //             if (matchedVariant.price > highestVariantPrice) {
+  //               highestVariantPrice = matchedVariant.price;
+  //             }
+
+  //             matchedVariants.push({
+  //               variantType: matchedVariant.variantType,
+  //               value: matchedVariant.value,
+  //             });
+  //           }
+
+  //           // Set price to the highest variant price
+  //           price = highestVariantPrice;
+  //         }
+
+  //         const itemTotal = price * item.quantity;
+  //         totalAmount += itemTotal;
+
+  //         return {
+  //           productId: item.productId,
+  //           name: product.name,
+  //           price,
+  //           quantity: item.quantity,
+  //           variants: matchedVariants,
+  //         };
+  //       }),
+  //     );
+
+  //     const wallet = await this.walletService.getEarnedCoinBalance(
+  //       userId.toString(),
+  //     );
+  //     if (wallet.earnedBalance < totalAmount) {
+  //       throw new BadRequestException('Insufficient earned balance');
+  //     }
+
+  //     const session = await this.orderModel.db.startSession();
+  //     session.startTransaction();
+
+  //     try {
+  //       await this.walletService.deductEarnedBalance(
+  //         userId,
+  //         totalAmount,
+  //         session,
+  //       );
+
+  //       const order = new this.orderModel({
+  //         userId,
+  //         items: orderItems,
+  //         totalAmount,
+  //         status: 'pending',
+  //       });
+
+  //       await order.save({ session });
+  //       await session.commitTransaction();
+  //       return order;
+  //     } catch (error) {
+  //       console.error('Order placement failed:', error);
+  //       await session.abortTransaction();
+  //       throw new BadRequestException('Order placement failed');
+  //     } finally {
+  //       session.endSession();
+  //     }
+  //   }
 
   async getOrders(
     userId?: Types.ObjectId,
@@ -45,144 +243,68 @@ export class OrderService {
     return { orders, total, totalPages };
   }
 
-  async placeOrder(userId: Types.ObjectId, items: OrderItem[]): Promise<Order> {
-    let totalAmount = 0;
-
-    const orderItems = await Promise.all(
-      items.map(async (item) => {
-        const product = await this.productService.findById(
-          item.productId.toString(),
-        );
-        if (!product) {
-          throw new BadRequestException(
-            `Product with ID ${item.productId} not found`,
-          );
-        }
-
-        let price = product.basePrice;
-
-        const matchedVariants = [];
-
-        if (item.variants && item.variants.length > 0) {
-          for (const itemVariant of item.variants) {
-            const matchedVariant = product.variants.find(
-              (v) =>
-                v.variantType === itemVariant.variantType &&
-                v.value === itemVariant.value,
-            );
-
-            if (!matchedVariant) {
-              throw new BadRequestException(
-                `Variant ${itemVariant.variantType} - ${itemVariant.value} not available for product ${product.name}`,
-              );
-            }
-
-            price = matchedVariant.price;
-            matchedVariants.push({
-              variantType: matchedVariant.variantType,
-              value: matchedVariant.value,
-            });
-          }
-        }
-
-        const itemTotal = price * item.quantity;
-        totalAmount += itemTotal;
-
-        return {
-          productId: item.productId,
-          name: product.name,
-          price,
-          quantity: item.quantity,
-          variants: matchedVariants,
-        };
-      }),
-    );
-
-    const wallet = await this.walletService.getEarnedCoinBalance(
-      userId.toString(),
-    );
-    if (wallet.earnedBalance < totalAmount) {
-      throw new BadRequestException('Insufficient earned balance');
-    }
-
-    const session = await this.orderModel.db.startSession();
-    session.startTransaction();
-
-    try {
-      await this.walletService.deductEarnedBalance(
-        userId,
-        totalAmount,
-        session,
-      );
-
-      const order = new this.orderModel({
-        userId,
-        items: orderItems,
-        totalAmount,
-        status: 'pending',
-      });
-
-      await order.save({ session });
-      await session.commitTransaction();
-      return order;
-    } catch (error) {
-      console.error('Order placement failed:', error);
-      await session.abortTransaction();
-      throw new BadRequestException('Order placement failed');
-    } finally {
-      session.endSession();
-    }
+  async findById(orderId: Types.ObjectId): Promise<OrderDocument | null> {
+    return this.orderModel.findById(orderId);
   }
-  async approveOrder(orderId: Types.ObjectId): Promise<Order> {
+
+  async approveOrder(orderId: Types.ObjectId): Promise<any> {
+    const order = await this.findById(orderId);
+    if (!order) {
+      throw new BadRequestException('Order not found');
+    }
+
+    if (order.status !== 'pending') {
+      throw new BadRequestException('Only pending orders can be approved');
+    }
+
     const session = await this.orderModel.db.startSession();
     session.startTransaction();
 
     try {
-      const order = await this.orderModel.findById(orderId).session(session);
-      if (!order || order.status !== 'pending') {
-        throw new NotFoundException('Pending order not found');
-      }
-
-      order.status = 'approved';
-
-      for (const item of order.items) {
+      for (const orderItem of order.items) {
         await this.productService.deductStock(
-          item.productId,
-          item.variant[0].variantType,
-          item.variant[0].value,
-          item.quantity,
+          orderItem.productId,
+          orderItem.variants,
+          orderItem.quantity,
           session,
         );
       }
 
+      order.status = OrderStatus.APPROVED;
       await order.save({ session });
+
       await session.commitTransaction();
-      return order;
+
+      return { message: 'Order approved successfully', order };
     } catch (error) {
-      console.error('Failed to approve order:', error);
+      console.error('Error approving order:', error);
       await session.abortTransaction();
-      throw new BadRequestException('Failed to approve order');
+      throw new BadRequestException('Order approval failed');
     } finally {
       session.endSession();
     }
   }
   async rejectOrder(orderId: Types.ObjectId): Promise<Order> {
+    const order = await this.findById(orderId);
+    if (!order) {
+      throw new BadRequestException('Order not found');
+    }
+
+    if (order.status !== 'pending') {
+      throw new BadRequestException('Only pending orders can be rejected');
+    }
+
     const session = await this.orderModel.db.startSession();
     session.startTransaction();
 
     try {
-      const order = await this.orderModel.findById(orderId).session(session);
-      if (!order || order.status !== 'pending') {
-        throw new NotFoundException('Pending order not found');
-      }
-
       await this.walletService.refundEarnedBalance(
-        order.userId,
+        new Types.ObjectId(order.userId),
         order.totalAmount,
         session,
       );
 
-      order.status = 'failed';
+      order.status = OrderStatus.REJECTED;
       await order.save({ session });
 
       await session.commitTransaction();
@@ -197,38 +319,39 @@ export class OrderService {
   }
 
   async cancelOrder(
-    userId: Types.ObjectId,
     orderId: Types.ObjectId,
-  ): Promise<Order> {
+    userId: Types.ObjectId,
+  ): Promise<any> {
     const session = await this.orderModel.db.startSession();
     session.startTransaction();
 
     try {
-      const order = await this.orderModel
-        .findOne({
-          _id: orderId,
-          userId: new Types.ObjectId(userId),
-        })
-        .session(session);
+      const order = await this.orderModel.findById(orderId).session(session);
+      if (!order) {
+        throw new NotFoundException('Order not found');
+      }
 
-      if (!order || order.status !== 'pending') {
-        throw new NotFoundException('Pending order not found');
+      if (!order.userId || order.userId.toString() !== userId.toString()) {
+        throw new BadRequestException('You can only cancel your own orders');
       }
 
       await this.walletService.refundEarnedBalance(
-        userId,
+        new Types.ObjectId(order.userId),
         order.totalAmount,
         session,
       );
 
-      order.status = 'canceled';
+      order.status = OrderStatus.CANCELED;
       await order.save({ session });
 
       await session.commitTransaction();
-      return order;
+      return {
+        message: 'Order cancelled and refund processed successfully',
+        order,
+      };
     } catch (error) {
-      console.error('Order cancelation failed:', error);
       await session.abortTransaction();
+      console.error('Failed to cancel order', error);
       throw new BadRequestException('Failed to cancel order');
     } finally {
       session.endSession();

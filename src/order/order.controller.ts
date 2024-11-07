@@ -1,19 +1,19 @@
 import {
   Body,
   Controller,
+  Post,
+  UseGuards,
+  Request,
   Get,
+  Query,
   Param,
   Patch,
-  Post,
-  Query,
-  Request,
-  UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 import { OrderService } from './order.service';
 import { Types } from 'mongoose';
 import { Order } from './schema/Order.schema';
-import { OrderItem } from './dto/order.dto';
-import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
+import { AdminGuard } from 'src/auth/guards/admin.guard';
 
 @UseGuards(JwtAuthGuard)
 @Controller('order')
@@ -23,10 +23,18 @@ export class OrderController {
   @Post('place')
   async placeOrder(
     @Request() req,
-    @Body() orderItems: OrderItem[],
-  ): Promise<Order> {
+    @Body()
+    body: {
+      productData: {
+        productId: Types.ObjectId;
+        quantity: number;
+        variants?: { variantType: string; value: string }[];
+      }[];
+    },
+  ) {
     const userId = req.user?.userId;
-    return this.orderService.placeOrder(userId, orderItems);
+    const { productData } = body;
+    return this.orderService.placeOrder(userId, productData);
   }
 
   @Get()
@@ -47,26 +55,24 @@ export class OrderController {
       limitNumber,
     );
   }
-
-  @Patch('admin/approve/:orderId')
-  async approveOrder(@Param('orderId') orderId: string): Promise<Order> {
-    return this.orderService.approveOrder(new Types.ObjectId(orderId));
+  @UseGuards(AdminGuard)
+  @Patch(':orderId/approve')
+  async approveOrder(@Param('orderId') orderId: Types.ObjectId) {
+    const response = await this.orderService.approveOrder(orderId);
+    return response;
   }
 
-  @Patch('admin/reject/:orderId')
-  async rejectOrder(@Param('orderId') orderId: string): Promise<Order> {
-    return this.orderService.rejectOrder(new Types.ObjectId(orderId));
+  @UseGuards(JwtAuthGuard)
+  @Patch(':orderId/reject')
+  async rejectOrder(@Param('orderId') orderId: Types.ObjectId) {
+    const updatedOrder = await this.orderService.rejectOrder(orderId);
+    return { message: 'Order rejected successfully', order: updatedOrder };
   }
-
-  @Patch('user/cancel/:orderId')
-  async cancelOrder(
-    @Request() req,
-    @Param('orderId') orderId: string,
-  ): Promise<Order> {
+  @UseGuards(JwtAuthGuard)
+  @Patch(':orderId/cancel')
+  async cancelOrder(@Param('orderId') orderId: Types.ObjectId, @Request() req) {
     const userId = req.user?.userId;
-    return this.orderService.cancelOrder(
-      new Types.ObjectId(userId),
-      new Types.ObjectId(orderId),
-    );
+    const updatedOrder = await this.orderService.cancelOrder(orderId, userId);
+    return { message: 'Order cancelled successfully', order: updatedOrder };
   }
 }

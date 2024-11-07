@@ -3,20 +3,26 @@ import { Document, Types } from 'mongoose';
 
 export type OrderDocument = Document & Order;
 
-@Schema()
-class Variant {
-  @Prop({ type: String, required: false, enum: ['S', 'M', 'L', 'XL'] })
-  size?: string;
-
-  @Prop({
-    type: String,
-    required: false,
-    enum: ['Red', 'Blue', 'Green', 'Black'],
-  })
-  color?: string;
+export enum OrderStatus {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  CANCELED = 'canceled',
 }
 
-@Schema()
+@Schema({ timestamps: true })
+export class OrderItemVariant {
+  @Prop({ type: String, required: true })
+  variantType: string;
+
+  @Prop({ type: String, required: true })
+  value: string;
+
+  @Prop({ type: Number })
+  price: number;
+}
+
+@Schema({ timestamps: true })
 export class OrderItem {
   @Prop({ type: Types.ObjectId, ref: 'Product', required: true })
   productId: Types.ObjectId;
@@ -30,29 +36,23 @@ export class OrderItem {
   @Prop({ type: Number, required: true })
   quantity: number;
 
-  @Prop({ type: Variant, required: false })
-  variant?: Variant;
+  @Prop({ type: [OrderItemVariant], default: [] })
+  variants: OrderItemVariant[];
 }
-
-const OrderItemSchema = SchemaFactory.createForClass(OrderItem);
 
 @Schema({ timestamps: true })
 export class Order {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   userId: Types.ObjectId;
 
-  @Prop({ type: [OrderItemSchema], required: true })
+  @Prop({ type: [OrderItem], required: true })
   items: OrderItem[];
 
   @Prop({ type: Number, required: true })
   totalAmount: number;
 
-  @Prop({
-    type: String,
-    required: true,
-    enum: ['pending', 'approved', 'purchased', 'canceled', 'failed'],
-  })
-  status: string;
+  @Prop({ type: String, enum: OrderStatus, default: OrderStatus.PENDING })
+  status: OrderStatus;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
