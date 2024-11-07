@@ -20,9 +20,6 @@ export class ProductVariant {
 
   @Prop({ type: Number, required: true })
   stock: number;
-
-  // @Prop({ type: Types.ObjectId })
-  // _id?: Types.ObjectId;
 }
 
 @Schema({ timestamps: true })
