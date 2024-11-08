@@ -113,4 +113,13 @@ export class UsersService {
       })
       .exec();
   }
+
+  async findUserByName(name: string, userId: string): Promise<User[]> {
+    return await this.userModel
+      .find({
+        name: { $regex: `.*${name}.*`, $options: 'i' },
+        _id: { $ne: new Types.ObjectId(userId) },
+      })
+      .exec();
+  }
 }

@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
@@ -37,6 +38,15 @@ export class UsersController {
   @Get('me')
   async getProfile(@Request() req) {
     return this.usersService.findByEmail(req.user.email);
+  }
+
+  @Get('search')
+  async searchUsers(
+    @Query('name') name: string,
+    @Request() req,
+  ): Promise<User[]> {
+    const userId = req.user.userId;
+    return await this.usersService.findUserByName(name, userId);
   }
 
   @Patch('me')
