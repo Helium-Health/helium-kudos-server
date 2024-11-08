@@ -112,110 +112,6 @@ export class OrderService {
     }
   }
 
-  //   async placeOrder(
-  //     userId: Types.ObjectId,
-  //     items: {
-  //       productId: Types.ObjectId;
-  //       quantity: number;
-  //       variants?: { variantType: string; value: string }[];
-  //     }[],
-  //   ): Promise<Order> {
-  //     let totalAmount = 0;
-
-  //     const orderItems = await Promise.all(
-  //       items.map(async (item) => {
-  //         const product = await this.productService.findById(
-  //           item.productId.toString(),
-  //         );
-  //         if (!product) {
-  //           throw new BadRequestException(
-  //             `Product with ID ${item.productId} not found`,
-  //           );
-  //         }
-
-  //         let price = product.basePrice;
-  //         const matchedVariants = [];
-
-  //         if (item.variants && item.variants.length > 0) {
-  //           let highestVariantPrice = product.basePrice;
-
-  //           for (const itemVariant of item.variants) {
-  //             const matchedVariant = product.variants.find(
-  //               (v) =>
-  //                 v.variantType === itemVariant.variantType &&
-  //                 v.value === itemVariant.value,
-  //             );
-
-  //             if (!matchedVariant) {
-  //               throw new BadRequestException(
-  //                 `Variant ${itemVariant.variantType} - ${itemVariant.value} not available for product ${product.name}`,
-  //               );
-  //             }
-
-  //
-  //             if (matchedVariant.price > highestVariantPrice) {
-  //               highestVariantPrice = matchedVariant.price;
-  //             }
-
-  //             matchedVariants.push({
-  //               variantType: matchedVariant.variantType,
-  //               value: matchedVariant.value,
-  //             });
-  //           }
-
-  //           // Set price to the highest variant price
-  //           price = highestVariantPrice;
-  //         }
-
-  //         const itemTotal = price * item.quantity;
-  //         totalAmount += itemTotal;
-
-  //         return {
-  //           productId: item.productId,
-  //           name: product.name,
-  //           price,
-  //           quantity: item.quantity,
-  //           variants: matchedVariants,
-  //         };
-  //       }),
-  //     );
-
-  //     const wallet = await this.walletService.getEarnedCoinBalance(
-  //       userId.toString(),
-  //     );
-  //     if (wallet.earnedBalance < totalAmount) {
-  //       throw new BadRequestException('Insufficient earned balance');
-  //     }
-
-  //     const session = await this.orderModel.db.startSession();
-  //     session.startTransaction();
-
-  //     try {
-  //       await this.walletService.deductEarnedBalance(
-  //         userId,
-  //         totalAmount,
-  //         session,
-  //       );
-
-  //       const order = new this.orderModel({
-  //         userId,
-  //         items: orderItems,
-  //         totalAmount,
-  //         status: 'pending',
-  //       });
-
-  //       await order.save({ session });
-  //       await session.commitTransaction();
-  //       return order;
-  //     } catch (error) {
-  //       console.error('Order placement failed:', error);
-  //       await session.abortTransaction();
-  //       throw new BadRequestException('Order placement failed');
-  //     } finally {
-  //       session.endSession();
-  //     }
-  //   }
-
   async getOrders(
     userId?: Types.ObjectId,
     status?: string,
@@ -284,6 +180,7 @@ export class OrderService {
       session.endSession();
     }
   }
+  
   async rejectOrder(orderId: Types.ObjectId): Promise<Order> {
     const order = await this.findById(orderId);
     if (!order) {
