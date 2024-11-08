@@ -46,11 +46,6 @@ export class UsersService {
     return this.userModel.findOne({ _id }).exec();
   }
 
-  // Additional methods for other user operations
-  async findAll(): Promise<User[]> {
-    return this.userModel.find().exec();
-  }
-
   async validateUserIds(userIds: string[]): Promise<boolean> {
     try {
       const count = await this.userModel.countDocuments({
@@ -114,12 +109,20 @@ export class UsersService {
       .exec();
   }
 
-  async findUserByName(name: string, userId: string): Promise<User[]> {
-    return await this.userModel
-      .find({
-        name: { $regex: `.*${name}.*`, $options: 'i' },
-        _id: { $ne: new Types.ObjectId(userId) },
-      })
-      .exec();
+  //This endpoint return all if no name is passed.
+  async findUsers(
+    name: string,
+    userId: string,
+    page: number,
+    limit: number,
+  ): Promise<User[]> {
+    const skip = (page - 1) * limit;
+
+    const query = {
+      _id: { $ne: new Types.ObjectId(userId) },
+      ...(name && { name: { $regex: `.*${name}.*`, $options: 'i' } }),
+    };
+
+    return await this.userModel.find(query).skip(skip).limit(limit).exec();
   }
 }

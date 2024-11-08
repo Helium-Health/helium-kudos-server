@@ -31,22 +31,19 @@ export class UsersController {
   }
 
   @Get()
-  async findAll(): Promise<User[]> {
-    return this.usersService.findAll();
+  async searchUsers(
+    @Query('name') name: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+    @Request() req,
+  ): Promise<User[]> {
+    const userId = req.user?.userId;
+    return await this.usersService.findUsers(name, userId, page, limit);
   }
 
   @Get('me')
   async getProfile(@Request() req) {
     return this.usersService.findByEmail(req.user.email);
-  }
-
-  @Get('search')
-  async searchUsers(
-    @Query('name') name: string,
-    @Request() req,
-  ): Promise<User[]> {
-    const userId = req.user.userId;
-    return await this.usersService.findUserByName(name, userId);
   }
 
   @Patch('me')
