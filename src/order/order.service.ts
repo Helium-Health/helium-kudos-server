@@ -180,7 +180,7 @@ export class OrderService {
       session.endSession();
     }
   }
-  
+
   async rejectOrder(orderId: Types.ObjectId): Promise<Order> {
     const order = await this.findById(orderId);
     if (!order) {
