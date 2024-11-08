@@ -113,16 +113,25 @@ export class UsersService {
   async findUsers(
     name: string,
     userId: string,
-    page: number,
-    limit: number,
+    page?: number,
+    limit?: number,
   ): Promise<User[]> {
-    const skip = (page - 1) * limit;
-
-    const query = {
+    const query: any = {
       _id: { $ne: new Types.ObjectId(userId) },
-      ...(name && { name: { $regex: `.*${name}.*`, $options: 'i' } }),
     };
 
-    return await this.userModel.find(query).skip(skip).limit(limit).exec();
+    if (name) {
+      const words = name.trim().split(/\s+/);
+      query.name = {
+        $all: words.map((word) => ({ $regex: `.*${word}.*`, $options: 'i' })),
+      };
+    }
+
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      return await this.userModel.find(query).skip(skip).limit(limit).exec();
+    } else {
+      return await this.userModel.find(query).exec();
+    }
   }
 }
