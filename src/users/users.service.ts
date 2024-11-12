@@ -113,8 +113,8 @@ export class UsersService {
   async findUsers(
     name: string,
     userId: string,
-    page?: number,
-    limit?: number,
+    page: number = 1,
+    limit: number = 10,
   ): Promise<User[]> {
     const query: any = {
       _id: { $ne: new Types.ObjectId(userId) },
@@ -127,11 +127,7 @@ export class UsersService {
       };
     }
 
-    if (page && limit) {
-      const skip = (page - 1) * limit;
-      return await this.userModel.find(query).skip(skip).limit(limit).exec();
-    } else {
-      return await this.userModel.find(query).exec();
-    }
+    const skip = (page - 1) * limit;
+    return await this.userModel.find(query).skip(skip).limit(limit).exec();
   }
 }
