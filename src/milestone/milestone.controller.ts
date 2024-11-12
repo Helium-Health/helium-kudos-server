@@ -30,9 +30,9 @@ export class MilestoneController {
 
   @Patch(':id')
   update(
-    @Param('id') id: string,
+    @Param('id') milestoneId: string,
     @Body() updateMilestoneDto: UpdateMilestoneDto,
   ) {
-    return this.milestoneService.update(+id, updateMilestoneDto);
+    return this.milestoneService.update(milestoneId, updateMilestoneDto);
   }
 }
