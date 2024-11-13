@@ -8,6 +8,7 @@ import { WalletModule } from 'src/wallet/wallet.module';
 import { TransactionModule } from 'src/transaction/transaction.module';
 import { RecognitionSchema, Recognition } from './schema/Recognition.schema';
 import { ClaimModule } from 'src/claim/claim.module';
+import { RecognitionGateway } from './recognition.gateway';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { ClaimModule } from 'src/claim/claim.module';
     UsersModule,
   ],
   controllers: [RecognitionController],
-  providers: [RecognitionService],
+  providers: [RecognitionService, RecognitionGateway],
   exports: [RecognitionService],
 })
 export class RecognitionModule {}
