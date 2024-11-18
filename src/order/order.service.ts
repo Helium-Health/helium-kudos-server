@@ -8,6 +8,7 @@ import { Model, Types } from 'mongoose';
 import { Order, OrderDocument, OrderStatus } from './schema/Order.schema';
 import { WalletService } from '../wallet/wallet.service';
 import { ProductService } from 'src/product/product.service';
+import { CreateOrderDto, ProductDataDto } from './dto/order.dto';
 
 @Injectable()
 export class OrderService {
@@ -18,16 +19,12 @@ export class OrderService {
   ) {}
   async placeOrder(
     userId: string,
-    productData: {
-      productId: Types.ObjectId;
-      quantity: number;
-      variants?: { variantType: string; value: string }[];
-    }[],
+    createOrderDto: CreateOrderDto,
   ): Promise<Order> {
     let totalAmount = 0;
 
     const orderItems = await Promise.all(
-      productData.map(async (data) => {
+      createOrderDto.productData.map(async (data: ProductDataDto) => {
         const product = await this.productService.findById(
           data.productId.toString(),
         );

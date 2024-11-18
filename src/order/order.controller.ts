@@ -14,6 +14,7 @@ import { OrderService } from './order.service';
 import { Types } from 'mongoose';
 import { Order } from './schema/Order.schema';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
+import { CreateOrderDto } from './dto/order.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('order')
@@ -21,20 +22,9 @@ export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
   @Post('place')
-  async placeOrder(
-    @Request() req,
-    @Body()
-    body: {
-      productData: {
-        productId: Types.ObjectId;
-        quantity: number;
-        variants?: { variantType: string; value: string }[];
-      }[];
-    },
-  ) {
+  async placeOrder(@Request() req, @Body() createOrderDto: CreateOrderDto) {
     const userId = req.user?.userId;
-    const { productData } = body;
-    return this.orderService.placeOrder(userId, productData);
+    return this.orderService.placeOrder(userId, createOrderDto);
   }
 
   @Get()
