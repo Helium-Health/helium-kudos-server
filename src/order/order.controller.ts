@@ -21,7 +21,7 @@ import { CreateOrderDto } from './dto/order.dto';
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
-  @Post('place')
+  @Post()
   async placeOrder(@Request() req, @Body() createOrderDto: CreateOrderDto) {
     const userId = req.user?.userId;
     return this.orderService.placeOrder(userId, createOrderDto);
@@ -52,12 +52,6 @@ export class OrderController {
     return response;
   }
 
-  @UseGuards(JwtAuthGuard)
-  @Patch(':orderId/reject')
-  async rejectOrder(@Param('orderId') orderId: Types.ObjectId) {
-    const updatedOrder = await this.orderService.rejectOrder(orderId);
-    return { message: 'Order rejected successfully', order: updatedOrder };
-  }
   @UseGuards(JwtAuthGuard)
   @Patch(':orderId/cancel')
   async cancelOrder(@Param('orderId') orderId: Types.ObjectId, @Request() req) {

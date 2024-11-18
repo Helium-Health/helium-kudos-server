@@ -120,20 +120,45 @@ export class OrderService {
     if (userId) filter.userId = userId;
     if (status) filter.status = status;
 
-    const total = await this.orderModel.countDocuments(filter).exec();
-
     const skip = (page - 1) * limit;
 
-    const orders = await this.orderModel
-      .find(filter)
-      .skip(skip)
-      .limit(limit)
-      .lean()
-      .exec();
+    // Use an aggregation pipeline for more complex operations
+    const [orders, totalCount] = await Promise.all([
+      this.orderModel.aggregate([
+        {
+          $match: filter, // Apply filter conditions here
+        },
+        {
+          $sort: { createdAt: -1 }, // Sort by created date in descending order
+        },
+        {
+          $skip: skip, // Skip the appropriate number of records for pagination
+        },
+        {
+          $limit: limit, // Limit the number of results
+        },
+        {
+          $project: {
+            _id: 1,
+            userId: 1,
+            status: 1,
+            items: 1,
+            totalAmount: 1,
+            createdAt: 1,
+            // Add or customize fields to project as needed
+          },
+        },
+      ]),
+      this.orderModel.countDocuments(filter).exec(), // Total document count for pagination metadata
+    ]);
 
-    const totalPages = Math.ceil(total / limit);
+    const totalPages = Math.ceil(totalCount / limit);
 
-    return { orders, total, totalPages };
+    return {
+      orders,
+      total: totalCount,
+      totalPages,
+    };
   }
 
   async findById(orderId: Types.ObjectId): Promise<OrderDocument | null> {
@@ -178,40 +203,7 @@ export class OrderService {
     }
   }
 
-  async rejectOrder(orderId: Types.ObjectId): Promise<Order> {
-    const order = await this.findById(orderId);
-    if (!order) {
-      throw new BadRequestException('Order not found');
-    }
-
-    if (order.status !== 'pending') {
-      throw new BadRequestException('Only pending orders can be rejected');
-    }
-
-    const session = await this.orderModel.db.startSession();
-    session.startTransaction();
-
-    try {
-      await this.walletService.refundEarnedBalance(
-        new Types.ObjectId(order.userId),
-        order.totalAmount,
-        session,
-      );
-
-      order.status = OrderStatus.REJECTED;
-      await order.save({ session });
-
-      await session.commitTransaction();
-      return order;
-    } catch (error) {
-      console.error('Failed to reject order', error);
-      await session.abortTransaction();
-      throw new BadRequestException('Failed to reject order');
-    } finally {
-      session.endSession();
-    }
-  }
-
+  
   async cancelOrder(
     orderId: Types.ObjectId,
     userId: Types.ObjectId,
