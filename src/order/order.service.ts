@@ -203,7 +203,35 @@ export class OrderService {
     }
   }
 
-  
+  async rejectOrder(orderId: Types.ObjectId): Promise<Order> {
+    const order = await this.findById(orderId);
+    if (!order) {
+      throw new BadRequestException('Order not found');
+    }
+    if (order.status !== 'pending') {
+      throw new BadRequestException('Only pending orders can be rejected');
+    }
+    const session = await this.orderModel.db.startSession();
+    session.startTransaction();
+    try {
+      await this.walletService.refundEarnedBalance(
+        new Types.ObjectId(order.userId),
+        order.totalAmount,
+        session,
+      );
+      order.status = OrderStatus.REJECTED;
+      await order.save({ session });
+      await session.commitTransaction();
+      return order;
+    } catch (error) {
+      console.error('Failed to reject order', error);
+      await session.abortTransaction();
+      throw new BadRequestException('Failed to reject order');
+    } finally {
+      session.endSession();
+    }
+  }
+
   async cancelOrder(
     orderId: Types.ObjectId,
     userId: Types.ObjectId,

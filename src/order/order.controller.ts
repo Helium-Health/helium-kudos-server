@@ -59,4 +59,11 @@ export class OrderController {
     const updatedOrder = await this.orderService.cancelOrder(orderId, userId);
     return { message: 'Order cancelled successfully', order: updatedOrder };
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':orderId/reject')
+  async rejectOrder(@Param('orderId') orderId: Types.ObjectId) {
+    const updatedOrder = await this.orderService.rejectOrder(orderId);
+    return { message: 'Order rejected successfully', order: updatedOrder };
+  }
 }
