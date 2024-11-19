@@ -9,6 +9,12 @@ import { Order, OrderDocument, OrderStatus } from './schema/Order.schema';
 import { WalletService } from '../wallet/wallet.service';
 import { ProductService } from 'src/product/product.service';
 import { CreateOrderDto, ProductDataDto } from './dto/order.dto';
+import { TransactionService } from 'src/transaction/transaction.service';
+import {
+  EntityType,
+  transactionStatus,
+  TransactionType,
+} from 'src/transaction/schema/Transaction.schema';
 
 @Injectable()
 export class OrderService {
@@ -16,6 +22,7 @@ export class OrderService {
     @InjectModel(Order.name) private orderModel: Model<OrderDocument>,
     private walletService: WalletService,
     private productService: ProductService,
+    private readonly transactionService: TransactionService,
   ) {}
   async placeOrder(
     userId: string,
@@ -98,6 +105,18 @@ export class OrderService {
       });
 
       await order.save({ session });
+      await this.transactionService.recordDebitTransaction(
+        {
+          senderId: new Types.ObjectId(userId),
+          amount: totalAmount,
+          entityType: EntityType.ORDER,
+          entityId: order._id as Types.ObjectId,
+          receiverId: null,
+          claimId: null,
+          status: transactionStatus.SUCCESS,
+        },
+        session,
+      );
       await session.commitTransaction();
       return order;
     } catch (error) {
@@ -122,20 +141,19 @@ export class OrderService {
 
     const skip = (page - 1) * limit;
 
-    // Use an aggregation pipeline for more complex operations
     const [orders, totalCount] = await Promise.all([
       this.orderModel.aggregate([
         {
-          $match: filter, // Apply filter conditions here
+          $match: filter,
         },
         {
-          $sort: { createdAt: -1 }, // Sort by created date in descending order
+          $sort: { createdAt: -1 },
         },
         {
-          $skip: skip, // Skip the appropriate number of records for pagination
+          $skip: skip,
         },
         {
-          $limit: limit, // Limit the number of results
+          $limit: limit,
         },
         {
           $project: {
@@ -145,11 +163,10 @@ export class OrderService {
             items: 1,
             totalAmount: 1,
             createdAt: 1,
-            // Add or customize fields to project as needed
           },
         },
       ]),
-      this.orderModel.countDocuments(filter).exec(), // Total document count for pagination metadata
+      this.orderModel.countDocuments(filter).exec(),
     ]);
 
     const totalPages = Math.ceil(totalCount / limit);
@@ -252,6 +269,19 @@ export class OrderService {
       await this.walletService.refundEarnedBalance(
         new Types.ObjectId(order.userId),
         order.totalAmount,
+        session,
+      );
+
+      await this.transactionService.recordCreditTransaction(
+        {
+          receiverId: order.userId,
+          amount: order.totalAmount,
+          entityType: EntityType.ORDER,
+          entityId: order.id,
+          senderId: null,
+          status: transactionStatus.SUCCESS,
+          claimId: null,
+        },
         session,
       );
 
