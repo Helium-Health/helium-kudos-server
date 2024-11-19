@@ -52,7 +52,7 @@ export class OrderController {
     return response;
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AdminGuard)
   @Patch(':orderId/cancel')
   async cancelOrder(@Param('orderId') orderId: Types.ObjectId, @Request() req) {
     const userId = req.user?.userId;
