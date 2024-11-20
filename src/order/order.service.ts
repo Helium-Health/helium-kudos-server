@@ -13,7 +13,6 @@ import { TransactionService } from 'src/transaction/transaction.service';
 import {
   EntityType,
   transactionStatus,
-  TransactionType,
 } from 'src/transaction/schema/Transaction.schema';
 
 @Injectable()
