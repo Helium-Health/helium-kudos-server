@@ -7,7 +7,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product, ProductResponse } from './schema/product.schema';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { ClientSession, Model, Types } from 'mongoose';
 import { StorageService } from 'src/storage/storage.service';
 import { Category } from './schema/category.schema';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -146,5 +146,46 @@ export class ProductService {
   ): Promise<Category> {
     const category = new this.categoryModel(createCategoryDto);
     return category.save();
+  }
+  async deductStock(
+    productId: Types.ObjectId,
+    variants: any[] | null,
+    quantity: number,
+    session: ClientSession,
+  ) {
+    const product = await this.productModel.findById(productId);
+    if (!product) {
+      throw new BadRequestException('Product not found');
+    }
+
+    if (variants && variants.length > 0) {
+      for (const variant of variants) {
+        const variantMatch = product.variants.find(
+          (v) =>
+            v.variantType === variant.variantType && v.value === variant.value,
+        );
+        if (!variantMatch) {
+          throw new BadRequestException(
+            `Variant ${variant.variantType}: ${variant.value} not found`,
+          );
+        }
+
+        if (variantMatch.stock < quantity) {
+          throw new BadRequestException(
+            `Not enough stock for ${variant.variantType} ${variant.value}`,
+          );
+        }
+
+        variantMatch.stock -= quantity;
+      }
+    } else {
+      if (product.stock < quantity) {
+        throw new BadRequestException('Not enough stock for the product');
+      }
+
+      product.stock -= quantity;
+    }
+
+    await product.save({ session });
   }
 }
