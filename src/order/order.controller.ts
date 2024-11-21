@@ -45,7 +45,7 @@ export class OrderController {
       limitNumber,
     );
   }
-  // @UseGuards(AdminGuard)
+  @UseGuards(AdminGuard)
   @Patch(':orderId/approve')
   async approveOrder(@Param('orderId') orderId: Types.ObjectId) {
     const response = await this.orderService.approveOrder(orderId);
@@ -59,7 +59,7 @@ export class OrderController {
     return response;
   }
 
-  // @UseGuards(AdminGuard)
+  @UseGuards(AdminGuard)
   @Patch(':orderId/reject')
   async rejectOrder(@Param('orderId') orderId: Types.ObjectId) {
     const response = await this.orderService.rejectOrder(orderId);
