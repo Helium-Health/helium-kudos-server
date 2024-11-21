@@ -36,7 +36,7 @@ export class UsersController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
     @Request() req,
-  ): Promise<User[]> {
+  ) {
     const userId = req.user?.userId;
     return await this.usersService.findUsers(name, userId, page, limit);
   }
