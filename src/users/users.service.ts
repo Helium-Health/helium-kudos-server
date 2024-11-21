@@ -129,9 +129,9 @@ export class UsersService {
 
     if (name) {
       const words = name.trim().split(/\s+/);
-      query.name = {
-        $all: words.map((word) => ({ $regex: `.*${word}.*`, $options: 'i' })),
-      };
+      query.$and = words.map((word) => ({
+        name: { $regex: `.*${word}.*`, $options: 'i' },
+      }));
     }
 
     const totalCount = await this.userModel.countDocuments(query).exec();
