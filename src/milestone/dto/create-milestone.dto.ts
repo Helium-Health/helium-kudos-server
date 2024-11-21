@@ -1,4 +1,10 @@
-import { IsString, IsNumber, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsEnum,
+  IsOptional,
+  IsPositive,
+} from 'class-validator';
 
 export class CreateMilestoneDto {
   @IsString()
@@ -7,8 +13,10 @@ export class CreateMilestoneDto {
   @IsString()
   message: string;
 
+  @IsOptional()
   @IsNumber()
-  coins: number;
+  @IsPositive()
+  coins?: number;
 
   @IsEnum(['BIRTHDAY', 'WORK_ANNIVERSARY'])
   type: string;

@@ -109,25 +109,48 @@ export class UsersService {
       .exec();
   }
 
-  //This endpoint return all if no name is passed.
   async findUsers(
     name: string,
     userId: string,
     page: number = 1,
     limit: number = 10,
-  ): Promise<User[]> {
+  ): Promise<{
+    users: User[];
+    meta: {
+      totalCount: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> {
     const query: any = {
       _id: { $ne: new Types.ObjectId(userId) },
     };
 
     if (name) {
       const words = name.trim().split(/\s+/);
-      query.name = {
-        $all: words.map((word) => ({ $regex: `.*${word}.*`, $options: 'i' })),
-      };
+      query.$and = words.map((word) => ({
+        name: { $regex: `.*${word}.*`, $options: 'i' },
+      }));
     }
 
+    const totalCount = await this.userModel.countDocuments(query).exec();
+    const totalPages = Math.ceil(totalCount / limit);
     const skip = (page - 1) * limit;
-    return await this.userModel.find(query).skip(skip).limit(limit).exec();
+    const users = await this.userModel
+      .find(query)
+      .skip(skip)
+      .limit(limit)
+      .exec();
+
+    return {
+      users,
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages,
+      },
+    };
   }
 }

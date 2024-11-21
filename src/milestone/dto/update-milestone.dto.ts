@@ -1,9 +1,12 @@
-import { IsString, IsNumber, IsEnum } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsPositive } from 'class-validator';
 
 export class UpdateMilestoneDto {
   @IsString()
   message: string;
 
   @IsNumber()
-  coins: number;
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  coins?: number;
 }

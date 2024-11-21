@@ -17,6 +17,7 @@ import { ReactionsModule } from './reactions/reactions.module';
 import { MilestoneModule } from './milestone/milestone.module';
 import { ClaimModule } from './claim/claim.module';
 import { ProductModule } from './product/product.module';
+import { OrderModule } from './order/order.module';
 import { StorageModule } from './storage/storage.module';
 
 @Module({
@@ -39,6 +40,7 @@ import { StorageModule } from './storage/storage.module';
     MilestoneModule,
     ClaimModule,
     ProductModule,
+    OrderModule,
     StorageModule,
   ],
   controllers: [],

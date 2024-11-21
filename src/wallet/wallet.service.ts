@@ -205,4 +205,42 @@ export class WalletService {
 
     return wallet;
   }
+
+  async deductEarnedBalance(
+    userId: Types.ObjectId,
+    amount: number,
+    session: ClientSession,
+  ) {
+    return this.walletModel
+      .findOneAndUpdate(
+        { userId },
+        { $inc: { earnedBalance: -amount } },
+        { session, new: true },
+      )
+      .then((result) => {
+        if (!result) {
+          throw new NotFoundException(`Wallet not found for user ${userId}`);
+        }
+        return result;
+      });
+  }
+
+  async refundEarnedBalance(
+    userId: Types.ObjectId,
+    amount: number,
+    session: ClientSession,
+  ) {
+    return this.walletModel
+      .findOneAndUpdate(
+        { userId },
+        { $inc: { earnedBalance: amount } },
+        { session, new: true },
+      )
+      .then((result) => {
+        if (!result) {
+          throw new NotFoundException(`Wallet not found for user ${userId}`);
+        }
+        return result;
+      });
+  }
 }

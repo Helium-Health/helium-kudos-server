@@ -28,4 +28,9 @@ export class StorageService {
     const publicId = fileUrl.split('/').slice(-1)[0].split('.')[0];
     await cloudinary.uploader.destroy(publicId);
   }
+
+  async restoreFile(publicId: string): Promise<string> {
+    const result = await cloudinary.api.restore([publicId]);
+    return result.secure_url;
+  }
 }
