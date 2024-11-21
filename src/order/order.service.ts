@@ -97,7 +97,7 @@ export class OrderService {
       );
 
       const order = new this.orderModel({
-        userId,
+        userId: new Types.ObjectId(userId),
         items: orderItems,
         totalAmount,
         status: OrderStatus.PENDING,
@@ -111,7 +111,7 @@ export class OrderService {
           entityType: EntityType.ORDER,
           entityId: order._id as Types.ObjectId,
           receiverId: null,
-          claimId: null,
+          claimId: order._id as Types.ObjectId,
           status: transactionStatus.SUCCESS,
         },
         session,
@@ -135,7 +135,10 @@ export class OrderService {
   ): Promise<{ orders: Order[]; total: number; totalPages: number }> {
     const filter: { userId?: Types.ObjectId; status?: string } = {};
 
-    if (userId) filter.userId = userId;
+    if (userId && Types.ObjectId.isValid(userId)) {
+      filter.userId = new Types.ObjectId(userId);
+    }
+
     if (status) filter.status = status;
 
     const skip = (page - 1) * limit;
@@ -219,7 +222,7 @@ export class OrderService {
     }
   }
 
-  async rejectOrder(orderId: Types.ObjectId): Promise<Order> {
+  async rejectOrder(orderId: Types.ObjectId): Promise<any> {
     const order = await this.findById(orderId);
     if (!order) {
       throw new BadRequestException('Order not found');
@@ -235,10 +238,27 @@ export class OrderService {
         order.totalAmount,
         session,
       );
+
+      await this.transactionService.recordCreditTransaction(
+        {
+          receiverId: order.userId,
+          amount: order.totalAmount,
+          entityType: EntityType.ORDER,
+          entityId: order.id,
+          senderId: null,
+          status: transactionStatus.SUCCESS,
+          claimId: order.id,
+        },
+        session,
+      );
+
       order.status = OrderStatus.REJECTED;
       await order.save({ session });
       await session.commitTransaction();
-      return order;
+      return {
+        message: 'Order rejected and refund processed successfully',
+        order,
+      };
     } catch (error) {
       console.error('Failed to reject order', error);
       await session.abortTransaction();
@@ -279,7 +299,7 @@ export class OrderService {
           entityId: order.id,
           senderId: null,
           status: transactionStatus.SUCCESS,
-          claimId: null,
+          claimId: order.id,
         },
         session,
       );

@@ -45,25 +45,24 @@ export class OrderController {
       limitNumber,
     );
   }
-  @UseGuards(AdminGuard)
+  // @UseGuards(AdminGuard)
   @Patch(':orderId/approve')
   async approveOrder(@Param('orderId') orderId: Types.ObjectId) {
     const response = await this.orderService.approveOrder(orderId);
     return response;
   }
 
-  @UseGuards(AdminGuard)
   @Patch(':orderId/cancel')
   async cancelOrder(@Param('orderId') orderId: Types.ObjectId, @Request() req) {
     const userId = req.user?.userId;
-    const updatedOrder = await this.orderService.cancelOrder(orderId, userId);
-    return { message: 'Order cancelled successfully', order: updatedOrder };
+    const response = await this.orderService.cancelOrder(orderId, userId);
+    return response;
   }
 
-  @UseGuards(JwtAuthGuard)
+  // @UseGuards(AdminGuard)
   @Patch(':orderId/reject')
   async rejectOrder(@Param('orderId') orderId: Types.ObjectId) {
-    const updatedOrder = await this.orderService.rejectOrder(orderId);
-    return { message: 'Order rejected successfully', order: updatedOrder };
+    const response = await this.orderService.rejectOrder(orderId);
+    return response;
   }
 }
