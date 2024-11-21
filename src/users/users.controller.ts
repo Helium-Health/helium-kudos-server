@@ -36,9 +36,9 @@ export class UsersController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
     @Request() req,
-  ): Promise<User[]> {
+  ) {
     const userId = req.user?.userId;
-    return await this.usersService.findUsers(name, userId, page, limit);
+    return this.usersService.findUsers(name, userId, page, limit);
   }
 
   @Get('me')
@@ -47,10 +47,7 @@ export class UsersController {
   }
 
   @Patch('me')
-  async update(
-    @Request() req,
-    @Body() updateUserDto: UpdateUserDto,
-  ): Promise<User | null> {
+  async update(@Request() req, @Body() updateUserDto: UpdateUserDto) {
     const allowedUpdates = {
       dateOfBirth: updateUserDto.dateOfBirth,
       joinDate: updateUserDto.joinDate,
@@ -69,7 +66,7 @@ export class UsersController {
   }
 
   @Delete(':id')
-  async delete(@Param('id') id: string): Promise<User | null> {
+  async delete(@Param('id') id: string) {
     return this.usersService.deleteUser(id);
   }
 }
