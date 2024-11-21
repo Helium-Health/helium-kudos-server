@@ -132,7 +132,7 @@ export class OrderService {
     status?: string,
     page: number = 1,
     limit: number = 10,
-  ): Promise<{ orders: Order[]; total: number; totalPages: number }> {
+  ): Promise<{ orders: any[]; total: number; totalPages: number }> {
     const filter: { userId?: Types.ObjectId; status?: string } = {};
 
     if (userId && Types.ObjectId.isValid(userId)) {
@@ -145,22 +145,32 @@ export class OrderService {
 
     const [orders, totalCount] = await Promise.all([
       this.orderModel.aggregate([
+        { $match: filter },
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
         {
-          $match: filter,
+          $lookup: {
+            from: 'users',
+            localField: 'userId',
+            foreignField: '_id',
+            as: 'user',
+          },
         },
         {
-          $sort: { createdAt: -1 },
-        },
-        {
-          $skip: skip,
-        },
-        {
-          $limit: limit,
+          $unwind: {
+            path: '$user',
+            preserveNullAndEmptyArrays: true,
+          },
         },
         {
           $project: {
             _id: 1,
-            userId: 1,
+            userId: {
+              _id: '$user._id',
+              name: '$user.name',
+              picture: '$user.picture',
+            },
             status: 1,
             items: 1,
             totalAmount: 1,
