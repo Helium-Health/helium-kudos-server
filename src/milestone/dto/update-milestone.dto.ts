@@ -1,4 +1,12 @@
-import { PartialType } from '@nestjs/swagger';
-import { CreateMilestoneDto } from './create-milestone.dto';
+import { IsString, IsNumber, IsOptional, IsPositive } from 'class-validator';
 
-export class UpdateMilestoneDto extends PartialType(CreateMilestoneDto) {}
+export class UpdateMilestoneDto {
+  @IsString()
+  message: string;
+
+  @IsNumber()
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  coins?: number;
+}

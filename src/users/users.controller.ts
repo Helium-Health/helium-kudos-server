@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
@@ -30,8 +31,14 @@ export class UsersController {
   }
 
   @Get()
-  async findAll(): Promise<User[]> {
-    return this.usersService.findAll();
+  async searchUsers(
+    @Query('name') name: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+    @Request() req,
+  ) {
+    const userId = req.user?.userId;
+    return this.usersService.findUsers(name, userId, page, limit);
   }
 
   @Get('me')
@@ -40,10 +47,7 @@ export class UsersController {
   }
 
   @Patch('me')
-  async update(
-    @Request() req,
-    @Body() updateUserDto: UpdateUserDto,
-  ): Promise<User | null> {
+  async update(@Request() req, @Body() updateUserDto: UpdateUserDto) {
     const allowedUpdates = {
       dateOfBirth: updateUserDto.dateOfBirth,
       joinDate: updateUserDto.joinDate,
@@ -62,7 +66,7 @@ export class UsersController {
   }
 
   @Delete(':id')
-  async delete(@Param('id') id: string): Promise<User | null> {
+  async delete(@Param('id') id: string) {
     return this.usersService.deleteUser(id);
   }
 }

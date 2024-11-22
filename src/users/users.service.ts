@@ -46,11 +46,6 @@ export class UsersService {
     return this.userModel.findOne({ _id }).exec();
   }
 
-  // Additional methods for other user operations
-  async findAll(): Promise<User[]> {
-    return this.userModel.find().exec();
-  }
-
   async validateUserIds(userIds: string[]): Promise<boolean> {
     try {
       const count = await this.userModel.countDocuments({
@@ -112,5 +107,50 @@ export class UsersService {
         },
       })
       .exec();
+  }
+
+  async findUsers(
+    name: string,
+    userId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<{
+    users: User[];
+    meta: {
+      totalCount: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> {
+    const query: any = {
+      _id: { $ne: new Types.ObjectId(userId) },
+    };
+
+    if (name) {
+      const words = name.trim().split(/\s+/);
+      query.$and = words.map((word) => ({
+        name: { $regex: `.*${word}.*`, $options: 'i' },
+      }));
+    }
+
+    const totalCount = await this.userModel.countDocuments(query).exec();
+    const totalPages = Math.ceil(totalCount / limit);
+    const skip = (page - 1) * limit;
+    const users = await this.userModel
+      .find(query)
+      .skip(skip)
+      .limit(limit)
+      .exec();
+
+    return {
+      users,
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages,
+      },
+    };
   }
 }

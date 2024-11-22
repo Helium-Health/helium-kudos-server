@@ -3,7 +3,7 @@ import { CreateMilestoneDto } from './dto/create-milestone.dto';
 import { UpdateMilestoneDto } from './dto/update-milestone.dto';
 import { Milestone, MilestoneDocument } from './schema/Milestone.schema';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 
 @Injectable()
 export class MilestoneService {
@@ -31,11 +31,13 @@ export class MilestoneService {
   }
 
   async update(
-    id: number,
+    milestoneId: string,
     updateMilestoneDto: UpdateMilestoneDto,
   ): Promise<Milestone> {
     return this.milestoneModel
-      .findByIdAndUpdate(id, updateMilestoneDto, { new: true })
+      .findByIdAndUpdate(new Types.ObjectId(milestoneId), updateMilestoneDto, {
+        new: true,
+      })
       .exec();
   }
 }
