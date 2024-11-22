@@ -31,7 +31,6 @@ export class RecognitionGateway
   }
 
   notifyClients() {
-    console.log('New recognition posted! Please refresh your page.');
     if (this.server) {
       this.server.emit('recognition-created', {
         message: 'New recognition posted! Please refresh your page.',
@@ -41,10 +40,7 @@ export class RecognitionGateway
 
   @SubscribeMessage('send-recognition')
   handleMessage(@MessageBody() data: any, @ConnectedSocket() client: Socket) {
-    console.log(data);
-
     this.server.emit('send-recognition', { content: data });
-    this.notifyClients();
 
     if (!data || !data.recognition) {
       client.emit('error', 'Invalid recognition data');
