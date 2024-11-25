@@ -38,9 +38,9 @@ export class RecognitionGateway
     }
   }
 
-  @SubscribeMessage('send-recognition')
+  @SubscribeMessage('kudos-connected')
   handleMessage(@MessageBody() data: any, @ConnectedSocket() client: Socket) {
-    this.server.emit('send-recognition', { content: data });
+    this.server.emit('recognition-created', { content: data });
 
     if (!data || !data.recognition) {
       client.emit('error', 'Invalid recognition data');
