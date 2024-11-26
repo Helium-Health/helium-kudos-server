@@ -22,6 +22,7 @@ export class RecognitionGateway
   private server: Server;
   private readonly logger = new Logger(RecognitionGateway.name);
 
+  @SubscribeMessage('kudos-connected')
   handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
   }
@@ -38,7 +39,7 @@ export class RecognitionGateway
     }
   }
 
-  @SubscribeMessage('kudos-connected')
+  // @SubscribeMessage('kudos-connect')
   handleMessage(@MessageBody() data: any, @ConnectedSocket() client: Socket) {
     this.server.emit('recognition-created', { content: data });
 
