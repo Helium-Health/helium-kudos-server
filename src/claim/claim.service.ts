@@ -215,6 +215,10 @@ export class ClaimService {
       filter.status = status as Status;
     }
 
+    // Fetch the total count of claims that match the filter (for pagination purposes)
+    const totalCount = await this.claimModel.countDocuments(filter).exec();
+
+    // Fetch the claims with pagination
     const claims = await this.claimModel
       .find(filter)
       .skip((currentPage - 1) * currentLimit)
@@ -235,7 +239,7 @@ export class ClaimService {
               _id: receiver.receiverId,
               name: receiverUser?.name,
               picture: receiverUser?.picture,
-              amountReceived: receiver.amount,
+              amountReceived: receiver.amount, // Amount each receiver gets
             };
           }),
         );
@@ -252,6 +256,16 @@ export class ClaimService {
       }),
     );
 
-    return claimsWithUserDetails;
+    const totalPages = Math.ceil(totalCount / currentLimit);
+
+    return {
+      data: claimsWithUserDetails,
+      meta: {
+        totalCount,
+        page: currentPage,
+        limit: currentLimit,
+        totalPages,
+      },
+    };
   }
 }
