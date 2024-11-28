@@ -230,11 +230,12 @@ export class ClaimService {
             const receiverUser = await this.userService.findById(
               receiver.receiverId,
             );
+
             return {
               _id: receiver.receiverId,
               name: receiverUser?.name,
               picture: receiverUser?.picture,
-              amount: receiver.amount,
+              amountReceived: receiver.amount,
             };
           }),
         );
