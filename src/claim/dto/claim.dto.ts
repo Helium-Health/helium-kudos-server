@@ -1,21 +1,27 @@
-import { IsNotEmpty, IsMongoId, IsNumber, IsArray } from 'class-validator';
+import { IsNotEmpty, IsMongoId, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { Types } from 'mongoose';
+
+class ReceiverDto {
+  @IsMongoId()
+  @IsNotEmpty()
+  receiverId: Types.ObjectId;
+
+  @IsNotEmpty()
+  amount: number;
+}
 
 export class ClaimDto {
   @IsMongoId()
   @IsNotEmpty()
   senderId: Types.ObjectId;
 
-  @IsArray()
-  @IsMongoId({ each: true })
-  @IsNotEmpty()
-  receiverIds: Types.ObjectId[];
-
-  @IsNumber()
-  @IsNotEmpty()
-  coinAmount: number;
-
   @IsMongoId()
   @IsNotEmpty()
   recognitionId: Types.ObjectId;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ReceiverDto)
+  receivers: ReceiverDto[];
 }
