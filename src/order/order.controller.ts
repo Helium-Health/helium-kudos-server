@@ -29,12 +29,12 @@ export class OrderController {
 
   @Get()
   async getOrders(
-    @Query('userId') userId?: string,
+    @Request() req,
     @Query('status') status?: string,
     @Query('page') page = '1',
     @Query('limit') limit = '10',
   ): Promise<{ orders: Order[]; total: number; totalPages: number }> {
-    const userIdObj = userId ? new Types.ObjectId(userId) : undefined;
+    const userIdObj = new Types.ObjectId(req.user?.userId);
     const pageNumber = parseInt(page, 10);
     const limitNumber = parseInt(limit, 10);
 
