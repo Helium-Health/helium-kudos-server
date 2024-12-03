@@ -119,6 +119,7 @@ export class TransactionService {
 
     return transaction;
   }
+
   async findTopGivers() {
     return this.transactionModel.aggregate([
       {
