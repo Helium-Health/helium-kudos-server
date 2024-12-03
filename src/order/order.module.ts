@@ -6,9 +6,11 @@ import { Order, OrderSchema } from './schema/Order.schema';
 import { WalletModule } from 'src/wallet/wallet.module';
 import { ProductModule } from 'src/product/product.module';
 import { TransactionModule } from 'src/transaction/transaction.module';
+import { UsersModule } from 'src/users/users.module';
 
 @Module({
   imports: [
+    UsersModule,
     TransactionModule,
     WalletModule,
     ProductModule,

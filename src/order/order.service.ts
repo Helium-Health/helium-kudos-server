@@ -14,6 +14,8 @@ import {
   EntityType,
   transactionStatus,
 } from 'src/transaction/schema/Transaction.schema';
+import { UsersService } from 'src/users/users.service';
+import { UserRole } from 'src/users/schema/User.schema';
 
 @Injectable()
 export class OrderService {
@@ -22,6 +24,7 @@ export class OrderService {
     private walletService: WalletService,
     private productService: ProductService,
     private readonly transactionService: TransactionService,
+    private readonly userService: UsersService,
   ) {}
   async placeOrder(
     userId: string,
@@ -133,10 +136,17 @@ export class OrderService {
     page: number = 1,
     limit: number = 10,
   ): Promise<{ orders: any[]; total: number; totalPages: number }> {
+    const user = this.userService.findById(userId);
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const isAdmin = (await user).role === UserRole.Admin;
     const filter: { userId?: Types.ObjectId; status?: string } = {};
 
-    if (userId && Types.ObjectId.isValid(userId)) {
-      filter.userId = new Types.ObjectId(userId);
+    if (!isAdmin) {
+      filter.userId = userId;
     }
 
     if (status) filter.status = status;
