@@ -384,4 +384,64 @@ export class RecognitionService {
       { new: true },
     );
   }
+
+  async getTopRecognitionReceivers(page: number, limit: number) {
+    const skip = (page - 1) * limit;
+
+    const result = await this.recognitionModel.aggregate([
+      { $unwind: '$receivers' },
+      {
+        $group: {
+          _id: '$receivers.receiverId',
+          recognitionCount: { $sum: 1 },
+        },
+      },
+      { $sort: { recognitionCount: -1 } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: '$user' },
+      {
+        $project: {
+          _id: 0,
+          receiverId: '$_id',
+          recognitionCount: 1,
+          user: {
+            _id: '$user._id',
+            email: '$user.email',
+            name: '$user.name',
+            role: '$user.role',
+            picture: '$user.picture',
+            verified: '$user.verified',
+          },
+        },
+      },
+      {
+        $facet: {
+          metadata: [{ $count: 'totalCount' }],
+          data: [{ $skip: skip }, { $limit: limit }],
+        },
+      },
+    ]);
+
+    const metadata = result[0]?.metadata[0] || { totalCount: 0 };
+    const data = result[0]?.data || [];
+    const totalCount = metadata.totalCount;
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return {
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages,
+      },
+      data,
+    };
+  }
 }

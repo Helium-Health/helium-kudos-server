@@ -3,26 +3,29 @@ import { LeaderboardService } from './leaderboard.service';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
 
-@UseGuards(JwtAuthGuard, AdminGuard)
 @Controller('leaderboard')
 export class LeaderboardController {
   constructor(private readonly leaderboardService: LeaderboardService) {}
 
+  @UseGuards(AdminGuard)
   @Get('top-givers')
   async getTopGivers() {
     return this.leaderboardService.getTopGivers();
   }
 
+  @UseGuards(AdminGuard)
   @Get('top-receivers')
   async getTopReceivers() {
     return this.leaderboardService.getTopReceivers();
   }
 
+  @UseGuards(AdminGuard)
   @Get('uncredited-users')
   async getUncreditedUsers() {
     return this.leaderboardService.getUncreditedUsers();
   }
 
+  @UseGuards(AdminGuard)
   @Get('earned-coins')
   async getUsersWithEarnedCoins(
     @Query('page') page: number = 1,
@@ -32,5 +35,14 @@ export class LeaderboardController {
       page,
       limit,
     );
+  }
+
+  @UseGuards(AdminGuard, JwtAuthGuard)
+  @Get('recognition-receivers')
+  async getTopRecognitionReceivers(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ) {
+    return this.leaderboardService.getTopRecognitionReceivers(page, limit);
   }
 }

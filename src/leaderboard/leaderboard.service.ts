@@ -1,9 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Query } from '@nestjs/common';
+import { RecognitionService } from 'src/recognition/recognition.service';
 import { TransactionService } from 'src/transaction/transaction.service';
 
 @Injectable()
 export class LeaderboardService {
-  constructor(private readonly transactionService: TransactionService) {}
+  constructor(
+    private readonly recognitionService: RecognitionService,
+    private readonly transactionService: TransactionService,
+  ) {}
   async getTopGivers() {
     return this.transactionService.findTopGivers();
   }
@@ -20,5 +24,8 @@ export class LeaderboardService {
       page,
       limit,
     );
+  }
+  async getTopRecognitionReceivers(page: number, limit: number) {
+    return this.recognitionService.getTopRecognitionReceivers(page, limit);
   }
 }
