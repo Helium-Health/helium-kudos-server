@@ -119,4 +119,176 @@ export class TransactionService {
 
     return transaction;
   }
+  async findTopGivers() {
+    return this.transactionModel.aggregate([
+      {
+        $match: {
+          entityType: EntityType.RECOGNITION,
+          type: TransactionType.DEBIT,
+          status: transactionStatus.SUCCESS,
+        },
+      },
+      { $group: { _id: '$userId', totalGiven: { $sum: '$amount' } } },
+      { $sort: { totalGiven: -1 } },
+      { $limit: 10 },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: '$user' },
+    ]);
+  }
+
+  async findTopReceivers() {
+    return this.transactionModel.aggregate([
+      {
+        $match: {
+          entityType: EntityType.RECOGNITION,
+          type: TransactionType.CREDIT,
+          status: transactionStatus.SUCCESS,
+        },
+      },
+      {
+        $group: {
+          _id: '$relatedUserId',
+          totalReceived: { $sum: '$amount' },
+        },
+      },
+      { $sort: { totalReceived: -1 } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: '$user' },
+    ]);
+  }
+
+  async findUncreditedUsers() {
+    return this.transactionModel.aggregate([
+      {
+        $match: {
+          entityType: EntityType.RECOGNITION,
+          $or: [
+            { status: { $ne: transactionStatus.SUCCESS } },
+            { relatedUserId: { $exists: false } },
+          ],
+        },
+      },
+      { $group: { _id: '$userId', uncreditedAmount: { $sum: '$amount' } } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: '$user' },
+    ]);
+  }
+
+  async getTotalRecordsForEarnedCoins() {
+    return this.transactionModel.countDocuments({
+      entityType: EntityType.RECOGNITION,
+      type: TransactionType.CREDIT,
+      status: transactionStatus.SUCCESS,
+    });
+  }
+
+  async getPaginatedUsersWithEarnedCoins(page: number, limit: number) {
+    const skip = (page - 1) * limit;
+
+    const totalCount = await this.transactionModel
+      .aggregate([
+        {
+          $match: {
+            entityType: EntityType.RECOGNITION,
+            type: TransactionType.CREDIT,
+            status: transactionStatus.SUCCESS,
+          },
+        },
+        {
+          $group: {
+            _id: '$relatedUserId',
+          },
+        },
+        {
+          $count: 'uniqueUsers',
+        },
+      ])
+      .then((result) => result[0]?.uniqueUsers ?? 0);
+
+    const totalPages = Math.ceil(totalCount / limit);
+
+    const data = await this.transactionModel.aggregate([
+      {
+        $match: {
+          entityType: EntityType.RECOGNITION,
+          type: TransactionType.CREDIT,
+          status: transactionStatus.SUCCESS,
+        },
+      },
+      {
+        $group: {
+          _id: '$relatedUserId',
+          totalEarnedCoins: { $sum: '$amount' },
+          totalTransactions: { $sum: 1 },
+          transactions: {
+            $push: {
+              entityId: '$entityId',
+              coin: '$amount',
+            },
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: '$user' },
+      { $sort: { totalEarnedCoins: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $project: {
+          _id: 1,
+          totalEarnedCoins: 1,
+          totalTransactions: 1,
+          transactions: 1,
+          user: {
+            _id: '$user._id',
+            email: '$user.email',
+            name: '$user.name',
+            role: '$user.role',
+            picture: '$user.picture',
+            verified: '$user.verified',
+          },
+        },
+      },
+    ]);
+
+    return {
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages,
+      },
+      data,
+      status: 200,
+      message: 'Success',
+    };
+  }
 }

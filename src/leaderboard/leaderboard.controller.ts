@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { LeaderboardService } from './leaderboard.service';
 
 @Controller('leaderboard')
@@ -18,5 +18,16 @@ export class LeaderboardController {
   @Get('uncredited-users')
   async getUncreditedUsers() {
     return this.leaderboardService.getUncreditedUsers();
+  }
+
+  @Get('earned-coins')
+  async getUsersWithEarnedCoins(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ) {
+    return this.leaderboardService.getPaginatedUsersWithEarnedCoins(
+      page,
+      limit,
+    );
   }
 }
