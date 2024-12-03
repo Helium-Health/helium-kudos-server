@@ -6,6 +6,7 @@ import { TransactionModule } from 'src/transaction/transaction.module';
 @Module({
   imports: [TransactionModule],
   controllers: [LeaderboardController],
+  
   providers: [LeaderboardService],
 })
 export class LeaderboardModule {}
