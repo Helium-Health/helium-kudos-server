@@ -20,22 +20,60 @@ export class AuthService {
     );
   }
 
+  // async validateUser(
+  //   token: string,
+  // ): Promise<{ user: User; accessToken: string }> {
+  //   try {
+  //     let userDetails = null; // Todo use correct type
+  //     const googleAuth = await this.oauthClient.verifyIdToken({
+  //       idToken: token,
+  //       audience: process.env.GOOGLE_CLIENT_ID,
+  //     });
+
+  //     const payload = googleAuth.getPayload();
+
+  //     const userExists = await this.userModel.findOne({
+  //       email: payload.email,
+  //     });
+
+  //     if (userExists) {
+  //       console.log('User exists. Getting...');
+  //       userDetails = userExists;
+  //     } else {
+  //       console.log('User not found. Creating...');
+  //       userDetails = await this.userService.createUser({
+  //         email: payload.email,
+  //         name: payload.name,
+  //         picture: payload.picture,
+  //         verified: payload.email_verified || false,
+  //       });
+  //     }
+
+  //     const jwtToken = this.generateJwtToken(userDetails);
+  //     return { user: userDetails, accessToken: jwtToken };
+  //   } catch (e) {
+  //     console.log('Error in validateUser', e);
+  //     throw new Error('Error in validateUser');
+  //   }
+  // }
+
   async validateUser(
     token: string,
   ): Promise<{ user: User; accessToken: string }> {
     try {
       let userDetails = null; // Todo use correct type
-      const googleAuth = await this.oauthClient.verifyIdToken({
-        idToken: token,
-        audience: process.env.GOOGLE_CLIENT_ID,
-      });
-
-      const payload = googleAuth.getPayload();
-
+      // TODO: Uncomment THIS BEFORE PUSH
+      // const googleAuth = await this.oauthClient.verifyIdToken({
+      //   idToken: token,
+      //   audience: process.env.GOOGLE_CLIENT_ID,
+      // });
+      //const payload = googleAuth.getPayload();
+      // TODO: DELETE THIS BEFORE PUSH
+      const decodeToken = await this.jwtService.decode(token);
+      const payload = decodeToken;
       const userExists = await this.userModel.findOne({
         email: payload.email,
       });
-
       if (userExists) {
         console.log('User exists. Getting...');
         userDetails = userExists;
@@ -48,7 +86,6 @@ export class AuthService {
           verified: payload.email_verified || false,
         });
       }
-
       const jwtToken = this.generateJwtToken(userDetails);
       return { user: userDetails, accessToken: jwtToken };
     } catch (e) {

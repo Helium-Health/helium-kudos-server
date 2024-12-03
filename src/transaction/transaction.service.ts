@@ -206,6 +206,7 @@ export class TransactionService {
   async getPaginatedUsersWithEarnedCoins(page: number, limit: number) {
     const skip = (page - 1) * limit;
 
+    // Get the total unique count of users who received coins
     const totalCount = await this.transactionModel
       .aggregate([
         {
@@ -217,7 +218,7 @@ export class TransactionService {
         },
         {
           $group: {
-            _id: '$relatedUserId',
+            _id: '$userId', // Correctly group by userId (the credited user)
           },
         },
         {
@@ -228,6 +229,7 @@ export class TransactionService {
 
     const totalPages = Math.ceil(totalCount / limit);
 
+    // Get paginated user data with earned coins
     const data = await this.transactionModel.aggregate([
       {
         $match: {
@@ -238,7 +240,7 @@ export class TransactionService {
       },
       {
         $group: {
-          _id: '$relatedUserId',
+          _id: '$userId', // Group by userId (credited user)
           totalEarnedCoins: { $sum: '$amount' },
           totalTransactions: { $sum: 1 },
           transactions: {
@@ -257,8 +259,8 @@ export class TransactionService {
           as: 'user',
         },
       },
-      { $unwind: '$user' },
-      { $sort: { totalEarnedCoins: -1 } },
+      { $unwind: '$user' }, // Ensure single user document per result
+      { $sort: { totalEarnedCoins: -1 } }, // Sort by total earned coins
       { $skip: skip },
       { $limit: limit },
       {
