@@ -14,6 +14,7 @@ import { Logger } from '@nestjs/common';
   cors: {
     origin: '*',
   },
+  namespace: 'recognition',
 })
 export class RecognitionGateway
   implements OnGatewayConnection, OnGatewayDisconnect
