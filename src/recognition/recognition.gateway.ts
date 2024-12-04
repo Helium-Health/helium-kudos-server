@@ -23,6 +23,7 @@ export class RecognitionGateway
   private server: Server;
   private readonly logger = new Logger(RecognitionGateway.name);
 
+  @SubscribeMessage('kudos-connected')
   handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
   }
@@ -39,9 +40,9 @@ export class RecognitionGateway
     }
   }
 
-  @SubscribeMessage('send-recognition')
+  // @SubscribeMessage('kudos-connect')
   handleMessage(@MessageBody() data: any, @ConnectedSocket() client: Socket) {
-    this.server.emit('send-recognition', { content: data });
+    this.server.emit('recognition-created', { content: data });
 
     if (!data || !data.recognition) {
       client.emit('error', 'Invalid recognition data');
