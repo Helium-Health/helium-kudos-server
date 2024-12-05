@@ -57,7 +57,7 @@ export class RecognitionGateway
     this.logger.log('Broadcasting new recognition data.');
     // Emit an acknowledgment
     client.emit('response', {
-      message: 'Connection Successful',
+      message: 'Web Socket Connection Successful',
     });
   }
 }
