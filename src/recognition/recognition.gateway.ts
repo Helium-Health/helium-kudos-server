@@ -54,7 +54,7 @@ export class RecognitionGateway
 
   @SubscribeMessage('kudos-connected')
   handleMessage(@MessageBody() data: any, @ConnectedSocket() client: Socket) {
-    this.logger.log('Broadcasting new recognition data.');
+    this.logger.log('Acknowleding Client Connection');
     // Emit an acknowledgment
     client.emit('response', {
       message: 'Web Socket Connection Successful',
