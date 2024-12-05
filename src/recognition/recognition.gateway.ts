@@ -39,7 +39,7 @@ export class RecognitionGateway
   notifyClients(data: any) {
     try {
       if (this.server) {
-        this.logger.log('Notifying clients with new recognition data.', data);
+        // this.logger.log('Notifying clients with new recognition data.', data);
         this.server.emit('recognition-created', {
           message: 'New recognition posted! Please refresh your page.',
           data,
