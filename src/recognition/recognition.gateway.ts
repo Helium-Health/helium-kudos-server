@@ -12,18 +12,22 @@ import { Logger } from '@nestjs/common';
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: [
+      '*',
+      // 'http://localhost:3000',
+      // 'https://kudos-staging.onemedtest.com',
+    ],
   },
-  namespace: 'recognition',
+  namespace: '/api/recognition',
 })
 export class RecognitionGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
   @WebSocketServer()
   private server: Server;
+
   private readonly logger = new Logger(RecognitionGateway.name);
 
-  @SubscribeMessage('kudos-connected')
   handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
   }
@@ -32,25 +36,28 @@ export class RecognitionGateway
     this.logger.log(`Client disconnected: ${client.id}`);
   }
 
-  notifyClients() {
-    if (this.server) {
-      this.server.emit('recognition-created', {
-        message: 'New recognition posted! Please refresh your page.',
-      });
+  notifyClients(data: any) {
+    try {
+      if (this.server) {
+        this.logger.log('Notifying clients with new recognition data.', data);
+        this.server.emit('recognition-created', {
+          message: 'New recognition posted! Please refresh your page.',
+          data,
+        });
+      } else {
+        this.logger.warn('Server instance is not initialized.');
+      }
+    } catch (error) {
+      this.logger.error('Error notifying clients', error);
     }
   }
 
-  // @SubscribeMessage('kudos-connect')
+  @SubscribeMessage('kudos-connected')
   handleMessage(@MessageBody() data: any, @ConnectedSocket() client: Socket) {
-    this.server.emit('recognition-created', { content: data });
-
-    if (!data || !data.recognition) {
-      client.emit('error', 'Invalid recognition data');
-      return;
-    }
-  }
-
-  afterInit(server: Server) {
-    this.server = server;
+    this.logger.log('Broadcasting new recognition data.');
+    // Emit an acknowledgment
+    client.emit('response', {
+      message: 'Connection Successful',
+    });
   }
 }

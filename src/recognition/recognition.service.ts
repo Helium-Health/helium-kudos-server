@@ -112,7 +112,15 @@ export class RecognitionService {
       );
 
       await session.commitTransaction();
-      this.recognitionGateway.notifyClients();
+      this.recognitionGateway.notifyClients({
+        message: `Recognition created: ${message}`,
+        senderId,
+        receivers: receivers.map((r) => ({
+          receiverId: new Types.ObjectId(r.receiverId),
+          amount: r.coinAmount,
+        })),
+        companyValues,
+      });
       return newRecognition;
     } catch (error) {
       await session.abortTransaction();
