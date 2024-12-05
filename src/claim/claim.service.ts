@@ -25,44 +25,53 @@ export class ClaimService {
     private readonly userService: UsersService,
   ) {}
   async recordClaim(
-    { senderId, receiverIds, recognitionId, coinAmount }: ClaimDto,
+    { senderId, receivers, recognitionId }: ClaimDto,
     session: ClientSession,
   ): Promise<ClaimDocument> {
+    const formattedReceivers = receivers.map((receiver) => ({
+      receiverId: receiver.receiverId,
+      amount: receiver.amount,
+    }));
+
     const claim = new this.claimModel({
       senderId,
-      receiverIds,
+      receivers: formattedReceivers,
       recognitionId,
-      amount: coinAmount,
       status: Status.PENDING,
-      approved: false,
     });
 
     return claim.save({ session });
   }
 
   async claimCoin(
-    { senderId, receiverIds, coinAmount, recognitionId }: ClaimDto,
+    { senderId, receivers, recognitionId }: ClaimDto,
     session: ClientSession,
   ) {
-    const totalCoinAmount = coinAmount * receiverIds.length;
+    const totalCoinAmount = receivers.reduce(
+      (sum, receiver) => sum + receiver.amount,
+      0,
+    );
 
     await this.walletService.deductCoins(senderId, totalCoinAmount, session);
 
     const claim = await this.recordClaim(
       {
         senderId: new Types.ObjectId(senderId),
-        receiverIds: receiverIds.map((id) => new Types.ObjectId(id)),
+        receivers: receivers.map((receiver) => ({
+          receiverId: new Types.ObjectId(receiver.receiverId),
+          amount: receiver.amount,
+        })),
         recognitionId: recognitionId,
-        coinAmount: coinAmount,
       },
       session,
     );
-    for (const receiverId of receiverIds) {
+
+    for (const receiver of receivers) {
       await this.transactionService.recordDebitTransaction(
         {
           senderId: new Types.ObjectId(senderId),
-          receiverId: new Types.ObjectId(receiverId),
-          amount: coinAmount,
+          receiverId: new Types.ObjectId(receiver.receiverId),
+          amount: receiver.amount,
           entityId: recognitionId,
           entityType: EntityType.RECOGNITION,
           claimId: claim._id as Types.ObjectId,
@@ -93,10 +102,12 @@ export class ClaimService {
       claim.status = Status.APPROVED;
       await claim.save({ session });
 
-      for (const receiverId of claim.receiverIds) {
+      for (const receiver of claim.receivers) {
+        const { receiverId, amount } = receiver;
+
         await this.walletService.incrementEarnedBalance(
           new Types.ObjectId(receiverId),
-          claim.amount,
+          amount,
           session,
         );
 
@@ -104,7 +115,7 @@ export class ClaimService {
           {
             senderId: claim.senderId,
             receiverId: new Types.ObjectId(receiverId),
-            amount: Math.abs(claim.amount),
+            amount: Math.abs(amount),
             entityId: new Types.ObjectId(claim.recognitionId),
             entityType: EntityType.RECOGNITION,
             claimId: claim._id as Types.ObjectId,
@@ -113,6 +124,7 @@ export class ClaimService {
           session,
         );
       }
+
       await session.commitTransaction();
     } catch (error) {
       await session.abortTransaction();
@@ -126,8 +138,9 @@ export class ClaimService {
   async rejectClaim(claimId: Types.ObjectId) {
     const session = await this.claimModel.db.startSession();
     session.startTransaction();
+
     try {
-      const claim = await this.claimModel.findById(claimId);
+      const claim = await this.claimModel.findById(claimId).session(session);
 
       if (!claim) {
         throw new NotFoundException('Claim not found');
@@ -137,12 +150,14 @@ export class ClaimService {
         throw new BadRequestException('Claim is not pending');
       }
 
-      for (const receiverId of claim.receiverIds) {
+      for (const receiver of claim.receivers) {
+        const { receiverId, amount } = receiver;
+
         await this.transactionService.recordCreditTransaction(
           {
             senderId: claim.senderId,
             receiverId: new Types.ObjectId(receiverId),
-            amount: Math.abs(claim.amount),
+            amount: Math.abs(amount),
             entityId: new Types.ObjectId(claim.recognitionId),
             entityType: EntityType.RECOGNITION,
             claimId: claim._id as Types.ObjectId,
@@ -151,19 +166,26 @@ export class ClaimService {
           session,
         );
       }
-      const totalCoinAmount = claim.amount * claim.receiverIds.length;
+
+      const totalCoinAmount = claim.receivers.reduce(
+        (sum, receiver) => sum + receiver.amount,
+        0,
+      );
+
       await this.walletService.refundGiveableBalance(
         claim.senderId,
         totalCoinAmount,
         session,
       );
+
       claim.status = Status.REJECTED;
       await claim.save({ session });
+
       await session.commitTransaction();
     } catch (error) {
       await session.abortTransaction();
       console.error('Error rejecting claim:', error);
-      throw new InternalServerErrorException('Failed to deny the claim');
+      throw new InternalServerErrorException('Failed to reject the claim');
     } finally {
       session.endSession();
     }
@@ -182,7 +204,7 @@ export class ClaimService {
     if (userId) {
       filter.$or = [
         { senderId: new Types.ObjectId(userId) },
-        { receiverIds: { $in: [new Types.ObjectId(userId)] } },
+        { 'receivers.receiverId': new Types.ObjectId(userId) },
       ];
     }
 
@@ -193,6 +215,10 @@ export class ClaimService {
       filter.status = status as Status;
     }
 
+    // Fetch the total count of claims that match the filter (for pagination purposes)
+    const totalCount = await this.claimModel.countDocuments(filter).exec();
+
+    // Fetch the claims with pagination
     const claims = await this.claimModel
       .find(filter)
       .skip((currentPage - 1) * currentLimit)
@@ -204,12 +230,16 @@ export class ClaimService {
         const senderDetails = await this.userService.findById(claim.senderId);
 
         const receiverDetails = await Promise.all(
-          claim.receiverIds.map(async (receiverId) => {
-            const receiver = await this.userService.findById(receiverId);
+          claim.receivers.map(async (receiver) => {
+            const receiverUser = await this.userService.findById(
+              receiver.receiverId,
+            );
+
             return {
-              _id: receiverId,
-              name: receiver?.name,
-              picture: receiver?.picture,
+              _id: receiver.receiverId,
+              name: receiverUser?.name,
+              picture: receiverUser?.picture,
+              amountReceived: receiver.amount, // Amount each receiver gets
             };
           }),
         );
@@ -221,11 +251,21 @@ export class ClaimService {
             name: senderDetails?.name,
             picture: senderDetails?.picture,
           },
-          receiverIds: receiverDetails,
+          receivers: receiverDetails,
         };
       }),
     );
 
-    return claimsWithUserDetails;
+    const totalPages = Math.ceil(totalCount / currentLimit);
+
+    return {
+      data: claimsWithUserDetails,
+      meta: {
+        totalCount,
+        page: currentPage,
+        limit: currentLimit,
+        totalPages,
+      },
+    };
   }
 }

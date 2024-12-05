@@ -8,13 +8,21 @@ export type RecognitionDocument = Document & Recognition;
 @Schema({ timestamps: true })
 export class Recognition {
   @Prop({ type: Types.ObjectId, ref: 'User' })
-  senderId: Types.ObjectId; // Reference to the User entity for the sender
+  senderId: Types.ObjectId;
 
   @Prop({ type: String, required: true })
   message: string;
 
-  @Prop({ type: Number, default: 0 })
-  coinAmount: number;
+  @Prop({
+    type: [
+      {
+        receiverId: { type: Types.ObjectId, ref: 'User', required: true },
+        coinAmount: { type: Number, required: true, default: 0 },
+      },
+    ],
+    required: true,
+  })
+  receivers: { receiverId: Types.ObjectId; coinAmount: number }[];
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Comment' }] })
   comments: Types.ObjectId[];

@@ -35,18 +35,13 @@ export class RecognitionService {
 
   async createRecognition(
     senderId: string,
-    {
-      receiverIds,
-      message,
-      coinAmount = 0,
-      companyValues = [],
-    }: CreateRecognitionDto,
+    { receivers, message, companyValues = [] }: CreateRecognitionDto,
   ) {
     const invalidValues = companyValues.filter(
       (value) => !Object.values(CompanyValues).includes(value),
     );
 
-    if (receiverIds.length === 0) {
+    if (receivers.length === 0) {
       throw new BadRequestException(
         'At least one receiver is required for recognition',
       );
@@ -58,19 +53,20 @@ export class RecognitionService {
       );
     }
 
-    if (receiverIds.includes(senderId)) {
+    if (receivers.some((receiver) => receiver.receiverId === senderId)) {
       throw new BadRequestException(
         'Sender cannot be a receiver of the recognition',
       );
     }
 
+    const receiverIds = receivers.map((receiver) => receiver.receiverId);
     const areValidUsers = await this.usersService.validateUserIds(receiverIds);
 
     if (!areValidUsers) {
       throw new BadRequestException('One or more receiver IDs are invalid');
     }
 
-    const totalCoinAmount = coinAmount * receiverIds.length;
+    const totalCoinAmount = receivers.reduce((sum, r) => sum + r.coinAmount, 0);
 
     const hasEnoughCoins = await this.walletService.hasEnoughCoins(
       new Types.ObjectId(senderId),
@@ -84,43 +80,36 @@ export class RecognitionService {
     session.startTransaction();
 
     try {
-      // Create the recognition
       const newRecognition = new this.recognitionModel({
         senderId: new Types.ObjectId(senderId),
         message,
-        coinAmount,
-        companyValues: companyValues,
+        receivers: receivers.map((r) => ({
+          receiverId: new Types.ObjectId(r.receiverId),
+          coinAmount: r.coinAmount,
+        })),
+        companyValues,
       });
       await newRecognition.save({ session });
 
-      // Create UserRecognition entries
-      const userRecognitions = [
-        // TODO: deprecate sender detail in userRecognition table and update recognition aggregation
-        // {
-        //   userId: new Types.ObjectId(senderId),
-        //   recognitionId: newRecognition._id,
-        //   role: UserRecognitionRole.SENDER,
-        // },
-        ...receiverIds.map((userId) => ({
-          userId: new Types.ObjectId(userId),
-          recognitionId: newRecognition._id,
-          role: UserRecognitionRole.RECEIVER,
-        })),
-      ];
+      const userRecognitions = receivers.map((receiver) => ({
+        userId: new Types.ObjectId(receiver.receiverId),
+        recognitionId: newRecognition._id,
+        role: UserRecognitionRole.RECEIVER,
+      }));
 
       await this.userRecognitionService.createMany(userRecognitions, session);
 
-      if (coinAmount > 0) {
-        await this.claimService.claimCoin(
-          {
-            senderId: new Types.ObjectId(senderId),
-            receiverIds: receiverIds.map((id) => new Types.ObjectId(id)),
-            coinAmount,
-            recognitionId: newRecognition._id,
-          },
-          session,
-        );
-      }
+      await this.claimService.claimCoin(
+        {
+          senderId: new Types.ObjectId(senderId),
+          receivers: receivers.map((r) => ({
+            receiverId: new Types.ObjectId(r.receiverId),
+            amount: r.coinAmount,
+          })),
+          recognitionId: newRecognition._id,
+        },
+        session,
+      );
 
       await session.commitTransaction();
       this.recognitionGateway.notifyClients();

@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
   ArrayNotEmpty,
   IsArray,
@@ -7,8 +8,20 @@ import {
   IsNumber,
   IsEnum,
   IsPositive,
+  ValidateNested,
 } from 'class-validator';
 import { CompanyValues } from 'src/constants/companyValues';
+
+class Receiver {
+  @IsNotEmpty()
+  @IsString()
+  receiverId: string;
+
+  @IsNotEmpty()
+  @IsNumber()
+  @IsPositive()
+  coinAmount: number;
+}
 
 export class CreateRecognitionDto {
   @IsNotEmpty()
@@ -17,15 +30,12 @@ export class CreateRecognitionDto {
 
   @IsArray()
   @ArrayNotEmpty()
-  receiverIds: string[];
+  @ValidateNested({ each: true })
+  @Type(() => Receiver)
+  receivers: Receiver[];
 
   @IsOptional()
   @IsArray()
   @IsEnum(CompanyValues, { each: true })
   companyValues?: CompanyValues[];
-
-  @IsOptional()
-  @IsNumber()
-  @IsPositive()
-  coinAmount?: number;
 }
