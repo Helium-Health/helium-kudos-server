@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -17,10 +18,12 @@ import { EntityType } from 'src/transaction/schema/Transaction.schema';
 import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
 import { ClaimService } from 'src/claim/claim.service';
 import { TransactionService } from 'src/transaction/transaction.service';
+import { RecognitionGateway } from './recognition.gateway';
 
 @Injectable()
 export class RecognitionService {
   constructor(
+    @Inject(RecognitionGateway) private recognitionGateway: RecognitionGateway,
     @InjectModel(Recognition.name)
     private readonly recognitionModel: Model<Recognition>,
     private readonly userRecognitionService: UserRecognitionService,
@@ -109,6 +112,15 @@ export class RecognitionService {
       );
 
       await session.commitTransaction();
+      this.recognitionGateway.notifyClients({
+        message: `Recognition created: ${message}`,
+        senderId,
+        receivers: receivers.map((r) => ({
+          receiverId: new Types.ObjectId(r.receiverId),
+          amount: r.coinAmount,
+        })),
+        companyValues,
+      });
       return newRecognition;
     } catch (error) {
       await session.abortTransaction();
