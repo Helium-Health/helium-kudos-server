@@ -9,6 +9,7 @@ import {
   IsEnum,
   IsPositive,
   ValidateNested,
+  Min,
 } from 'class-validator';
 import { CompanyValues } from 'src/constants/companyValues';
 
@@ -17,9 +18,9 @@ class Receiver {
   @IsString()
   receiverId: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
-  @IsPositive()
+  @Min(0)
   coinAmount: number;
 }
 

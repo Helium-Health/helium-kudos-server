@@ -66,7 +66,10 @@ export class RecognitionService {
       throw new BadRequestException('One or more receiver IDs are invalid');
     }
 
-    const totalCoinAmount = receivers.reduce((sum, r) => sum + r.coinAmount, 0);
+    const totalCoinAmount = receivers.reduce(
+      (sum, r) => sum + (r.coinAmount ?? 0),
+      0,
+    );
 
     const hasEnoughCoins = await this.walletService.hasEnoughCoins(
       new Types.ObjectId(senderId),
@@ -85,7 +88,7 @@ export class RecognitionService {
         message,
         receivers: receivers.map((r) => ({
           receiverId: new Types.ObjectId(r.receiverId),
-          coinAmount: r.coinAmount,
+          coinAmount: r.coinAmount ?? 0,
         })),
         companyValues,
       });
@@ -104,7 +107,7 @@ export class RecognitionService {
           senderId: new Types.ObjectId(senderId),
           receivers: receivers.map((r) => ({
             receiverId: new Types.ObjectId(r.receiverId),
-            amount: r.coinAmount,
+            amount: r.coinAmount ?? 0,
           })),
           recognitionId: newRecognition._id,
         },
@@ -117,7 +120,7 @@ export class RecognitionService {
         senderId,
         receivers: receivers.map((r) => ({
           receiverId: new Types.ObjectId(r.receiverId),
-          amount: r.coinAmount,
+          amount: r.coinAmount ?? 0,
         })),
         companyValues,
       });
