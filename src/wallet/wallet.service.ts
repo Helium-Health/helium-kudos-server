@@ -76,6 +76,10 @@ export class WalletService {
     amount: number,
     session: ClientSession,
   ) {
+    if (typeof amount !== 'number' || isNaN(amount) || amount <= 0) {
+      throw new BadRequestException('Invalid amount');
+    }
+
     const wallet = await this.walletModel.findOneAndUpdate(
       { userId, giveableBalance: { $gte: amount } },
       { $inc: { giveableBalance: -amount } },
@@ -149,7 +153,7 @@ export class WalletService {
 
       return result;
     } catch (error) {
-      // If an error occurs, abort the transaction
+      
       await session.abortTransaction();
       this.logger.error('Transaction aborted due to an error: ', error.message);
       throw error;
@@ -166,7 +170,6 @@ export class WalletService {
       throw new BadRequestException('Allocation must be a positive number');
     }
 
-    // Start a new session for the transaction
     const session = await this.walletModel.db.startSession();
     session.startTransaction();
 
