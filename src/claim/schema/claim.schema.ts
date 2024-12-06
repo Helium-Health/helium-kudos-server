@@ -15,7 +15,7 @@ export class Receiver {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   receiverId: Types.ObjectId;
 
-  @Prop({ type: mongoose.Schema.Types.Decimal128, required: true })
+  @Prop({ type: Number, required: true })
   amount: number;
 }
 
