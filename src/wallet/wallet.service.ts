@@ -76,7 +76,7 @@ export class WalletService {
     amount: number,
     session: ClientSession,
   ) {
-    if (typeof amount !== 'number' || isNaN(amount) || amount <= 0) {
+    if (typeof amount !== 'number' || isNaN(amount)) {
       throw new BadRequestException('Invalid amount');
     }
 
@@ -153,7 +153,6 @@ export class WalletService {
 
       return result;
     } catch (error) {
-      
       await session.abortTransaction();
       this.logger.error('Transaction aborted due to an error: ', error.message);
       throw error;
