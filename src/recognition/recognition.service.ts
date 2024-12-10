@@ -3,6 +3,7 @@ import {
   forwardRef,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -105,18 +106,22 @@ export class RecognitionService {
 
       await this.userRecognitionService.createMany(userRecognitions, session);
 
-      await this.claimService.claimCoin(
-        {
-          senderId: new Types.ObjectId(senderId),
-          receivers: receivers.map((r) => ({
-            receiverId: new Types.ObjectId(r.receiverId),
-            amount: r.coinAmount ?? 0,
-          })),
-          recognitionId: newRecognition._id,
-          totalCoinAmount,
-        },
-        session,
-      );
+      if (totalCoinAmount === 0) {
+        Logger.log('Total coin amount is 0, skipping Claim Creation.');
+      } else {
+        await this.claimService.claimCoin(
+          {
+            senderId: new Types.ObjectId(senderId),
+            receivers: receivers.map((r) => ({
+              receiverId: new Types.ObjectId(r.receiverId),
+              amount: r.coinAmount ?? 0,
+            })),
+            recognitionId: newRecognition._id,
+            totalCoinAmount,
+          },
+          session,
+        );
+      }
 
       await session.commitTransaction();
       this.recognitionGateway.notifyClients({

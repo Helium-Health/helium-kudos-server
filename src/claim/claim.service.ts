@@ -30,7 +30,7 @@ export class ClaimService {
     private readonly recognitionService: RecognitionService,
   ) {}
   async recordClaim(
-    { senderId, receivers, recognitionId, totalCoinAmount }: ClaimDto,
+    { senderId, receivers, recognitionId }: ClaimDto,
     session: ClientSession,
   ): Promise<ClaimDocument> {
     const formattedReceivers = receivers.map((receiver) => ({
@@ -42,7 +42,7 @@ export class ClaimService {
       senderId,
       receivers: formattedReceivers,
       recognitionId,
-      status: totalCoinAmount === 0 ? Status.APPROVED : Status.PENDING,
+      status: Status.PENDING,
     });
 
     return claim.save({ session });
