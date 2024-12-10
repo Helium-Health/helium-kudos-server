@@ -30,7 +30,7 @@ export class ClaimService {
     private readonly recognitionService: RecognitionService,
   ) {}
   async recordClaim(
-    { senderId, receivers, recognitionId }: ClaimDto,
+    { senderId, receivers, recognitionId, totalCoinAmount }: ClaimDto,
     session: ClientSession,
   ): Promise<ClaimDocument> {
     const formattedReceivers = receivers.map((receiver) => ({
@@ -42,21 +42,16 @@ export class ClaimService {
       senderId,
       receivers: formattedReceivers,
       recognitionId,
-      status: Status.PENDING,
+      status: totalCoinAmount === 0 ? Status.APPROVED : Status.PENDING,
     });
 
     return claim.save({ session });
   }
 
   async claimCoin(
-    { senderId, receivers, recognitionId }: ClaimDto,
+    { senderId, receivers, recognitionId, totalCoinAmount }: ClaimDto,
     session: ClientSession,
   ) {
-    const totalCoinAmount = receivers.reduce(
-      (sum, receiver) => sum + receiver.amount,
-      0,
-    );
-
     await this.walletService.deductCoins(senderId, totalCoinAmount, session);
 
     const claim = await this.recordClaim(
@@ -67,6 +62,7 @@ export class ClaimService {
           amount: receiver.amount,
         })),
         recognitionId: recognitionId,
+        totalCoinAmount,
       },
       session,
     );

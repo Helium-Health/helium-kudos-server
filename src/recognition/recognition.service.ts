@@ -113,6 +113,7 @@ export class RecognitionService {
             amount: r.coinAmount ?? 0,
           })),
           recognitionId: newRecognition._id,
+          totalCoinAmount,
         },
         session,
       );

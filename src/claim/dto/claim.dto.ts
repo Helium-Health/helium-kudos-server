@@ -1,4 +1,11 @@
-import { IsNotEmpty, IsMongoId, IsArray, ValidateNested } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsMongoId,
+  IsArray,
+  ValidateNested,
+  IsNumber,
+  IsOptional,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { Types } from 'mongoose';
 
@@ -24,4 +31,7 @@ export class ClaimDto {
   @ValidateNested({ each: true })
   @Type(() => ReceiverDto)
   receivers: ReceiverDto[];
+
+  @IsNumber()
+  totalCoinAmount: number;
 }
