@@ -220,9 +220,7 @@ export class ClaimService {
       filter.status = status as Status;
     }
 
-   
     const totalCount = await this.claimModel.countDocuments(filter).exec();
-
 
     const claims = await this.claimModel
       .find(filter)
@@ -232,7 +230,6 @@ export class ClaimService {
 
     const claimsWithDetails = await Promise.all(
       claims.map(async (claim) => {
-
         const recognition = await this.recognitionService.findById(
           claim.recognitionId,
         );
@@ -261,10 +258,7 @@ export class ClaimService {
             picture: senderDetails?.picture,
           },
           receivers: receiverDetails,
-          recognitionId: claim.recognitionId,
-          message: recognition.message,
-          companyValues: recognition.companyValues,
-          reactions: recognition.reactions, 
+          recognition,
         };
       }),
     );
