@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  forwardRef,
   Inject,
   Injectable,
   NotFoundException,
@@ -23,13 +24,15 @@ import { RecognitionGateway } from './recognition.gateway';
 @Injectable()
 export class RecognitionService {
   constructor(
+    @Inject(forwardRef(() => ClaimService))
+    private readonly claimService: ClaimService,
     @Inject(RecognitionGateway) private recognitionGateway: RecognitionGateway,
     @InjectModel(Recognition.name)
     private readonly recognitionModel: Model<Recognition>,
     private readonly userRecognitionService: UserRecognitionService,
     private readonly walletService: WalletService,
     private readonly usersService: UsersService,
-    private readonly claimService: ClaimService,
+
     private readonly transactionService: TransactionService,
   ) {}
 
