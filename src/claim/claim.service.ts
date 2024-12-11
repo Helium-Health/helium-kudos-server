@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  forwardRef,
+  Inject,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -15,6 +17,7 @@ import { Claim, ClaimDocument, Status } from './schema/claim.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClaimDto } from './dto/claim.dto';
 import { UsersService } from 'src/users/users.service';
+import { RecognitionService } from 'src/recognition/recognition.service';
 
 @Injectable()
 export class ClaimService {
@@ -23,6 +26,8 @@ export class ClaimService {
     private readonly transactionService: TransactionService,
     private readonly walletService: WalletService,
     private readonly userService: UsersService,
+    @Inject(forwardRef(() => RecognitionService))
+    private readonly recognitionService: RecognitionService,
   ) {}
   async recordClaim(
     { senderId, receivers, recognitionId }: ClaimDto,
@@ -44,14 +49,9 @@ export class ClaimService {
   }
 
   async claimCoin(
-    { senderId, receivers, recognitionId }: ClaimDto,
+    { senderId, receivers, recognitionId, totalCoinAmount }: ClaimDto,
     session: ClientSession,
   ) {
-    const totalCoinAmount = receivers.reduce(
-      (sum, receiver) => sum + receiver.amount,
-      0,
-    );
-
     await this.walletService.deductCoins(senderId, totalCoinAmount, session);
 
     const claim = await this.recordClaim(
@@ -62,6 +62,7 @@ export class ClaimService {
           amount: receiver.amount,
         })),
         recognitionId: recognitionId,
+        totalCoinAmount,
       },
       session,
     );
@@ -215,18 +216,20 @@ export class ClaimService {
       filter.status = status as Status;
     }
 
-    // Fetch the total count of claims that match the filter (for pagination purposes)
     const totalCount = await this.claimModel.countDocuments(filter).exec();
 
-    // Fetch the claims with pagination
     const claims = await this.claimModel
       .find(filter)
       .skip((currentPage - 1) * currentLimit)
       .limit(currentLimit)
       .exec();
 
-    const claimsWithUserDetails = await Promise.all(
+    const claimsWithDetails = await Promise.all(
       claims.map(async (claim) => {
+        const recognition = await this.recognitionService.findById(
+          claim.recognitionId,
+        );
+
         const senderDetails = await this.userService.findById(claim.senderId);
 
         const receiverDetails = await Promise.all(
@@ -239,19 +242,19 @@ export class ClaimService {
               _id: receiver.receiverId,
               name: receiverUser?.name,
               picture: receiverUser?.picture,
-              amountReceived: receiver.amount, // Amount each receiver gets
+              amountReceived: receiver.amount,
             };
           }),
         );
 
         return {
-          ...claim.toObject(),
           senderId: {
             _id: claim.senderId,
             name: senderDetails?.name,
             picture: senderDetails?.picture,
           },
           receivers: receiverDetails,
+          recognition,
         };
       }),
     );
@@ -259,7 +262,7 @@ export class ClaimService {
     const totalPages = Math.ceil(totalCount / currentLimit);
 
     return {
-      data: claimsWithUserDetails,
+      data: claimsWithDetails,
       meta: {
         totalCount,
         page: currentPage,

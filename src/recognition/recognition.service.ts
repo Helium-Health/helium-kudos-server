@@ -1,7 +1,9 @@
 import {
   BadRequestException,
+  forwardRef,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -23,13 +25,15 @@ import { RecognitionGateway } from './recognition.gateway';
 @Injectable()
 export class RecognitionService {
   constructor(
+    @Inject(forwardRef(() => ClaimService))
+    private readonly claimService: ClaimService,
     @Inject(RecognitionGateway) private recognitionGateway: RecognitionGateway,
     @InjectModel(Recognition.name)
     private readonly recognitionModel: Model<Recognition>,
     private readonly userRecognitionService: UserRecognitionService,
     private readonly walletService: WalletService,
     private readonly usersService: UsersService,
-    private readonly claimService: ClaimService,
+
     private readonly transactionService: TransactionService,
   ) {}
 
@@ -102,17 +106,22 @@ export class RecognitionService {
 
       await this.userRecognitionService.createMany(userRecognitions, session);
 
-      await this.claimService.claimCoin(
-        {
-          senderId: new Types.ObjectId(senderId),
-          receivers: receivers.map((r) => ({
-            receiverId: new Types.ObjectId(r.receiverId),
-            amount: r.coinAmount ?? 0,
-          })),
-          recognitionId: newRecognition._id,
-        },
-        session,
-      );
+      if (totalCoinAmount === 0) {
+        Logger.log('Total coin amount is 0, skipping Claim Creation.');
+      } else {
+        await this.claimService.claimCoin(
+          {
+            senderId: new Types.ObjectId(senderId),
+            receivers: receivers.map((r) => ({
+              receiverId: new Types.ObjectId(r.receiverId),
+              amount: r.coinAmount ?? 0,
+            })),
+            recognitionId: newRecognition._id,
+            totalCoinAmount,
+          },
+          session,
+        );
+      }
 
       await session.commitTransaction();
       this.recognitionGateway.notifyClients({
@@ -398,5 +407,65 @@ export class RecognitionService {
       { $pull: { comments: commentId } },
       { new: true },
     );
+  }
+
+  async getTopRecognitionReceivers(page: number, limit: number) {
+    const skip = (page - 1) * limit;
+
+    const result = await this.recognitionModel.aggregate([
+      { $unwind: '$receivers' },
+      {
+        $group: {
+          _id: '$receivers.receiverId',
+          recognitionCount: { $sum: 1 },
+        },
+      },
+      { $sort: { recognitionCount: -1 } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: '$user' },
+      {
+        $project: {
+          _id: 0,
+          receiverId: '$_id',
+          recognitionCount: 1,
+          user: {
+            _id: '$user._id',
+            email: '$user.email',
+            name: '$user.name',
+            role: '$user.role',
+            picture: '$user.picture',
+            verified: '$user.verified',
+          },
+        },
+      },
+      {
+        $facet: {
+          metadata: [{ $count: 'totalCount' }],
+          data: [{ $skip: skip }, { $limit: limit }],
+        },
+      },
+    ]);
+
+    const metadata = result[0]?.metadata[0] || { totalCount: 0 };
+    const data = result[0]?.data || [];
+    const totalCount = metadata.totalCount;
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return {
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages,
+      },
+      data,
+    };
   }
 }

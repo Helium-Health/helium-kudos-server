@@ -19,6 +19,7 @@ import { ClaimModule } from './claim/claim.module';
 import { ProductModule } from './product/product.module';
 import { OrderModule } from './order/order.module';
 import { StorageModule } from './storage/storage.module';
+import { LeaderboardModule } from './leaderboard/leaderboard.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { StorageModule } from './storage/storage.module';
     ProductModule,
     OrderModule,
     StorageModule,
+    LeaderboardModule,
   ],
   controllers: [],
   providers: [],
