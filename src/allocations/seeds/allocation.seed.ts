@@ -1,16 +1,26 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AllocationsService } from '../allocations.service';
 import { CreateAllocationDto } from '../dto/create-allocation.dto';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AllocationSeeder {
   private readonly logger = new Logger(AllocationSeeder.name);
 
-  constructor(private readonly allocationService: AllocationsService) {}
+  constructor(
+    private readonly allocationService: AllocationsService,
+    private readonly configService: ConfigService,
+  ) {}
 
   async seedAllocations(): Promise<void> {
+    const environment = this.configService.get<string>(
+      'NODE_ENV',
+      'development',
+    );
+    const cadence = environment === 'production' ? '0 0 1 * *' : '0 0 * * *'; // Monthly for prod, daily for non-prod
+
     const allocations: CreateAllocationDto[] = [
-      { allocationAmount: 300, cadence: '0 0 * * *' }, // Midnight daily
+      { allocationAmount: 300, cadence },
     ];
 
     for (const allocationDto of allocations) {
