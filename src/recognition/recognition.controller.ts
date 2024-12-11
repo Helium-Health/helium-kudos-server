@@ -36,7 +36,8 @@ export class RecognitionController {
   async getAllRecognitions(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('userId') userId?: string,
   ) {
-    return this.recognitionService.getAllRecognitions(page, limit);
+    return this.recognitionService.getAllRecognitions(page, limit, userId);
   }
 }

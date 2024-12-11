@@ -238,11 +238,21 @@ export class RecognitionService {
     await recognition.save({ session });
   }
 
-  async getAllRecognitions(page: number, limit: number) {
+  async getAllRecognitions(page: number, limit: number, userId?: string) {
     const skip = (page - 1) * limit;
+
+    // Match filter for userId, if provided
+    const matchFilter: Record<string, any> = {};
+    if (userId) {
+      matchFilter.$or = [
+        { senderId: new Types.ObjectId(userId) },
+        { 'receivers.receiverId': new Types.ObjectId(userId) },
+      ];
+    }
 
     const [recognitions, totalCount] = await Promise.all([
       this.recognitionModel.aggregate([
+        { $match: matchFilter }, // Apply match filter based on userId
         {
           $sort: { createdAt: -1 },
         },
@@ -351,7 +361,8 @@ export class RecognitionService {
         { $skip: skip },
         { $limit: limit },
       ]),
-      this.recognitionModel.countDocuments(),
+      // Count total recognitions with the same filter
+      this.recognitionModel.countDocuments(matchFilter),
     ]);
 
     return {
