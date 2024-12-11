@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { RecognitionService } from './recognition.service';
 import { RecognitionController } from './recognition.controller';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -18,7 +18,7 @@ import { RecognitionGateway } from './recognition.gateway';
     TransactionModule,
     UserRecognitionModule,
     WalletModule,
-    ClaimModule,
+    forwardRef(() => ClaimModule),
     UsersModule,
   ],
   controllers: [RecognitionController],

@@ -1,7 +1,9 @@
 import {
   BadRequestException,
+  forwardRef,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -23,13 +25,15 @@ import { RecognitionGateway } from './recognition.gateway';
 @Injectable()
 export class RecognitionService {
   constructor(
+    @Inject(forwardRef(() => ClaimService))
+    private readonly claimService: ClaimService,
     @Inject(RecognitionGateway) private recognitionGateway: RecognitionGateway,
     @InjectModel(Recognition.name)
     private readonly recognitionModel: Model<Recognition>,
     private readonly userRecognitionService: UserRecognitionService,
     private readonly walletService: WalletService,
     private readonly usersService: UsersService,
-    private readonly claimService: ClaimService,
+
     private readonly transactionService: TransactionService,
   ) {}
 
@@ -102,17 +106,22 @@ export class RecognitionService {
 
       await this.userRecognitionService.createMany(userRecognitions, session);
 
-      await this.claimService.claimCoin(
-        {
-          senderId: new Types.ObjectId(senderId),
-          receivers: receivers.map((r) => ({
-            receiverId: new Types.ObjectId(r.receiverId),
-            amount: r.coinAmount ?? 0,
-          })),
-          recognitionId: newRecognition._id,
-        },
-        session,
-      );
+      if (totalCoinAmount === 0) {
+        Logger.log('Total coin amount is 0, skipping Claim Creation.');
+      } else {
+        await this.claimService.claimCoin(
+          {
+            senderId: new Types.ObjectId(senderId),
+            receivers: receivers.map((r) => ({
+              receiverId: new Types.ObjectId(r.receiverId),
+              amount: r.coinAmount ?? 0,
+            })),
+            recognitionId: newRecognition._id,
+            totalCoinAmount,
+          },
+          session,
+        );
+      }
 
       await session.commitTransaction();
       this.recognitionGateway.notifyClients({
