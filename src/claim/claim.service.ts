@@ -254,6 +254,7 @@ export class ClaimService {
             picture: senderDetails?.picture,
           },
           receivers: receiverDetails,
+          status: claim.status,
           recognition,
         };
       }),
