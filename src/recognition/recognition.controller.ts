@@ -37,7 +37,13 @@ export class RecognitionController {
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @Query('userId') userId?: string,
+    @Query('role') role?: string,
   ) {
-    return this.recognitionService.getAllRecognitions(page, limit, userId);
+    return this.recognitionService.getAllRecognitions(
+      page,
+      limit,
+      userId,
+      role,
+    );
   }
 }
