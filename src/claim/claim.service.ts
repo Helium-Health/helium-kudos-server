@@ -197,7 +197,7 @@ export class ClaimService {
     status?: string,
     page: number = 1,
     limit: number = 10,
-    sortBy: string = 'newest',
+    recent: 'ASCENDING_ORDER' | 'DESCENDING_ORDER' = 'DESCENDING_ORDER',
   ): Promise<any> {
     const filter: any = {};
     const currentPage = page ?? 1;
@@ -217,7 +217,7 @@ export class ClaimService {
       filter.status = status as Status;
     }
 
-    const sortDirection = sortBy === 'oldest' ? 1 : -1;
+    const sortDirection = recent === 'ASCENDING_ORDER' ? 1 : -1;
 
     const totalCount = await this.claimModel.countDocuments(filter).exec();
 

@@ -36,14 +36,14 @@ export class ClaimController {
     @Query('status') status?: string,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
-    @Query('sortBy') sortBy?: string,
+    @Query('recent') recent?: 'ASCENDING_ORDER' | 'DESCENDING_ORDER',
   ): Promise<Claim[]> {
     return this.claimService.filterClaims(
       userId ? new Types.ObjectId(userId) : undefined,
       status,
       page,
       limit,
-      sortBy,
+      recent,
     );
   }
 }
