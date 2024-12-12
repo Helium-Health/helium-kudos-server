@@ -248,14 +248,15 @@ export class ClaimService {
         );
 
         return {
-          senderId: {
+          claimId: claim.id,
+          status: claim.status,
+          senderDetails: {
             _id: claim.senderId,
             name: senderDetails?.name,
             picture: senderDetails?.picture,
           },
           receivers: receiverDetails,
-          status: claim.status,
-          recognition,
+          recognitionDetails: recognition,
         };
       }),
     );
