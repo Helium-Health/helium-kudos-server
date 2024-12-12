@@ -6,9 +6,11 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { WalletService } from 'src/wallet/wallet.service';
 import { Wallet, WalletSchema } from 'src/wallet/schema/Wallet.schema';
 import { AllocationSeeder } from './seeds/allocation.seed';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
+    ConfigModule,
     MongooseModule.forFeature([
       {
         name: Allocation.name,
