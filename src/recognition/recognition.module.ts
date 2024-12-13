@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { RecognitionService } from './recognition.service';
 import { RecognitionController } from './recognition.controller';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -8,6 +8,7 @@ import { WalletModule } from 'src/wallet/wallet.module';
 import { TransactionModule } from 'src/transaction/transaction.module';
 import { RecognitionSchema, Recognition } from './schema/Recognition.schema';
 import { ClaimModule } from 'src/claim/claim.module';
+import { RecognitionGateway } from './recognition.gateway';
 
 @Module({
   imports: [
@@ -17,11 +18,11 @@ import { ClaimModule } from 'src/claim/claim.module';
     TransactionModule,
     UserRecognitionModule,
     WalletModule,
-    ClaimModule,
+    forwardRef(() => ClaimModule),
     UsersModule,
   ],
   controllers: [RecognitionController],
-  providers: [RecognitionService],
+  providers: [RecognitionService, RecognitionGateway],
   exports: [RecognitionService],
 })
 export class RecognitionModule {}

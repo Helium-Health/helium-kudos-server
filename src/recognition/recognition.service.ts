@@ -1,6 +1,9 @@
 import {
   BadRequestException,
+  forwardRef,
+  Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -17,33 +20,32 @@ import { EntityType } from 'src/transaction/schema/Transaction.schema';
 import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
 import { ClaimService } from 'src/claim/claim.service';
 import { TransactionService } from 'src/transaction/transaction.service';
+import { RecognitionGateway } from './recognition.gateway';
 
 @Injectable()
 export class RecognitionService {
   constructor(
+    @Inject(forwardRef(() => ClaimService))
+    private readonly claimService: ClaimService,
+    @Inject(RecognitionGateway) private recognitionGateway: RecognitionGateway,
     @InjectModel(Recognition.name)
     private readonly recognitionModel: Model<Recognition>,
     private readonly userRecognitionService: UserRecognitionService,
     private readonly walletService: WalletService,
     private readonly usersService: UsersService,
-    private readonly claimService: ClaimService,
+
     private readonly transactionService: TransactionService,
   ) {}
 
   async createRecognition(
     senderId: string,
-    {
-      receiverIds,
-      message,
-      coinAmount = 0,
-      companyValues = [],
-    }: CreateRecognitionDto,
+    { receivers, message, companyValues = [] }: CreateRecognitionDto,
   ) {
     const invalidValues = companyValues.filter(
       (value) => !Object.values(CompanyValues).includes(value),
     );
 
-    if (receiverIds.length === 0) {
+    if (receivers.length === 0) {
       throw new BadRequestException(
         'At least one receiver is required for recognition',
       );
@@ -55,19 +57,23 @@ export class RecognitionService {
       );
     }
 
-    if (receiverIds.includes(senderId)) {
+    if (receivers.some((receiver) => receiver.receiverId === senderId)) {
       throw new BadRequestException(
         'Sender cannot be a receiver of the recognition',
       );
     }
 
+    const receiverIds = receivers.map((receiver) => receiver.receiverId);
     const areValidUsers = await this.usersService.validateUserIds(receiverIds);
 
     if (!areValidUsers) {
       throw new BadRequestException('One or more receiver IDs are invalid');
     }
 
-    const totalCoinAmount = coinAmount * receiverIds.length;
+    const totalCoinAmount = receivers.reduce(
+      (sum, r) => sum + (r.coinAmount ?? 0),
+      0,
+    );
 
     const hasEnoughCoins = await this.walletService.hasEnoughCoins(
       new Types.ObjectId(senderId),
@@ -81,45 +87,52 @@ export class RecognitionService {
     session.startTransaction();
 
     try {
-      // Create the recognition
       const newRecognition = new this.recognitionModel({
         senderId: new Types.ObjectId(senderId),
         message,
-        coinAmount,
-        companyValues: companyValues,
+        receivers: receivers.map((r) => ({
+          receiverId: new Types.ObjectId(r.receiverId),
+          coinAmount: r.coinAmount ?? 0,
+        })),
+        companyValues,
       });
       await newRecognition.save({ session });
 
-      // Create UserRecognition entries
-      const userRecognitions = [
-        // TODO: deprecate sender detail in userRecognition table and update recognition aggregation
-        // {
-        //   userId: new Types.ObjectId(senderId),
-        //   recognitionId: newRecognition._id,
-        //   role: UserRecognitionRole.SENDER,
-        // },
-        ...receiverIds.map((userId) => ({
-          userId: new Types.ObjectId(userId),
-          recognitionId: newRecognition._id,
-          role: UserRecognitionRole.RECEIVER,
-        })),
-      ];
+      const userRecognitions = receivers.map((receiver) => ({
+        userId: new Types.ObjectId(receiver.receiverId),
+        recognitionId: newRecognition._id,
+        role: UserRecognitionRole.RECEIVER,
+      }));
 
       await this.userRecognitionService.createMany(userRecognitions, session);
 
-      if (coinAmount > 0) {
+      if (totalCoinAmount === 0) {
+        Logger.log('Total coin amount is 0, skipping Claim Creation.');
+      } else {
         await this.claimService.claimCoin(
           {
             senderId: new Types.ObjectId(senderId),
-            receiverIds: receiverIds.map((id) => new Types.ObjectId(id)),
-            coinAmount,
+            receivers: receivers.map((r) => ({
+              receiverId: new Types.ObjectId(r.receiverId),
+              amount: r.coinAmount ?? 0,
+            })),
             recognitionId: newRecognition._id,
+            totalCoinAmount,
           },
           session,
         );
       }
 
       await session.commitTransaction();
+      this.recognitionGateway.notifyClients({
+        message: `Recognition created: ${message}`,
+        senderId,
+        receivers: receivers.map((r) => ({
+          receiverId: new Types.ObjectId(r.receiverId),
+          amount: r.coinAmount ?? 0,
+        })),
+        companyValues,
+      });
       return newRecognition;
     } catch (error) {
       await session.abortTransaction();
@@ -234,14 +247,181 @@ export class RecognitionService {
     await recognition.save({ session });
   }
 
-  async getAllRecognitions(page: number, limit: number) {
+  // async getAllRecognitions(page: number, limit: number, userId?: string) {
+  //   const skip = (page - 1) * limit;
+
+  //   // Match filter for userId, if provided
+  //   const matchFilter: Record<string, any> = {};
+  //   if (userId) {
+  //     matchFilter.$or = [
+  //       { senderId: new Types.ObjectId(userId) },
+  //       { 'receivers.receiverId': new Types.ObjectId(userId) },
+  //     ];
+  //   }
+
+  //   const [recognitions, totalCount] = await Promise.all([
+  //     this.recognitionModel.aggregate([
+  //       { $match: matchFilter }, // Apply match filter based on userId
+  //       {
+  //         $sort: { createdAt: -1 },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: 'users',
+  //           localField: 'senderId',
+  //           foreignField: '_id',
+  //           as: 'sender',
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           sender: { $arrayElemAt: ['$sender', 0] },
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: 'userrecognitions',
+  //           localField: '_id',
+  //           foreignField: 'recognitionId',
+  //           as: 'userRecognitions',
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: 'users',
+  //           localField: 'userRecognitions.userId',
+  //           foreignField: '_id',
+  //           as: 'receivers',
+  //         },
+  //       },
+  //       // Lookup for reactions associated with the recognition
+  //       {
+  //         $lookup: {
+  //           from: 'reactions',
+  //           let: { recognitionId: '$_id' },
+  //           pipeline: [
+  //             {
+  //               $match: {
+  //                 $expr: { $eq: ['$recognitionId', '$$recognitionId'] },
+  //               },
+  //             },
+  //             {
+  //               $lookup: {
+  //                 from: 'users',
+  //                 localField: 'userId',
+  //                 foreignField: '_id',
+  //                 as: 'user',
+  //               },
+  //             },
+  //             { $unwind: '$user' },
+  //             {
+  //               $group: {
+  //                 _id: '$shortcodes',
+  //                 users: { $push: '$user.name' }, // Collect user names who reacted
+  //                 count: { $sum: 1 }, // Count reactions per shortcode
+  //               },
+  //             },
+  //             {
+  //               $project: {
+  //                 _id: 0,
+  //                 shortcode: '$_id', // Rename _id to shortcode for clarity
+  //                 users: 1,
+  //                 count: 1,
+  //               },
+  //             },
+  //           ],
+  //           as: 'reactions',
+  //         },
+  //       },
+  //       {
+  //         $project: {
+  //           _id: 1,
+  //           message: 1,
+  //           coinAmount: 1,
+  //           companyValues: 1,
+  //           createdAt: 1,
+  //           isAuto: 1, // Include isAuto field
+  //           sender: {
+  //             _id: '$sender._id',
+  //             name: '$sender.name',
+  //             picture: '$sender.picture',
+  //           },
+  //           receivers: {
+  //             $map: {
+  //               input: {
+  //                 $filter: {
+  //                   input: '$receivers',
+  //                   as: 'receiver',
+  //                   cond: { $ne: ['$$receiver._id', '$sender._id'] },
+  //                 },
+  //               },
+  //               as: 'receiver',
+  //               in: {
+  //                 _id: '$$receiver._id',
+  //                 name: '$$receiver.name',
+  //                 picture: '$$receiver.picture',
+  //               },
+  //             },
+  //           },
+  //           commentCount: { $size: { $ifNull: ['$comments', []] } },
+  //           reactions: 1, // Include reactions in the final output
+  //         },
+  //       },
+  //       { $skip: skip },
+  //       { $limit: limit },
+  //     ]),
+  //     // Count total recognitions with the same filter
+  //     this.recognitionModel.countDocuments(matchFilter),
+  //   ]);
+
+  //   return {
+  //     data: recognitions,
+  //     meta: {
+  //       totalCount,
+  //       page,
+  //       limit,
+  //       totalPages: Math.ceil(totalCount / limit),
+  //     },
+  //   };
+  // }
+
+  async getAllRecognitions(
+    page: number,
+    limit: number,
+    userId?: string,
+    role?: string,
+  ) {
+    // Validate input
+    if (userId && !Types.ObjectId.isValid(userId)) {
+      throw new BadRequestException('Invalid userId format');
+    }
+
+    if (role && !['sender', 'receiver'].includes(role)) {
+      throw new BadRequestException(
+        'Invalid role value. Must be "sender" or "receiver".',
+      );
+    }
+
     const skip = (page - 1) * limit;
+
+    const matchFilter: Record<string, any> = {};
+    if (userId) {
+      if (role === 'sender') {
+        matchFilter.senderId = new Types.ObjectId(userId);
+      } else if (role === 'receiver') {
+        matchFilter['receivers.receiverId'] = new Types.ObjectId(userId);
+      } else {
+        matchFilter.$or = [
+          { senderId: new Types.ObjectId(userId) },
+          { 'receivers.receiverId': new Types.ObjectId(userId) },
+        ];
+      }
+    }
 
     const [recognitions, totalCount] = await Promise.all([
       this.recognitionModel.aggregate([
-        {
-          $sort: { createdAt: -1 },
-        },
+        { $match: matchFilter },
+        { $sort: { createdAt: -1 } },
         {
           $lookup: {
             from: 'users',
@@ -271,7 +451,6 @@ export class RecognitionService {
             as: 'receivers',
           },
         },
-        // Lookup for reactions associated with the recognition
         {
           $lookup: {
             from: 'reactions',
@@ -294,14 +473,14 @@ export class RecognitionService {
               {
                 $group: {
                   _id: '$shortcodes',
-                  users: { $push: '$user.name' }, // Collect user names who reacted
-                  count: { $sum: 1 }, // Count reactions per shortcode
+                  users: { $push: '$user.name' },
+                  count: { $sum: 1 },
                 },
               },
               {
                 $project: {
                   _id: 0,
-                  shortcode: '$_id', // Rename _id to shortcode for clarity
+                  shortcode: '$_id',
                   users: 1,
                   count: 1,
                 },
@@ -317,7 +496,7 @@ export class RecognitionService {
             coinAmount: 1,
             companyValues: 1,
             createdAt: 1,
-            isAuto: 1, // Include isAuto field
+            isAuto: 1,
             sender: {
               _id: '$sender._id',
               name: '$sender.name',
@@ -341,13 +520,13 @@ export class RecognitionService {
               },
             },
             commentCount: { $size: { $ifNull: ['$comments', []] } },
-            reactions: 1, // Include reactions in the final output
+            reactions: 1,
           },
         },
         { $skip: skip },
         { $limit: limit },
       ]),
-      this.recognitionModel.countDocuments(),
+      this.recognitionModel.countDocuments(matchFilter),
     ]);
 
     return {
@@ -394,5 +573,65 @@ export class RecognitionService {
       { $pull: { comments: commentId } },
       { new: true },
     );
+  }
+
+  async getTopRecognitionReceivers(page: number, limit: number) {
+    const skip = (page - 1) * limit;
+
+    const result = await this.recognitionModel.aggregate([
+      { $unwind: '$receivers' },
+      {
+        $group: {
+          _id: '$receivers.receiverId',
+          recognitionCount: { $sum: 1 },
+        },
+      },
+      { $sort: { recognitionCount: -1 } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: '$user' },
+      {
+        $project: {
+          _id: 0,
+          receiverId: '$_id',
+          recognitionCount: 1,
+          user: {
+            _id: '$user._id',
+            email: '$user.email',
+            name: '$user.name',
+            role: '$user.role',
+            picture: '$user.picture',
+            verified: '$user.verified',
+          },
+        },
+      },
+      {
+        $facet: {
+          metadata: [{ $count: 'totalCount' }],
+          data: [{ $skip: skip }, { $limit: limit }],
+        },
+      },
+    ]);
+
+    const metadata = result[0]?.metadata[0] || { totalCount: 0 };
+    const data = result[0]?.data || [];
+    const totalCount = metadata.totalCount;
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return {
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages,
+      },
+      data,
+    };
   }
 }

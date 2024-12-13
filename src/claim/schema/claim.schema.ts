@@ -9,19 +9,28 @@ export enum Status {
   APPROVED = 'approved',
   REJECTED = 'rejected',
 }
+
+@Schema({ timestamps: true })
+export class Receiver {
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  receiverId: Types.ObjectId;
+
+  @Prop({ type: Number, required: true })
+  amount: number;
+}
+
+const ReceiverSchema = SchemaFactory.createForClass(Receiver);
+
 @Schema({ timestamps: true })
 export class Claim {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  senderId?: Types.ObjectId;
+  senderId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  receiverIds: Types.ObjectId[];
+  @Prop({ type: [ReceiverSchema], required: true })
+  receivers: Receiver[];
 
-  @Prop({ type: String, required: true })
-  recognitionId: string;
-
-  @Prop({ type: mongoose.Schema.Types.Decimal128, required: true })
-  amount: number;
+  @Prop({ type: Types.ObjectId, ref: 'Recognition', required: true })
+  recognitionId: Types.ObjectId;
 
   @Prop({
     type: String,

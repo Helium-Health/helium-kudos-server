@@ -2,6 +2,7 @@ import { PartialType } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsDateString,
+  IsEmail,
   IsEnum,
   IsNotEmpty,
   IsOptional,
@@ -11,6 +12,7 @@ import { UserRole } from 'src/users/schema/User.schema';
 export class CreateUserDto {
   @IsNotEmpty()
   @IsString()
+  @IsEmail()
   email: string;
 
   @IsNotEmpty()

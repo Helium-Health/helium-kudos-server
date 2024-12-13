@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  forwardRef,
+  Inject,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -14,6 +16,8 @@ import { WalletService } from 'src/wallet/wallet.service';
 import { Claim, ClaimDocument, Status } from './schema/claim.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClaimDto } from './dto/claim.dto';
+import { UsersService } from 'src/users/users.service';
+import { RecognitionService } from 'src/recognition/recognition.service';
 
 @Injectable()
 export class ClaimService {
@@ -21,46 +25,54 @@ export class ClaimService {
     @InjectModel(Claim.name) private readonly claimModel: Model<ClaimDocument>,
     private readonly transactionService: TransactionService,
     private readonly walletService: WalletService,
+    private readonly userService: UsersService,
+    @Inject(forwardRef(() => RecognitionService))
+    private readonly recognitionService: RecognitionService,
   ) {}
   async recordClaim(
-    { senderId, receiverIds, recognitionId, coinAmount }: ClaimDto,
+    { senderId, receivers, recognitionId }: ClaimDto,
     session: ClientSession,
   ): Promise<ClaimDocument> {
+    const formattedReceivers = receivers.map((receiver) => ({
+      receiverId: receiver.receiverId,
+      amount: receiver.amount,
+    }));
+
     const claim = new this.claimModel({
       senderId,
-      receiverIds,
+      receivers: formattedReceivers,
       recognitionId,
-      amount: coinAmount,
       status: Status.PENDING,
-      approved: false,
     });
 
     return claim.save({ session });
   }
 
   async claimCoin(
-    { senderId, receiverIds, coinAmount, recognitionId }: ClaimDto,
+    { senderId, receivers, recognitionId, totalCoinAmount }: ClaimDto,
     session: ClientSession,
   ) {
-    const totalCoinAmount = coinAmount * receiverIds.length;
-
     await this.walletService.deductCoins(senderId, totalCoinAmount, session);
 
     const claim = await this.recordClaim(
       {
         senderId: new Types.ObjectId(senderId),
-        receiverIds: receiverIds.map((id) => new Types.ObjectId(id)),
+        receivers: receivers.map((receiver) => ({
+          receiverId: new Types.ObjectId(receiver.receiverId),
+          amount: receiver.amount,
+        })),
         recognitionId: recognitionId,
-        coinAmount: coinAmount,
+        totalCoinAmount,
       },
       session,
     );
-    for (const receiverId of receiverIds) {
+
+    for (const receiver of receivers) {
       await this.transactionService.recordDebitTransaction(
         {
           senderId: new Types.ObjectId(senderId),
-          receiverId: new Types.ObjectId(receiverId),
-          amount: coinAmount,
+          receiverId: new Types.ObjectId(receiver.receiverId),
+          amount: receiver.amount,
           entityId: recognitionId,
           entityType: EntityType.RECOGNITION,
           claimId: claim._id as Types.ObjectId,
@@ -91,10 +103,12 @@ export class ClaimService {
       claim.status = Status.APPROVED;
       await claim.save({ session });
 
-      for (const receiverId of claim.receiverIds) {
+      for (const receiver of claim.receivers) {
+        const { receiverId, amount } = receiver;
+
         await this.walletService.incrementEarnedBalance(
           new Types.ObjectId(receiverId),
-          claim.amount,
+          amount,
           session,
         );
 
@@ -102,7 +116,7 @@ export class ClaimService {
           {
             senderId: claim.senderId,
             receiverId: new Types.ObjectId(receiverId),
-            amount: Math.abs(claim.amount),
+            amount: Math.abs(amount),
             entityId: new Types.ObjectId(claim.recognitionId),
             entityType: EntityType.RECOGNITION,
             claimId: claim._id as Types.ObjectId,
@@ -111,6 +125,7 @@ export class ClaimService {
           session,
         );
       }
+
       await session.commitTransaction();
     } catch (error) {
       await session.abortTransaction();
@@ -124,8 +139,9 @@ export class ClaimService {
   async rejectClaim(claimId: Types.ObjectId) {
     const session = await this.claimModel.db.startSession();
     session.startTransaction();
+
     try {
-      const claim = await this.claimModel.findById(claimId);
+      const claim = await this.claimModel.findById(claimId).session(session);
 
       if (!claim) {
         throw new NotFoundException('Claim not found');
@@ -135,12 +151,14 @@ export class ClaimService {
         throw new BadRequestException('Claim is not pending');
       }
 
-      for (const receiverId of claim.receiverIds) {
+      for (const receiver of claim.receivers) {
+        const { receiverId, amount } = receiver;
+
         await this.transactionService.recordCreditTransaction(
           {
             senderId: claim.senderId,
             receiverId: new Types.ObjectId(receiverId),
-            amount: Math.abs(claim.amount),
+            amount: Math.abs(amount),
             entityId: new Types.ObjectId(claim.recognitionId),
             entityType: EntityType.RECOGNITION,
             claimId: claim._id as Types.ObjectId,
@@ -149,19 +167,26 @@ export class ClaimService {
           session,
         );
       }
-      const totalCoinAmount = claim.amount * claim.receiverIds.length;
+
+      const totalCoinAmount = claim.receivers.reduce(
+        (sum, receiver) => sum + receiver.amount,
+        0,
+      );
+
       await this.walletService.refundGiveableBalance(
         claim.senderId,
         totalCoinAmount,
         session,
       );
+
       claim.status = Status.REJECTED;
       await claim.save({ session });
+
       await session.commitTransaction();
     } catch (error) {
       await session.abortTransaction();
       console.error('Error rejecting claim:', error);
-      throw new InternalServerErrorException('Failed to deny the claim');
+      throw new InternalServerErrorException('Failed to reject the claim');
     } finally {
       session.endSession();
     }
@@ -170,17 +195,18 @@ export class ClaimService {
   async filterClaims(
     userId?: Types.ObjectId,
     status?: string,
-  ): Promise<Claim[]> {
-    if (!userId && !status) {
-      return this.claimModel.find().exec();
-    }
-
+    page: number = 1,
+    limit: number = 10,
+    recent: 'ASCENDING_ORDER' | 'DESCENDING_ORDER' = 'DESCENDING_ORDER',
+  ): Promise<any> {
     const filter: any = {};
+    const currentPage = page ?? 1;
+    const currentLimit = limit ?? 10;
 
     if (userId) {
       filter.$or = [
         { senderId: new Types.ObjectId(userId) },
-        { receiverId: new Types.ObjectId(userId) },
+        { 'receivers.receiverId': new Types.ObjectId(userId) },
       ];
     }
 
@@ -191,6 +217,64 @@ export class ClaimService {
       filter.status = status as Status;
     }
 
-    return this.claimModel.find(filter).exec();
+    const sortDirection = recent === 'ASCENDING_ORDER' ? 1 : -1;
+
+    const totalCount = await this.claimModel.countDocuments(filter).exec();
+
+    const claims = await this.claimModel
+      .find(filter)
+      .sort({ createdAt: sortDirection })
+      .skip((currentPage - 1) * currentLimit)
+      .limit(currentLimit)
+      .exec();
+
+    const claimsWithDetails = await Promise.all(
+      claims.map(async (claim) => {
+        const recognition = await this.recognitionService.findById(
+          claim.recognitionId,
+        );
+
+        const senderDetails = await this.userService.findById(claim.senderId);
+
+        const receiverDetails = await Promise.all(
+          claim.receivers.map(async (receiver) => {
+            const receiverUser = await this.userService.findById(
+              receiver.receiverId,
+            );
+
+            return {
+              _id: receiver.receiverId,
+              name: receiverUser?.name,
+              picture: receiverUser?.picture,
+              amountReceived: receiver.amount,
+            };
+          }),
+        );
+
+        return {
+          claimId: claim.id,
+          status: claim.status,
+          senderDetails: {
+            _id: claim.senderId,
+            name: senderDetails?.name,
+            picture: senderDetails?.picture,
+          },
+          receivers: receiverDetails,
+          recognitionDetails: recognition,
+        };
+      }),
+    );
+
+    const totalPages = Math.ceil(totalCount / currentLimit);
+
+    return {
+      data: claimsWithDetails,
+      meta: {
+        totalCount,
+        page: currentPage,
+        limit: currentLimit,
+        totalPages,
+      },
+    };
   }
 }

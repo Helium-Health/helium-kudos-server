@@ -76,6 +76,10 @@ export class WalletService {
     amount: number,
     session: ClientSession,
   ) {
+    if (typeof amount !== 'number' || isNaN(amount)) {
+      throw new BadRequestException('Invalid amount');
+    }
+
     const wallet = await this.walletModel.findOneAndUpdate(
       { userId, giveableBalance: { $gte: amount } },
       { $inc: { giveableBalance: -amount } },
@@ -149,7 +153,6 @@ export class WalletService {
 
       return result;
     } catch (error) {
-      // If an error occurs, abort the transaction
       await session.abortTransaction();
       this.logger.error('Transaction aborted due to an error: ', error.message);
       throw error;
@@ -166,7 +169,6 @@ export class WalletService {
       throw new BadRequestException('Allocation must be a positive number');
     }
 
-    // Start a new session for the transaction
     const session = await this.walletModel.db.startSession();
     session.startTransaction();
 
@@ -204,5 +206,43 @@ export class WalletService {
     }
 
     return wallet;
+  }
+
+  async deductEarnedBalance(
+    userId: Types.ObjectId,
+    amount: number,
+    session: ClientSession,
+  ) {
+    return this.walletModel
+      .findOneAndUpdate(
+        { userId },
+        { $inc: { earnedBalance: -amount } },
+        { session, new: true },
+      )
+      .then((result) => {
+        if (!result) {
+          throw new NotFoundException(`Wallet not found for user ${userId}`);
+        }
+        return result;
+      });
+  }
+
+  async refundEarnedBalance(
+    userId: Types.ObjectId,
+    amount: number,
+    session: ClientSession,
+  ) {
+    return this.walletModel
+      .findOneAndUpdate(
+        { userId },
+        { $inc: { earnedBalance: amount } },
+        { session, new: true },
+      )
+      .then((result) => {
+        if (!result) {
+          throw new NotFoundException(`Wallet not found for user ${userId}`);
+        }
+        return result;
+      });
   }
 }
