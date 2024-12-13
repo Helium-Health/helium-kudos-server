@@ -17,7 +17,7 @@ export class StorageService {
     const dataURI = `data:${file.mimetype};base64,${b64}`;
 
     const result = await cloudinary.uploader.upload(dataURI, {
-      folder: 'products',
+      folder: `${this.configService.get('NODE_ENV')}/products`,
       resource_type: 'auto',
     });
 
