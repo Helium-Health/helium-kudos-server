@@ -4,7 +4,7 @@ import { Document, Types } from 'mongoose';
 export enum MissionStatus {
   PENDING = 'pending',
   ACTIVE = 'active',
-  COMPLETED = 'copleted',
+  COMPLETED = 'completed',
   CANCELED = 'canceled',
 }
 

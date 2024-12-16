@@ -15,11 +15,13 @@ import {
   CreateMissionDto,
   UpdateMissionDto,
 } from './dto/mission.dto';
+import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class MissionService {
   constructor(
     @InjectModel(Mission.name) private missionModel: Model<MissionDocument>,
+    private userService: UsersService,
   ) {}
   create(createMissionDto: CreateMissionDto) {
     const mission = new this.missionModel({
@@ -65,22 +67,80 @@ export class MissionService {
     return mission;
   }
 
-  async getUpcomingMissions(filter: { limit?: number; startDate?: string }) {
+  async getAllMissions(filter: {
+    status?: string;
+    page?: number;
+    limit?: number;
+    upcoming?: boolean;
+    startDate?: string;
+  }) {
+    const { status, page = 1, limit = 10, upcoming, startDate } = filter;
+    const query: any = {};
     const now = new Date();
 
-    const startDate = filter.startDate ? new Date(filter.startDate) : now;
-    const limit = filter.limit || 10;
+    // Filter by status
+    if (status) {
+      query.status = status;
+    }
 
-    const query: any = {
-      startDate: { $gt: startDate },
-    };
+    // Filter for upcoming missions
+    if (upcoming) {
+      const upcomingStartDate = startDate ? new Date(startDate) : now;
+      query.startDate = { $gt: upcomingStartDate };
+    }
 
-    const missions = this.missionModel
+    const skip = (page - 1) * limit;
+
+    // Fetch missions
+    const missions = await this.missionModel
       .find(query)
       .sort({ startDate: 1 })
-      .limit(limit);
+      .skip(skip)
+      .limit(limit)
+      .exec();
 
-    return await missions;
+    // Map missions to include detailed participant data
+    const detailedMissions = await Promise.all(
+      missions.map(async (mission) => {
+        // Fetch participants' user details
+        const participantIds = mission.participantsPoints.map(
+          (p) => p.userId,
+        );
+        const participants = await Promise.all(
+          participantIds.map((id) => this.userService.findById(id)),
+        );
+
+        /// Merge participant details with points and rank
+        const participantsWithPoints = participants.map((participant) => {
+          const pointsEntry = mission.participantsPoints.find(
+            (pp) => pp.userId.toString() === participant._id.toString(),
+          );
+
+          return {
+            name: participant.name,
+            email: participant.email,
+            picture: participant.picture,
+            points: pointsEntry?.points || 0,
+            rank: pointsEntry?.rank || 0,
+          };
+        });
+
+        return {
+          ...mission.toObject(),
+          participants: participantsWithPoints,
+        };
+      }),
+    );
+
+    // Total count for pagination
+    const totalMissions = await this.missionModel.countDocuments(query);
+
+    return {
+      missions: detailedMissions,
+      total: totalMissions,
+      page,
+      totalPages: Math.ceil(totalMissions / limit),
+    };
   }
 
   async addParticipant(missionId: string, userId: Types.ObjectId) {
@@ -90,6 +150,12 @@ export class MissionService {
 
     if (!mission) {
       throw new NotFoundException('Mission not found');
+    }
+
+    if (
+      [MissionStatus.COMPLETED, MissionStatus.CANCELED].includes(mission.status)
+    ) {
+      throw new BadRequestException('Mission Ended or Canceled');
     }
 
     if (mission.participantsId.length >= mission.maxParticipants) {

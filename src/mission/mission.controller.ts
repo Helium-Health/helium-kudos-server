@@ -7,11 +7,11 @@ import {
   Post,
   Request,
   Query,
-  // UseGuards
+  UseGuards,
 } from '@nestjs/common';
 import { MissionService } from './mission.service';
-// import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
-// import { AdminGuard } from 'src/auth/guards/admin.guard';
+import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
+import { AdminGuard } from 'src/auth/guards/admin.guard';
 import {
   AssignPointsDto,
   CreateMissionDto,
@@ -23,13 +23,13 @@ import { Types } from 'mongoose';
 export class MissionController {
   constructor(private readonly missionService: MissionService) {}
 
-  // @UseGuards(AdminGuard)
+  @UseGuards(AdminGuard)
   @Post()
   create(@Body() createMissionDto: CreateMissionDto) {
     return this.missionService.create(createMissionDto);
   }
 
-  // @UseGuards(AdminGuard)
+  @UseGuards(AdminGuard)
   @Patch(':id')
   async updateMission(
     @Param('id') missionId: string,
@@ -38,23 +38,32 @@ export class MissionController {
     return await this.missionService.updateMission(missionId, updateMissionDto);
   }
 
-  // @UseGuards(JwtAuthGuard)
-  @Get('upcoming')
-  async getUpcomingMissions(
-    @Query('limit') limit?: number,
-    @Query('startDate') startDate?: string,
-  ) {
-    return await this.missionService.getUpcomingMissions({ limit, startDate });
-  }
-
-  // @UseGuards(AdminGuard)
+  @UseGuards(JwtAuthGuard)
   @Patch(':id/join')
   async joinMission(@Param('id') missionId: string, @Request() req: any) {
     const userId = new Types.ObjectId(req.user.userId);
     return await this.missionService.addParticipant(missionId, userId);
   }
 
-  // @UseGuards(AdminGuard)
+  // @UseGuards(JWTAuthGuards)
+  @Get()
+  async getAllMissions(
+    @Query('status') status?: string,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+    @Query('upcoming') upcoming?: boolean,
+    @Query('startDate') startDate?: string,
+  ) {
+    return await this.missionService.getAllMissions({
+      status,
+      page,
+      limit,
+      upcoming,
+      startDate,
+    });
+  }
+
+  @UseGuards(AdminGuard)
   @Patch(':missionId/assign-points')
   async assignPointsToParticipants(
     @Param('missionId') missionId: string,
