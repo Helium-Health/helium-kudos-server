@@ -75,68 +75,84 @@ export class MissionService {
     startDate?: string;
   }) {
     const { status, page = 1, limit = 10, upcoming, startDate } = filter;
-    const query: any = {};
+    const skip = (page - 1) * limit;
     const now = new Date();
 
-    // Filter by status
+    const pipeline: any[] = [];
+
     if (status) {
-      query.status = status;
+      pipeline.push({
+        $match: { status },
+      });
     }
 
-    // Filter for upcoming missions
     if (upcoming) {
       const upcomingStartDate = startDate ? new Date(startDate) : now;
-      query.startDate = { $gt: upcomingStartDate };
+      pipeline.push({
+        $match: {
+          startDate: { $gt: upcomingStartDate },
+        },
+      });
     }
 
-    const skip = (page - 1) * limit;
+    pipeline.push({
+      $sort: { startDate: 1 },
+    });
 
-    // Fetch missions
-    const missions = await this.missionModel
-      .find(query)
-      .sort({ startDate: 1 })
-      .skip(skip)
-      .limit(limit)
-      .exec();
+    pipeline.push({ $skip: skip }, { $limit: limit });
 
-    // Map missions to include detailed participant data
-    const detailedMissions = await Promise.all(
-      missions.map(async (mission) => {
-        // Fetch participants' user details
-        const participantIds = mission.participantsPoints.map(
-          (p) => p.userId,
-        );
-        const participants = await Promise.all(
-          participantIds.map((id) => this.userService.findById(id)),
-        );
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'participants.participantId',
+        foreignField: '_id',
+        as: 'userDetails',
+      },
+    });
 
-        /// Merge participant details with points and rank
-        const participantsWithPoints = participants.map((participant) => {
-          const pointsEntry = mission.participantsPoints.find(
-            (pp) => pp.userId.toString() === participant._id.toString(),
-          );
+    pipeline.push({
+      $project: {
+        _id: 1,
+        name: 1,
+        startDate: 1,
+        endDate: 1,
+        status: 1,
+        participants: {
+          $map: {
+            input: '$participants',
+            as: 'participant',
+            in: {
+              participantId: '$$participant.participantId',
+              points: '$$participant.points',
+              rank: '$$participant.rank',
+              details: {
+                $arrayElemAt: [
+                  {
+                    $filter: {
+                      input: '$userDetails',
+                      as: 'user',
+                      cond: {
+                        $eq: ['$$user._id', '$$participant.participantId'],
+                      },
+                    },
+                  },
+                  0,
+                ],
+              },
+            },
+          },
+        },
+      },
+    });
 
-          return {
-            name: participant.name,
-            email: participant.email,
-            picture: participant.picture,
-            points: pointsEntry?.points || 0,
-            rank: pointsEntry?.rank || 0,
-          };
-        });
+    const missions = await this.missionModel.aggregate(pipeline);
 
-        return {
-          ...mission.toObject(),
-          participants: participantsWithPoints,
-        };
-      }),
+    const totalMissions = await this.missionModel.countDocuments(
+      pipeline.length > 0 && pipeline[0].$match ? pipeline[0].$match : {},
     );
 
-    // Total count for pagination
-    const totalMissions = await this.missionModel.countDocuments(query);
-
     return {
-      missions: detailedMissions,
+      missions,
       total: totalMissions,
       page,
       totalPages: Math.ceil(totalMissions / limit),
@@ -155,20 +171,30 @@ export class MissionService {
     if (
       [MissionStatus.COMPLETED, MissionStatus.CANCELED].includes(mission.status)
     ) {
-      throw new BadRequestException('Mission Ended or Canceled');
+      throw new BadRequestException('Mission has ended or been canceled');
     }
 
-    if (mission.participantsId.length >= mission.maxParticipants) {
+    if (mission.participants.length >= mission.maxParticipants) {
       throw new BadRequestException('Mission participant limit reached');
     }
 
-    if (mission.participantsId.includes(new Types.ObjectId(userId))) {
+    const isParticipant = mission.participants.some(
+      (participant) =>
+        participant.participantId.toString() === userId.toString(),
+    );
+
+    if (isParticipant) {
       throw new BadRequestException(
         'User is already a participant in this mission',
       );
     }
 
-    mission.participantsId.push(new Types.ObjectId(userId));
+    mission.participants.push({
+      participantId: new Types.ObjectId(userId),
+      points: 0,
+      rank: mission.participants.length + 1,
+    });
+
     await mission.save();
 
     return { message: 'User successfully joined the mission', mission };
@@ -186,32 +212,38 @@ export class MissionService {
       throw new NotFoundException('Mission not found');
     }
 
-    const participantIds = mission.participantsId.map((id) => id.toString());
+    const participantIds = mission.participants.map((p) =>
+      p.participantId.toString(),
+    );
+
     assignPointsDto.participants.forEach(({ userId }) => {
-      if (!participantIds.includes(userId)) {
+      if (!participantIds.includes(userId.toString())) {
         throw new BadRequestException(
           `User ${userId} is not a participant in this mission`,
         );
       }
     });
 
-    const participantPoints = assignPointsDto.participants.map(
-      ({ userId, points }) => ({
-        userId: new Types.ObjectId(userId),
-        points,
-      }),
-    );
+    const updatedParticipants = mission.participants.map((participant) => {
+      const updatedInfo = assignPointsDto.participants.find(
+        (p) => p.userId.toString() === participant.participantId.toString(),
+      );
 
-    // Sort participants by points in descending order to determine ranks
-    participantPoints.sort((a, b) => b.points - a.points);
+      return updatedInfo
+        ? {
+            participantId: participant.participantId,
+            points: updatedInfo.points,
+            rank: 0,
+          }
+        : participant;
+    });
 
-    // Update mission with points and ranks
-    const updatedParticipants = participantPoints.map((participant, index) => ({
-      ...participant,
-      rank: index + 1,
-    }));
+    updatedParticipants.sort((a, b) => b.points - a.points);
+    updatedParticipants.forEach((participant, index) => {
+      participant.rank = index + 1;
+    });
 
-    mission.participantsPoints = updatedParticipants;
+    mission.participants = updatedParticipants;
     await mission.save();
 
     return {

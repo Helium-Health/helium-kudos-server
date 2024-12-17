@@ -9,11 +9,11 @@ export enum MissionStatus {
 }
 
 @Schema()
-export class ParticipantPoints {
+export class Participants {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  userId: Types.ObjectId;
+  participantId: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop({ default: 0, required: true })
   points: number;
 
   @Prop({ required: true })
@@ -37,11 +37,8 @@ export class Mission {
   @Prop({ required: true })
   maxParticipants: number;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }] })
-  participantsId: Types.ObjectId[];
-
-  @Prop({ type: [ParticipantPoints], default: [] })
-  participantsPoints: ParticipantPoints[];
+  @Prop({ type: [Participants], default: [] })
+  participants: Participants[];
 
   @Prop({
     required: true,

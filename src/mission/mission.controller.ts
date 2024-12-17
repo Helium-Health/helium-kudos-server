@@ -45,7 +45,7 @@ export class MissionController {
     return await this.missionService.addParticipant(missionId, userId);
   }
 
-  // @UseGuards(JWTAuthGuards)
+  @UseGuards(JwtAuthGuard)
   @Get()
   async getAllMissions(
     @Query('status') status?: string,
