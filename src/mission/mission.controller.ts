@@ -16,6 +16,7 @@ import {
   AssignPointsDto,
   CreateMissionDto,
   UpdateMissionDto,
+  UpdateWinnersDto,
 } from './dto/mission.dto';
 import { Types } from 'mongoose';
 
@@ -72,6 +73,26 @@ export class MissionController {
     return await this.missionService.assignPointsToParticipants(
       new Types.ObjectId(missionId),
       assignPointsDto,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':id/participants')
+  async getMissionParticipants(@Param('id') missionId: string) {
+    return await this.missionService.getMissionParticipants(
+      new Types.ObjectId(missionId),
+    );
+  }
+
+  @UseGuards(AdminGuard)
+  @Patch(':missionId/winners')
+  async updateMissionWinners(
+    @Param('missionId') missionId: string,
+    @Body() updateWinnersDto: UpdateWinnersDto,
+  ) {
+    return await this.missionService.updateWinners(
+      new Types.ObjectId(missionId),
+      updateWinnersDto,
     );
   }
 }

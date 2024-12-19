@@ -70,3 +70,11 @@ export class AssignPointsDto {
   @Type(() => ParticipantPointsDto)
   participants: ParticipantPointsDto[];
 }
+
+export class UpdateWinnersDto {
+  winners: {
+    winnerId: string;
+    points: number;
+    coinAmount: number;
+  }[];
+}

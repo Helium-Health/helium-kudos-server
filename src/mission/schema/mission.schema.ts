@@ -8,6 +8,19 @@ export enum MissionStatus {
   CANCELED = 'canceled',
 }
 
+export class Winners {
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  winnerId: Types.ObjectId;
+
+  @Prop({ default: 0, required: true })
+  points: number;
+
+  @Prop({ required: true })
+  rank: number;
+
+  @Prop({ default: 0, required: true })
+  coinAmount: number;
+}
 @Schema()
 export class Participants {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
@@ -39,6 +52,9 @@ export class Mission {
 
   @Prop({ type: [Participants], default: [] })
   participants: Participants[];
+
+  @Prop({ type: [Winners], default: [] })
+  winners: Winners[];
 
   @Prop({
     required: true,

@@ -14,6 +14,7 @@ import {
   AssignPointsDto,
   CreateMissionDto,
   UpdateMissionDto,
+  UpdateWinnersDto,
 } from './dto/mission.dto';
 import { UsersService } from 'src/users/users.service';
 
@@ -250,5 +251,76 @@ export class MissionService {
       message: 'Points assigned and ranks updated successfully',
       participants: updatedParticipants,
     };
+  }
+
+  async getMissionParticipants(missionId: Types.ObjectId) {
+    const pipeline = [
+      { $match: { _id: missionId } },
+      { $unwind: '$participants' },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'participants.participantId',
+          foreignField: '_id',
+          as: 'participantDetails',
+        },
+      },
+      {
+        $unwind: {
+          path: '$participantDetails',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          userId: '$participants.participantId',
+          points: '$participants.points',
+          rank: '$participants.rank',
+          name: '$participantDetails.name',
+          email: '$participantDetails.email',
+        },
+      },
+    ];
+
+    const participants = await this.missionModel.aggregate(pipeline);
+
+    if (!participants || participants.length === 0) {
+      throw new Error('Mission not found or no participants available');
+    }
+
+    return participants;
+  }
+
+  async updateWinners(
+    missionId: Types.ObjectId,
+    updateWinnersDto: UpdateWinnersDto,
+  ) {
+    const { winners } = updateWinnersDto;
+
+    const rankedWinners = winners
+      .sort((a, b) => b.points - a.points)
+      .map((winner, index) => ({
+        ...winner,
+        rank: index + 1,
+      }));
+
+    const mission = await this.missionModel.findByIdAndUpdate(
+      missionId,
+      {
+        $set: { winners: rankedWinners },
+      },
+      { new: true },
+    );
+
+    if (!mission) {
+      throw new Error('Mission not found');
+    }
+
+    if (mission.status !== MissionStatus.COMPLETED) {
+      mission.status = MissionStatus.COMPLETED;
+      await mission.save();
+    }
+
+    return mission;
   }
 }
