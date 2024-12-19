@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { ClientSession, Model, Types } from 'mongoose';
 import {
   Mission,
   MissionDocument,
@@ -17,12 +17,20 @@ import {
   UpdateWinnersDto,
 } from './dto/mission.dto';
 import { UsersService } from 'src/users/users.service';
+import { WalletService } from 'src/wallet/wallet.service';
+import { TransactionService } from 'src/transaction/transaction.service';
+import {
+  EntityType,
+  transactionStatus,
+} from 'src/transaction/schema/Transaction.schema';
 
 @Injectable()
 export class MissionService {
   constructor(
     @InjectModel(Mission.name) private missionModel: Model<MissionDocument>,
     private userService: UsersService,
+    private wallerService: WalletService,
+    private transactionService: TransactionService,
   ) {}
   create(createMissionDto: CreateMissionDto) {
     const mission = new this.missionModel({
@@ -107,7 +115,16 @@ export class MissionService {
         from: 'users',
         localField: 'participants.participantId',
         foreignField: '_id',
-        as: 'userDetails',
+        as: 'participantDetails',
+      },
+    });
+
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'winners.winnerId',
+        foreignField: '_id',
+        as: 'winnerDetails',
       },
     });
 
@@ -130,10 +147,36 @@ export class MissionService {
                 $arrayElemAt: [
                   {
                     $filter: {
-                      input: '$userDetails',
+                      input: '$participantDetails',
                       as: 'user',
                       cond: {
                         $eq: ['$$user._id', '$$participant.participantId'],
+                      },
+                    },
+                  },
+                  0,
+                ],
+              },
+            },
+          },
+        },
+        winners: {
+          $map: {
+            input: '$winners',
+            as: 'winner',
+            in: {
+              winnerId: '$$winner.winnerId',
+              points: '$$winner.points',
+              coinAmount: '$$winner.coinAmount',
+              rank: '$$winner.rank',
+              details: {
+                $arrayElemAt: [
+                  {
+                    $filter: {
+                      input: '$winnerDetails',
+                      as: 'user',
+                      cond: {
+                        $eq: ['$$user._id', '$$winner.winnerId'],
                       },
                     },
                   },
@@ -294,6 +337,7 @@ export class MissionService {
   async updateWinners(
     missionId: Types.ObjectId,
     updateWinnersDto: UpdateWinnersDto,
+    session: ClientSession,
   ) {
     const { winners } = updateWinnersDto;
 
@@ -316,9 +360,30 @@ export class MissionService {
       throw new Error('Mission not found');
     }
 
+    for (const winner of rankedWinners) {
+      await this.wallerService.incrementEarnedBalance(
+        new Types.ObjectId(winner.winnerId),
+        winner.coinAmount,
+        session,
+      );
+
+      await this.transactionService.recordCreditTransaction(
+        {
+          receiverId: new Types.ObjectId(winner.winnerId),
+          amount: winner.coinAmount,
+          entityType: EntityType.MISSION,
+          entityId: missionId,
+          senderId: new Types.ObjectId(winner.winnerId),
+          status: transactionStatus.SUCCESS,
+          claimId: missionId,
+        },
+        session,
+      );
+    }
+
     if (mission.status !== MissionStatus.COMPLETED) {
       mission.status = MissionStatus.COMPLETED;
-      await mission.save();
+      await mission.save({ session });
     }
 
     return mission;

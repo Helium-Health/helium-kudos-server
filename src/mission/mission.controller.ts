@@ -84,15 +84,18 @@ export class MissionController {
     );
   }
 
-  @UseGuards(AdminGuard)
-  @Patch(':missionId/winners')
   async updateMissionWinners(
     @Param('missionId') missionId: string,
     @Body() updateWinnersDto: UpdateWinnersDto,
+    @Request() req: any, // Assuming you're injecting the session middleware
   ) {
-    return await this.missionService.updateWinners(
-      new Types.ObjectId(missionId),
-      updateWinnersDto,
-    );
+    const session = req.session; // Extract the session object
+    await session.withTransaction(async () => {
+      return await this.missionService.updateWinners(
+        new Types.ObjectId(missionId),
+        updateWinnersDto,
+        session,
+      );
+    });
   }
 }
