@@ -76,7 +76,7 @@ export class MissionController {
     );
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AdminGuard)
   @Get(':id/participants')
   async getMissionParticipants(@Param('id') missionId: string) {
     return await this.missionService.getMissionParticipants(
