@@ -87,15 +87,11 @@ export class MissionController {
   async updateMissionWinners(
     @Param('missionId') missionId: string,
     @Body() updateWinnersDto: UpdateWinnersDto,
-    @Request() req: any, // Assuming you're injecting the session middleware
   ) {
-    const session = req.session; // Extract the session object
-    await session.withTransaction(async () => {
-      return await this.missionService.updateWinners(
-        new Types.ObjectId(missionId),
-        updateWinnersDto,
-        session,
-      );
-    });
+    return await this.missionService.updateWinners(
+      new Types.ObjectId(missionId),
+      updateWinnersDto,
+    );
   }
+  
 }

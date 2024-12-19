@@ -29,7 +29,7 @@ export class MissionService {
   constructor(
     @InjectModel(Mission.name) private missionModel: Model<MissionDocument>,
     private userService: UsersService,
-    private wallerService: WalletService,
+    private walletService: WalletService,
     private transactionService: TransactionService,
   ) {}
   create(createMissionDto: CreateMissionDto) {
@@ -337,55 +337,67 @@ export class MissionService {
   async updateWinners(
     missionId: Types.ObjectId,
     updateWinnersDto: UpdateWinnersDto,
-    session: ClientSession,
   ) {
-    const { winners } = updateWinnersDto;
+    const session: ClientSession = await this.missionModel.db.startSession();
 
-    const rankedWinners = winners
-      .sort((a, b) => b.points - a.points)
-      .map((winner, index) => ({
-        ...winner,
-        rank: index + 1,
-      }));
+    try {
+      session.startTransaction();
 
-    const mission = await this.missionModel.findByIdAndUpdate(
-      missionId,
-      {
-        $set: { winners: rankedWinners },
-      },
-      { new: true },
-    );
+      const { winners } = updateWinnersDto;
 
-    if (!mission) {
-      throw new Error('Mission not found');
-    }
+      const rankedWinners = winners
+        .sort((a, b) => b.points - a.points)
+        .map((winner, index) => ({
+          ...winner,
+          rank: index + 1,
+        }));
 
-    for (const winner of rankedWinners) {
-      await this.wallerService.incrementEarnedBalance(
-        new Types.ObjectId(winner.winnerId),
-        winner.coinAmount,
-        session,
-      );
-
-      await this.transactionService.recordCreditTransaction(
+      const mission = await this.missionModel.findByIdAndUpdate(
+        missionId,
         {
-          receiverId: new Types.ObjectId(winner.winnerId),
-          amount: winner.coinAmount,
-          entityType: EntityType.MISSION,
-          entityId: missionId,
-          senderId: new Types.ObjectId(winner.winnerId),
-          status: transactionStatus.SUCCESS,
-          claimId: missionId,
+          $set: { winners: rankedWinners },
         },
-        session,
+        { new: true, session },
       );
-    }
 
-    if (mission.status !== MissionStatus.COMPLETED) {
-      mission.status = MissionStatus.COMPLETED;
-      await mission.save({ session });
-    }
+      if (!mission) {
+        throw new Error('Mission not found');
+      }
 
-    return mission;
+      for (const winner of rankedWinners) {
+        await this.walletService.incrementEarnedBalance(
+          new Types.ObjectId(winner.winnerId),
+          winner.coinAmount,
+          session,
+        );
+
+        await this.transactionService.recordCreditTransaction(
+          {
+            receiverId: new Types.ObjectId(winner.winnerId),
+            amount: winner.coinAmount,
+            entityType: EntityType.MISSION,
+            entityId: missionId,
+            senderId: new Types.ObjectId(winner.winnerId),
+            status: transactionStatus.SUCCESS,
+            claimId: missionId,
+          },
+          session,
+        );
+      }
+
+      if (mission.status !== MissionStatus.COMPLETED) {
+        mission.status = MissionStatus.COMPLETED;
+        await mission.save({ session });
+      }
+
+      await session.commitTransaction();
+      return mission;
+    } catch (error) {
+      await session.abortTransaction();
+      console.error('Error updating mission winners:', error);
+      throw new Error('Failed to update mission winners. Please try again.');
+    } finally {
+      session.endSession();
+    }
   }
 }
