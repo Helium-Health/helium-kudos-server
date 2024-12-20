@@ -248,168 +248,12 @@ export class RecognitionService {
     await recognition.save({ session });
   }
 
-  // async getAllRecognitions(
-  //   page: number,
-  //   limit: number,
-  //   userId?: string,
-  //   role?: string,
-  // ) {
-  //   // Validate input
-  //   if (userId && !Types.ObjectId.isValid(userId)) {
-  //     throw new BadRequestException('Invalid userId format');
-  //   }
-
-  //   if (role && !['sender', 'receiver'].includes(role)) {
-  //     throw new BadRequestException(
-  //       'Invalid role value. Must be "sender" or "receiver".',
-  //     );
-  //   }
-
-  //   const skip = (page - 1) * limit;
-
-  //   const matchFilter: Record<string, any> = {};
-  //   if (userId) {
-  //     if (role === 'sender') {
-  //       matchFilter.senderId = new Types.ObjectId(userId);
-  //     } else if (role === 'receiver') {
-  //       matchFilter['receivers.receiverId'] = new Types.ObjectId(userId);
-  //     } else {
-  //       matchFilter.$or = [
-  //         { senderId: new Types.ObjectId(userId) },
-  //         { 'receivers.receiverId': new Types.ObjectId(userId) },
-  //       ];
-  //     }
-  //   }
-
-  //   const [recognitions, totalCount] = await Promise.all([
-  //     this.recognitionModel.aggregate([
-  //       { $match: matchFilter },
-  //       { $sort: { createdAt: -1 } },
-  //       {
-  //         $lookup: {
-  //           from: 'users',
-  //           localField: 'senderId',
-  //           foreignField: '_id',
-  //           as: 'sender',
-  //         },
-  //       },
-  //       {
-  //         $addFields: {
-  //           sender: { $arrayElemAt: ['$sender', 0] },
-  //         },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: 'userrecognitions',
-  //           localField: '_id',
-  //           foreignField: 'recognitionId',
-  //           as: 'userRecognitions',
-  //         },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: 'users',
-  //           localField: 'userRecognitions.userId',
-  //           foreignField: '_id',
-  //           as: 'receivers',
-  //         },
-  //       },
-  //       {
-  //         $lookup: {
-  //           from: 'reactions',
-  //           let: { recognitionId: '$_id' },
-  //           pipeline: [
-  //             {
-  //               $match: {
-  //                 $expr: { $eq: ['$recognitionId', '$$recognitionId'] },
-  //               },
-  //             },
-  //             {
-  //               $lookup: {
-  //                 from: 'users',
-  //                 localField: 'userId',
-  //                 foreignField: '_id',
-  //                 as: 'user',
-  //               },
-  //             },
-  //             { $unwind: '$user' },
-  //             {
-  //               $group: {
-  //                 _id: '$shortcodes',
-  //                 users: { $push: '$user.name' },
-  //                 count: { $sum: 1 },
-  //               },
-  //             },
-  //             {
-  //               $project: {
-  //                 _id: 0,
-  //                 shortcode: '$_id',
-  //                 users: 1,
-  //                 count: 1,
-  //               },
-  //             },
-  //           ],
-  //           as: 'reactions',
-  //         },
-  //       },
-  //       {
-  //         $project: {
-  //           _id: 1,
-  //           message: 1,
-  //           coinAmount: 1,
-  //           companyValues: 1,
-  //           createdAt: 1,
-  //           isAuto: 1,
-  //           sender: {
-  //             _id: '$sender._id',
-  //             name: '$sender.name',
-  //             picture: '$sender.picture',
-  //           },
-  //           receivers: {
-  //             $map: {
-  //               input: {
-  //                 $filter: {
-  //                   input: '$receivers',
-  //                   as: 'receiver',
-  //                   cond: { $ne: ['$$receiver._id', '$sender._id'] },
-  //                 },
-  //               },
-  //               as: 'receiver',
-  //               in: {
-  //                 _id: '$$receiver._id',
-  //                 name: '$$receiver.name',
-  //                 picture: '$$receiver.picture',
-  //               },
-  //             },
-  //           },
-  //           commentCount: { $size: { $ifNull: ['$comments', []] } },
-  //           reactions: 1,
-  //         },
-  //       },
-  //       { $skip: skip },
-  //       { $limit: limit },
-  //     ]),
-  //     this.recognitionModel.countDocuments(matchFilter),
-  //   ]);
-
-  //   return {
-  //     data: recognitions,
-  //     meta: {
-  //       totalCount,
-  //       page,
-  //       limit,
-  //       totalPages: Math.ceil(totalCount / limit),
-  //     },
-  //   };
-  // }
-
   async getAllRecognitions(
     page: number,
     limit: number,
     userId?: string,
     role?: string,
   ) {
-    // Validate input
     if (userId && !Types.ObjectId.isValid(userId)) {
       throw new BadRequestException('Invalid userId format');
     }
@@ -421,8 +265,8 @@ export class RecognitionService {
     }
 
     const skip = (page - 1) * limit;
-
     const matchFilter: Record<string, any> = {};
+
     if (userId) {
       if (role === 'sender') {
         matchFilter.senderId = new Types.ObjectId(userId);
@@ -473,6 +317,44 @@ export class RecognitionService {
           },
         },
         {
+          $lookup: {
+            from: 'reactions',
+            let: { recognitionId: '$_id' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ['$recognitionId', '$$recognitionId'] },
+                },
+              },
+              {
+                $lookup: {
+                  from: 'users',
+                  localField: 'userId',
+                  foreignField: '_id',
+                  as: 'user',
+                },
+              },
+              { $unwind: '$user' },
+              {
+                $group: {
+                  _id: '$shortcodes',
+                  users: { $push: '$user.name' },
+                  count: { $sum: 1 },
+                },
+              },
+              {
+                $project: {
+                  _id: 0,
+                  shortcode: '$_id',
+                  users: 1,
+                  count: 1,
+                },
+              },
+            ],
+            as: 'reactions',
+          },
+        },
+        {
           $group: {
             _id: '$_id',
             message: { $first: '$message' },
@@ -493,6 +375,7 @@ export class RecognitionService {
             reactions: { $first: '$reactions' },
           },
         },
+        { $sort: { createdAt: -1 } },
         { $skip: skip },
         { $limit: limit },
       ]),
