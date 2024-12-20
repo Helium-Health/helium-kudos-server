@@ -20,10 +20,11 @@ import { Types } from 'mongoose';
 export class CommentController {
   constructor(private commentService: CommentService) {}
 
-  @Post()
   @UseGuards(JwtAuthGuard)
+  @Post()
   async addComment(@Request() req, @Body() createCommentDto: CreateCommentDto) {
-    return this.commentService.addComment(req.user.userId, createCommentDto);
+    const userId = req.user.userId;
+    return this.commentService.addComment(userId, createCommentDto);
   }
 
   @Get('recognition/:recognitionId')

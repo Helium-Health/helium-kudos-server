@@ -13,7 +13,7 @@ export class CommentService {
   ) {}
 
   async addComment(
-    userId: string,
+    userId: Types.ObjectId,
     { recognitionId, content, giphyUrl }: CreateCommentDto,
   ) {
     const session = await this.commentModel.db.startSession();
