@@ -6,8 +6,11 @@ import {
   Param,
   Post,
   Request,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { CommentService } from './comment.service';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 import { CreateCommentDto } from './dto/CreateComment.dto';
@@ -19,8 +22,13 @@ export class CommentController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  async addComment(@Request() req, @Body() createCommentDto: CreateCommentDto) {
-    return this.commentService.addComment(req.user.userId, createCommentDto);
+  @UseInterceptors(FileInterceptor('image')) // Handles image upload
+  async addComment(
+    @Request() req,
+    @Body() createCommentDto: CreateCommentDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
+    return this.commentService.addComment(req.user.userId, createCommentDto, file);
   }
 
   @Get('recognition/:recognitionId')

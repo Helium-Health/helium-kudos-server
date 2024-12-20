@@ -1,4 +1,11 @@
-import { IsNotEmpty, IsString, IsMongoId } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsMongoId,
+  IsOptional,
+  Matches,
+  IsUrl,
+} from 'class-validator';
 import { Types } from 'mongoose';
 
 export class CreateCommentDto {
@@ -6,7 +13,15 @@ export class CreateCommentDto {
   @IsMongoId()
   recognitionId: Types.ObjectId;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  content: string;
+  content?: string;
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^https:\/\/media\.giphy\.com\/media\/.+\.(gif|mp4)$/, {
+    message: 'Invalid Giphy URL',
+  })
+  @IsUrl()
+  giphyUrl?: string;
 }
