@@ -125,6 +125,7 @@ export class RecognitionService {
 
       await session.commitTransaction();
       this.recognitionGateway.notifyClients({
+        recognitionId: newRecognition._id,
         message: `Recognition created: ${message}`,
         senderId,
         receivers: receivers.map((r) => ({
@@ -485,7 +486,7 @@ export class RecognitionService {
                 coinAmount: '$receivers.coinAmount',
                 name: '$receivers.details.name',
                 picture: '$receivers.details.picture',
-                role: '$receivers.details.role'
+                role: '$receivers.details.role',
               },
             },
             commentCount: { $first: { $size: { $ifNull: ['$comments', []] } } },
