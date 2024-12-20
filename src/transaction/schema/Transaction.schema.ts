@@ -11,6 +11,7 @@ export enum TransactionType {
 export enum EntityType {
   RECOGNITION = 'recognition',
   ORDER = 'order',
+  MISSION = 'mission'
 }
 export enum transactionStatus {
   SUCCESS = 'success',

@@ -25,11 +25,12 @@ export class RecognitionGateway
 {
   @WebSocketServer()
   private server: Server;
-
+  private Client: Socket;
   private readonly logger = new Logger(RecognitionGateway.name);
 
   handleConnection(client: Socket) {
-    this.logger.log(`Client connected: ${client.id}`);
+    this.Client = client;
+    this.logger.log(`Client connected: ${this.Client.id}`);
   }
 
   handleDisconnect(client: Socket) {
@@ -38,14 +39,13 @@ export class RecognitionGateway
 
   notifyClients(data: any) {
     try {
-      if (this.server) {
-        // this.logger.log('Notifying clients with new recognition data.', data);
-        this.server.emit('recognition-created', {
+      if (this.Client && this.server) {
+        this.Client.broadcast.emit('recognition-created', {
           message: 'New recognition posted! Please refresh your page.',
           data,
         });
       } else {
-        this.logger.warn('Server instance is not initialized.');
+        this.logger.warn('Server instance or client is not initialized.');
       }
     } catch (error) {
       this.logger.error('Error notifying clients', error);
