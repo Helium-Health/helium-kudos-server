@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { RecognitionService } from 'src/recognition/recognition.service';
@@ -14,17 +10,12 @@ export class CommentService {
   constructor(
     @InjectModel(Comment.name) private commentModel: Model<Comment>,
     private recognitionService: RecognitionService,
-    // private s3Service: S3Service, // Optional for image upload handling
   ) {}
 
   async addComment(
     userId: string,
     { recognitionId, content, giphyUrl }: CreateCommentDto,
-    file?: Express.Multer.File,
   ) {
-    if (file && file.size > 2.5 * 1024 * 1024) {
-      throw new BadRequestException('Image size exceeds the 2.5MB limit');
-    }
     const session = await this.commentModel.db.startSession();
     session.startTransaction();
 
@@ -38,18 +29,11 @@ export class CommentService {
         throw new NotFoundException('Recognition not found');
       }
 
-      let imageUrl: string | undefined;
-      if (file) {
-        // Upload image to cloud storage and get URL
-        // imageUrl = await this.s3Service.uploadFile(file);
-      }
-
       const comment = new this.commentModel({
         userId: new Types.ObjectId(userId),
         recognitionId: new Types.ObjectId(recognitionId),
         content,
         giphyUrl,
-        // imageUrl,
       });
       await comment.save({ session });
 

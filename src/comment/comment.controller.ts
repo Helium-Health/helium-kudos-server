@@ -22,13 +22,8 @@ export class CommentController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(FileInterceptor('image')) // Handles image upload
-  async addComment(
-    @Request() req,
-    @Body() createCommentDto: CreateCommentDto,
-    @UploadedFile() file?: Express.Multer.File,
-  ) {
-    return this.commentService.addComment(req.user.userId, createCommentDto, file);
+  async addComment(@Request() req, @Body() createCommentDto: CreateCommentDto) {
+    return this.commentService.addComment(req.user.userId, createCommentDto);
   }
 
   @Get('recognition/:recognitionId')
