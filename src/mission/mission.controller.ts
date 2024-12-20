@@ -8,6 +8,7 @@ import {
   Request,
   Query,
   UseGuards,
+  Delete,
 } from '@nestjs/common';
 import { MissionService } from './mission.service';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
@@ -93,5 +94,12 @@ export class MissionController {
       updateWinnersDto,
     );
   }
-  
+
+  @UseGuards(AdminGuard)
+  @Delete(':id')
+  async deleteMission(@Param('id') missionId: string) {
+    return await this.missionService.deleteMission(
+      new Types.ObjectId(missionId),
+    );
+  }
 }

@@ -400,4 +400,32 @@ export class MissionService {
       session.endSession();
     }
   }
+
+  async deleteMission(missionId: Types.ObjectId): Promise<{ message: string }> {
+    const session: ClientSession = await this.missionModel.db.startSession();
+
+    try {
+      session.startTransaction();
+
+      const deletedMission = await this.missionModel.findByIdAndDelete(
+        missionId,
+        { session },
+      );
+
+      if (!deletedMission) {
+        throw new NotFoundException(`Mission with ID ${missionId} not found`);
+      }
+
+      await session.commitTransaction();
+      return {
+        message: `Mission with ID ${missionId} has been deleted successfully.`,
+      };
+    } catch (error) {
+      await session.abortTransaction();
+      console.error('Error deleting mission:', error);
+      throw new Error('Failed to delete mission. Please try again.');
+    } finally {
+      session.endSession();
+    }
+  }
 }
