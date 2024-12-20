@@ -6,8 +6,11 @@ import {
   Param,
   Post,
   Request,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { CommentService } from './comment.service';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 import { CreateCommentDto } from './dto/CreateComment.dto';

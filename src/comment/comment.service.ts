@@ -14,7 +14,7 @@ export class CommentService {
 
   async addComment(
     userId: string,
-    { recognitionId, content }: CreateCommentDto,
+    { recognitionId, content, giphyUrl }: CreateCommentDto,
   ) {
     const session = await this.commentModel.db.startSession();
     session.startTransaction();
@@ -32,7 +32,8 @@ export class CommentService {
       const comment = new this.commentModel({
         userId: new Types.ObjectId(userId),
         recognitionId: new Types.ObjectId(recognitionId),
-        content: content,
+        content,
+        giphyUrl,
       });
       await comment.save({ session });
 
