@@ -13,6 +13,9 @@ export class Comment {
 
   @Prop({ type: String, required: true })
   content: string;
+
+  @Prop({ type: String, required: false })
+  giphyUrl?: string;
 }
 
 export const CommentSchema = SchemaFactory.createForClass(Comment);
