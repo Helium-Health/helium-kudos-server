@@ -42,7 +42,7 @@ export class UsersService {
   }
 
   // Method to find a user by id
-  async findById(_id: Types.ObjectId): Promise<User | null> {
+  async findById(_id: Types.ObjectId): Promise<User | UserDocument | null> {
     return this.userModel.findOne({ _id }).exec();
   }
 

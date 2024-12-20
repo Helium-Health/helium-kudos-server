@@ -20,6 +20,7 @@ import { ProductModule } from './product/product.module';
 import { OrderModule } from './order/order.module';
 import { StorageModule } from './storage/storage.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
+import { MissionModule } from './mission/mission.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { LeaderboardModule } from './leaderboard/leaderboard.module';
     OrderModule,
     StorageModule,
     LeaderboardModule,
+    MissionModule,
   ],
   controllers: [],
   providers: [],
