@@ -29,8 +29,8 @@ export class LeaderboardService {
     return this.recognitionService.getTopRecognitionReceivers(page, limit);
   }
 
-  async getQuarterParticipants(page: number, limit: number) {
-    return this.recognitionService.getQuarterParticipants(page, limit);
+  async getQuarterParticipants(page: number, limit: number, date: Date) {
+    return this.recognitionService.getQuarterParticipants(page, limit, date);
   }
 
   async getYearlyStatisticsWithMonthlyDetails(year: number) {

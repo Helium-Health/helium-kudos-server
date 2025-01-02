@@ -51,8 +51,15 @@ export class LeaderboardController {
   async getQuarterParticipants(
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
+    @Query('date') date: string = new Date().toISOString(),
   ) {
-    return this.leaderboardService.getQuarterParticipants(page, limit);
+    const parsedDate = date ? new Date(date) : new Date();
+
+    return this.leaderboardService.getQuarterParticipants(
+      page,
+      limit,
+      parsedDate,
+    );
   }
 
   @UseGuards(AdminGuard, JwtAuthGuard)
