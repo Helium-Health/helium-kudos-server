@@ -28,4 +28,12 @@ export class LeaderboardService {
   async getTopRecognitionReceivers(page: number, limit: number) {
     return this.recognitionService.getTopRecognitionReceivers(page, limit);
   }
+
+  async getQuarterParticipants(page: number, limit: number) {
+    return this.recognitionService.getQuarterParticipants(page, limit);
+  }
+
+  async getYearlyStatisticsWithMonthlyDetails(year: number) {
+    return this.recognitionService.getYearlyStatisticsWithMonthlyDetails(year);
+  }
 }

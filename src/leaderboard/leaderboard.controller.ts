@@ -45,4 +45,22 @@ export class LeaderboardController {
   ) {
     return this.leaderboardService.getTopRecognitionReceivers(page, limit);
   }
+
+  @UseGuards(AdminGuard, JwtAuthGuard)
+  @Get('participants')
+  async getQuarterParticipants(
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ) {
+    return this.leaderboardService.getQuarterParticipants(page, limit);
+  }
+
+  @UseGuards(AdminGuard, JwtAuthGuard)
+  @Get('statistics')
+  async yearlyStatistics(@Query('year') year?: number) {
+    const targetYear = year || new Date().getFullYear();
+    return this.leaderboardService.getYearlyStatisticsWithMonthlyDetails(
+      targetYear,
+    );
+  }
 }

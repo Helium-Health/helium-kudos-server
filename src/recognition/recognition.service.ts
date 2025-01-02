@@ -487,4 +487,233 @@ export class RecognitionService {
       data,
     };
   }
+
+  async getQuarterParticipants(page: number = 1, limit: number = 10) {
+    const now = new Date();
+    const startMonth = Math.floor(now.getMonth() / 3) * 3; // Start month of the quarter
+    const startOfQuarter = new Date(now.getFullYear(), startMonth, 1);
+    const endOfQuarter = new Date(
+      now.getFullYear(),
+      startMonth + 3,
+      0,
+      23,
+      59,
+      59,
+    ); // End of quarter
+
+    const skip = (page - 1) * limit;
+
+    const result = await this.recognitionModel.aggregate([
+      // Match recognitions within the current quarter
+      {
+        $match: {
+          createdAt: { $gte: startOfQuarter, $lte: endOfQuarter },
+        },
+      },
+      // Extract participants (sender and receivers) into a single array
+      {
+        $project: {
+          participants: {
+            $setUnion: [
+              { $ifNull: ['$senderId', []] },
+              {
+                $map: {
+                  input: '$receivers',
+                  as: 'receiver',
+                  in: '$$receiver.receiverId',
+                },
+              },
+            ],
+          },
+        },
+      },
+      // Unwind participants to create a document per participant
+      { $unwind: '$participants' },
+      // Lookup user details for each participant
+      {
+        $lookup: {
+          from: 'users', // Collection name for the users
+          localField: 'participants',
+          foreignField: '_id',
+          as: 'userDetails',
+        },
+      },
+      // Flatten the userDetails array
+      { $unwind: '$userDetails' },
+      // Group by participant details and count the total participants
+      {
+        $group: {
+          _id: '$userDetails._id',
+          name: { $first: '$userDetails.name' },
+          picture: { $first: '$userDetails.picture' },
+        },
+      },
+      // Sort participants (optional, by name or other criteria)
+      { $sort: { name: 1 } },
+      // Apply pagination: skip and limit
+      { $skip: skip },
+      { $limit: limit },
+      // Get total users and participants
+      {
+        $facet: {
+          participants: [{ $project: { _id: 0, name: 1, picture: 1 } }],
+          totalParticipants: [{ $count: 'count' }],
+        },
+      },
+    ]);
+
+    // Extract data from the aggregation result
+    const participants = result[0]?.participants || [];
+    const totalParticipantsCount = result[0]?.totalParticipants[0]?.count || 0;
+
+    // Fetch total number of users
+    const totalUsersCount = await this.recognitionModel
+      .distinct('senderId')
+      .then((senders) =>
+        this.recognitionModel
+          .distinct('receivers.receiverId')
+          .then((receivers) => new Set([...senders, ...receivers]).size),
+      );
+
+    // Calculate participation percentage
+    const participationPercentage =
+      totalUsersCount > 0
+        ? ((totalParticipantsCount / totalUsersCount) * 100).toFixed(2)
+        : '0.00';
+
+    return {
+      participants,
+      participationPercentage: `${participationPercentage}%`,
+      currentPage: page,
+      totalPages: Math.ceil(totalParticipantsCount / limit),
+    };
+  }
+  async getYearlyStatisticsWithMonthlyDetails(year: number) {
+    const startOfYear = new Date(year, 0, 1); // January 1st
+    const endOfYear = new Date(year, 11, 31, 23, 59, 59); // December 31st
+
+    // Step 1: Overall yearly statistics
+    const yearlyStats = await this.recognitionModel.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startOfYear, $lte: endOfYear },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalRecognitionsGiven: { $sum: 1 },
+          totalCoinsGiven: { $sum: { $sum: '$receivers.coinAmount' } },
+          totalRecognitionsReceived: { $sum: 1 },
+          totalCoinsReceived: { $sum: { $sum: '$receivers.coinAmount' } },
+        },
+      },
+    ]);
+
+    // Step 2: Monthly company values and recognition counts
+    const monthlyStats = await this.recognitionModel.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startOfYear, $lte: endOfYear },
+        },
+      },
+      {
+        $addFields: {
+          month: { $month: '$createdAt' },
+        },
+      },
+      {
+        $facet: {
+          companyValues: [
+            { $unwind: '$companyValues' },
+            {
+              $group: {
+                _id: { month: '$month', companyValue: '$companyValues' },
+                count: { $sum: 1 },
+              },
+            },
+            {
+              $group: {
+                _id: '$_id.month',
+                values: {
+                  $push: {
+                    companyValue: '$_id.companyValue',
+                    count: '$count',
+                  },
+                },
+              },
+            },
+          ],
+          monthlyRecognitionCounts: [
+            {
+              $group: {
+                _id: { month: '$month' },
+                totalRecognitionsGiven: { $sum: 1 },
+                totalCoinsGiven: { $sum: { $sum: '$receivers.coinAmount' } },
+                totalRecognitionsReceived: { $sum: 1 },
+                totalCoinsReceived: { $sum: { $sum: '$receivers.coinAmount' } },
+              },
+            },
+          ],
+        },
+      },
+      {
+        $project: {
+          companyValues: 1,
+          monthlyRecognitionCounts: 1,
+        },
+      },
+    ]);
+
+    // Step 3: Format the data
+    const companyValuesByMonth = monthlyStats[0]?.companyValues.map((stat) => {
+      const valueObject = stat.values.reduce((acc, curr) => {
+        acc[curr.companyValue] = curr.count;
+        return acc;
+      }, {});
+
+      return {
+        month: stat._id,
+        simplicity: valueObject['simplicity'] || 0,
+        boldness: valueObject['boldness'] || 0,
+        innovation: valueObject['innovation'] || 0,
+        camaraderie: valueObject['camaraderie'] || 0,
+      };
+    });
+
+    const recognitionCountsByMonth =
+      monthlyStats[0]?.monthlyRecognitionCounts.map((stat) => ({
+        month: stat._id,
+        totalRecognitionsGiven: stat.totalRecognitionsGiven,
+        totalCoinsGiven: stat.totalCoinsGiven,
+        totalRecognitionsReceived: stat.totalRecognitionsReceived,
+        totalCoinsReceived: stat.totalCoinsReceived,
+      }));
+
+    // Merge company values and recognition counts
+    const monthlyDetails = recognitionCountsByMonth.map((recognition) => {
+      const companyValues = companyValuesByMonth.find(
+        (values) => values.month === recognition.month,
+      ) || {
+        simplicity: 0,
+        boldness: 0,
+        innovation: 0,
+        camaraderie: 0,
+      };
+
+      return {
+        month: recognition.month,
+        ...recognition,
+        ...companyValues,
+      };
+    });
+
+    return {
+      totalRecognitionsGiven: yearlyStats[0]?.totalRecognitionsGiven || 0,
+      totalCoinsGiven: yearlyStats[0]?.totalCoinsGiven || 0,
+      totalRecognitionsReceived: yearlyStats[0]?.totalRecognitionsReceived || 0,
+      totalCoinsReceived: yearlyStats[0]?.totalCoinsReceived || 0,
+      monthlyDetails,
+    };
+  }
 }
