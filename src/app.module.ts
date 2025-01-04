@@ -21,6 +21,7 @@ import { OrderModule } from './order/order.module';
 import { StorageModule } from './storage/storage.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { MissionModule } from './mission/mission.module';
+import { FeedbackModule } from './feedback/feedback.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { MissionModule } from './mission/mission.module';
     StorageModule,
     LeaderboardModule,
     MissionModule,
+    FeedbackModule,
   ],
   controllers: [],
   providers: [],

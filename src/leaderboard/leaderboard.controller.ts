@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { LeaderboardService } from './leaderboard.service';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
@@ -44,5 +44,30 @@ export class LeaderboardController {
     @Query('limit') limit: number = 10,
   ) {
     return this.leaderboardService.getTopRecognitionReceivers(page, limit);
+  }
+
+  @UseGuards(AdminGuard, JwtAuthGuard)
+  @Get('participants/:year/:quarter')
+  async getQuarterParticipants(
+    @Param('year') year: number,
+    @Param('quarter') quarter: number,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ) {
+    return this.leaderboardService.getQuarterParticipants(
+      page,
+      limit,
+      year,
+      quarter,
+    );
+  }
+
+  @UseGuards(AdminGuard, JwtAuthGuard)
+  @Get('statistics')
+  async yearlyStatistics(@Query('year') year?: number) {
+    const targetYear = year || new Date().getFullYear();
+    return this.leaderboardService.getYearlyStatisticsWithMonthlyDetails(
+      targetYear,
+    );
   }
 }
