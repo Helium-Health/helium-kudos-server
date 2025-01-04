@@ -491,18 +491,19 @@ export class RecognitionService {
   async getQuarterParticipants(
     page: number = 1,
     limit: number = 10,
-    date: Date,
+    year: number,
+    quarter: number,
   ) {
-    const now = date || new Date();
-  
-    const quarter = Math.floor(now.getMonth() / 3);
-    const startMonth = quarter * 3;
-  
-    const startOfQuarter = new Date(now.getFullYear(), startMonth, 1);
-    const endOfQuarter = new Date(now.getFullYear(), startMonth + 3, 0, 23, 59, 59);
-  
+    if (quarter < 1 || quarter > 4) {
+      throw new Error('Invalid quarter. Quarter must be between 1 and 4.');
+    }
+
+    const startMonth = (quarter - 1) * 3;
+    const startOfQuarter = new Date(year, startMonth, 1);
+    const endOfQuarter = new Date(year, startMonth + 3, 0, 23, 59, 59);
+
     const skip = (page - 1) * limit;
-  
+
     const result = await this.recognitionModel.aggregate([
       {
         $match: {
@@ -552,10 +553,10 @@ export class RecognitionService {
         },
       },
     ]);
-  
+
     const participants = result[0]?.participants || [];
     const totalParticipantsCount = result[0]?.totalParticipants[0]?.count || 0;
-  
+
     const totalUsersCount = await this.recognitionModel
       .distinct('senderId')
       .then((senders) =>
@@ -563,12 +564,12 @@ export class RecognitionService {
           .distinct('receivers.receiverId')
           .then((receivers) => new Set([...senders, ...receivers]).size),
       );
-  
+
     const participationPercentage =
       totalUsersCount > 0
         ? ((totalParticipantsCount / totalUsersCount) * 100).toFixed(2)
         : '0.00';
-  
+
     return {
       participants,
       participationPercentage: `${participationPercentage}%`,

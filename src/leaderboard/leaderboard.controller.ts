@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { LeaderboardService } from './leaderboard.service';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
@@ -47,18 +47,18 @@ export class LeaderboardController {
   }
 
   @UseGuards(AdminGuard, JwtAuthGuard)
-  @Get('participants')
+  @Get('participants/:year/:quarter')
   async getQuarterParticipants(
+    @Param('year') year: number,
+    @Param('quarter') quarter: number,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
-    @Query('date') date: string = new Date().toISOString(),
   ) {
-    const parsedDate = date ? new Date(date) : new Date();
-
     return this.leaderboardService.getQuarterParticipants(
       page,
       limit,
-      parsedDate,
+      year,
+      quarter,
     );
   }
 
