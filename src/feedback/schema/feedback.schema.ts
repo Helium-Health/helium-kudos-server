@@ -3,10 +3,9 @@ import { Document, Types } from 'mongoose';
 
 export type FeedbackDocument = Feedback & Document;
 
-// Exportable Enum for Feedback Categories
 export enum FeedbackCategory {
   BUG = 'Bug',
-  FEATURE_REQUEST = 'Feature Request',
+  FEATURE_REQUEST = 'Feature_Request',
   GENERAL = 'General',
   ANALYTICS = 'Analytics',
 }
