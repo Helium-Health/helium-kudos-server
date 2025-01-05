@@ -37,7 +37,7 @@ export class LeaderboardController {
     );
   }
 
-  @UseGuards(AdminGuard, JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Get('recognition-receivers')
   async getTopRecognitionReceivers(
     @Query('page') page: number = 1,
@@ -46,7 +46,7 @@ export class LeaderboardController {
     return this.leaderboardService.getTopRecognitionReceivers(page, limit);
   }
 
-  @UseGuards(AdminGuard, JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Get('participants/:year/:quarter')
   async getQuarterParticipants(
     @Param('year') year: number,
@@ -62,7 +62,7 @@ export class LeaderboardController {
     );
   }
 
-  @UseGuards(AdminGuard, JwtAuthGuard)
+  @UseGuards(JwtAuthGuard)
   @Get('statistics')
   async yearlyStatistics(@Query('year') year?: number) {
     const targetYear = year || new Date().getFullYear();
