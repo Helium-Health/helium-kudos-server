@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { MissionService } from './mission.service';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
-// import { AdminGuard } from 'src/auth/guards/admin.guard';
+import { AdminGuard } from 'src/auth/guards/admin.guard';
 import {
   AssignPointsDto,
   CreateMissionDto,
@@ -25,13 +25,13 @@ import { Types } from 'mongoose';
 export class MissionController {
   constructor(private readonly missionService: MissionService) {}
 
-  // @UseGuards(AdminGuard)
+  @UseGuards(AdminGuard)
   @Post()
   create(@Body() createMissionDto: CreateMissionDto) {
     return this.missionService.create(createMissionDto);
   }
 
-  // @UseGuards(AdminGuard)
+  @UseGuards(AdminGuard)
   @Patch(':id')
   async updateMission(
     @Param('id') missionId: string,
@@ -65,7 +65,7 @@ export class MissionController {
     });
   }
 
-  // @UseGuards(AdminGuard)
+  @UseGuards(AdminGuard)
   @Patch(':missionId/assign-points')
   async assignPointsToParticipants(
     @Param('missionId') missionId: string,
@@ -77,7 +77,7 @@ export class MissionController {
     );
   }
 
-  // @UseGuards(AdminGuard)
+  @UseGuards(AdminGuard)
   @Get(':id/participants')
   async getMissionParticipants(@Param('id') missionId: string) {
     return await this.missionService.getMissionParticipants(
@@ -95,7 +95,7 @@ export class MissionController {
     );
   }
 
-  // @UseGuards(AdminGuard)
+  @UseGuards(AdminGuard)
   @Delete(':id')
   async deleteMission(@Param('id') missionId: string) {
     return await this.missionService.deleteMission(
