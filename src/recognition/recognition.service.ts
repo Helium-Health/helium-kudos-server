@@ -39,7 +39,7 @@ export class RecognitionService {
 
   async createRecognition(
     senderId: string,
-    { receivers, message, companyValues = [], giphyUrl }: CreateRecognitionDto,
+    { receivers, message, companyValues = [] }: CreateRecognitionDto,
   ) {
     const invalidValues = companyValues.filter(
       (value) => !Object.values(CompanyValues).includes(value),
@@ -90,7 +90,6 @@ export class RecognitionService {
       const newRecognition = new this.recognitionModel({
         senderId: new Types.ObjectId(senderId),
         message,
-        giphyUrl,
         receivers: receivers.map((r) => ({
           receiverId: new Types.ObjectId(r.receiverId),
           coinAmount: r.coinAmount ?? 0,
@@ -134,7 +133,6 @@ export class RecognitionService {
           amount: r.coinAmount ?? 0,
         })),
         companyValues,
-        giphyUrl,
       });
       return newRecognition;
     } catch (error) {
@@ -364,7 +362,6 @@ export class RecognitionService {
             createdAt: { $first: '$createdAt' },
             isAuto: { $first: '$isAuto' },
             sender: { $first: '$sender' },
-            giphyUrl: { $first: '$giphyUrl' }, // Add giphyUrl here
             receivers: {
               $push: {
                 _id: '$receivers.receiverId',

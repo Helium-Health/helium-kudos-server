@@ -13,9 +13,6 @@ export class Recognition {
   @Prop({ type: String, required: true })
   message: string;
 
-  @Prop({ type: String, required: false })
-  giphyUrl?: string;
-
   @Prop({
     type: [
       {
