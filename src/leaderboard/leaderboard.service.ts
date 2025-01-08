@@ -8,12 +8,9 @@ export class LeaderboardService {
     private readonly recognitionService: RecognitionService,
     private readonly transactionService: TransactionService,
   ) {}
-  async getTopGivers() {
-    return this.transactionService.findTopGivers();
-  }
 
-  async getTopReceivers() {
-    return this.transactionService.findTopReceivers();
+  async topUsers(year, filterBy, month) {
+    return this.recognitionService.topUsers(year, filterBy, month);
   }
 
   async getUncreditedUsers() {
@@ -29,8 +26,18 @@ export class LeaderboardService {
     return this.recognitionService.getTopRecognitionReceivers(page, limit);
   }
 
-  async getQuarterParticipants(page: number, limit: number, year: number, quarter: number) {
-    return this.recognitionService.getQuarterParticipants(page, limit, year, quarter);
+  async getQuarterParticipants(
+    page: number,
+    limit: number,
+    year: number,
+    quarter: number,
+  ) {
+    return this.recognitionService.getQuarterParticipants(
+      page,
+      limit,
+      year,
+      quarter,
+    );
   }
 
   async getYearlyStatisticsWithMonthlyDetails(year: number) {
