@@ -704,25 +704,34 @@ export class RecognitionService {
     };
   }
 
+  private getStartAndEndDates(
+    year: number,
+    month?: number,
+  ): { startDate: Date; endDate: Date } {
+    let startDate: Date, endDate: Date;
+
+    if (month) {
+      startDate = new Date(year, month - 1, 1); // Start of the month
+      endDate = new Date(year, month, 0, 23, 59, 59); // End of the month
+    } else {
+      startDate = new Date(year, 0, 1); // Start of the year
+      endDate = new Date(year, 11, 31, 23, 59, 59); // End of the year
+    }
+
+    return { startDate, endDate };
+  }
+
   async topUsers(
     year: number,
     filterBy: 'sender' | 'receiver' = 'sender',
     month?: number,
   ) {
-    let startDate: Date, endDate: Date;
-
-    if (month) {
-      startDate = new Date(year, month - 1, 1);
-      endDate = new Date(year, month, 0, 23, 59, 59);
-    } else {
-      startDate = new Date(year, 0, 1);
-      endDate = new Date(year, 11, 31, 23, 59, 59);
-    }
+    const { startDate, endDate } = this.getStartAndEndDates(year, month);
 
     const predefinedCompanyValues = Object.values(CompanyValues);
 
     if (filterBy === 'sender') {
-      const topsenders = await this.recognitionModel.aggregate([
+      const topSenders = await this.recognitionModel.aggregate([
         { $match: { createdAt: { $gte: startDate, $lte: endDate } } },
         { $unwind: '$receivers' },
         {
@@ -748,7 +757,7 @@ export class RecognitionService {
         },
       ]);
 
-      const topsendersWithCompanyValues = topsenders.map((sender) => {
+      const topSendersWithCompanyValues = topSenders.map((sender) => {
         const companyValuesGiven = sender.companyValuesGiven.flat();
         const valueObject = companyValuesGiven.reduce((acc, companyValue) => {
           if (predefinedCompanyValues.includes(companyValue)) {
@@ -767,16 +776,19 @@ export class RecognitionService {
           totalRecognitionsGiven: sender.totalRecognitionsGiven,
           totalCoinsGiven: sender.totalCoinsGiven,
           companyValuesGivenCount: {
-            simplicity: valueObject['simplicity'] || 0,
-            boldness: valueObject['boldness'] || 0,
-            innovation: valueObject['innovation'] || 0,
-            camaraderie: valueObject['camaraderie'] || 0,
+            [CompanyValues.Simplicity]:
+              valueObject[CompanyValues.Simplicity] || 0,
+            [CompanyValues.Boldness]: valueObject[CompanyValues.Boldness] || 0,
+            [CompanyValues.Innovation]:
+              valueObject[CompanyValues.Innovation] || 0,
+            [CompanyValues.Camaraderie]:
+              valueObject[CompanyValues.Camaraderie] || 0,
             others: valueObject['others'] || 0,
           },
         };
       });
 
-      return { topRecognitionsenders: topsendersWithCompanyValues };
+      return { topRecognitionSenders: topSendersWithCompanyValues };
     }
 
     const topReceivers = await this.recognitionModel.aggregate([
@@ -824,10 +836,13 @@ export class RecognitionService {
         totalRecognitionsReceived: receiver.totalRecognitionsReceived,
         totalCoinsReceived: receiver.totalCoinsReceived,
         companyValuesReceivedCount: {
-          simplicity: valueObject['simplicity'] || 0,
-          boldness: valueObject['boldness'] || 0,
-          innovation: valueObject['innovation'] || 0,
-          camaraderie: valueObject['camaraderie'] || 0,
+          [CompanyValues.Simplicity]:
+            valueObject[CompanyValues.Simplicity] || 0,
+          [CompanyValues.Boldness]: valueObject[CompanyValues.Boldness] || 0,
+          [CompanyValues.Innovation]:
+            valueObject[CompanyValues.Innovation] || 0,
+          [CompanyValues.Camaraderie]:
+            valueObject[CompanyValues.Camaraderie] || 0,
           others: valueObject['others'] || 0,
         },
       };
