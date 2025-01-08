@@ -706,7 +706,7 @@ export class RecognitionService {
 
   async topUsers(
     year: number,
-    filterBy: 'giver' | 'receiver' = 'giver',
+    filterBy: 'sender' | 'receiver' = 'sender',
     month?: number,
   ) {
     let startDate: Date, endDate: Date;
@@ -719,15 +719,10 @@ export class RecognitionService {
       endDate = new Date(year, 11, 31, 23, 59, 59);
     }
 
-    const predefinedCompanyValues = [
-      'simplicity',
-      'boldness',
-      'innovation',
-      'camaraderie',
-    ];
+    const predefinedCompanyValues = Object.values(CompanyValues);
 
-    if (filterBy === 'giver') {
-      const topGivers = await this.recognitionModel.aggregate([
+    if (filterBy === 'sender') {
+      const topsenders = await this.recognitionModel.aggregate([
         { $match: { createdAt: { $gte: startDate, $lte: endDate } } },
         { $unwind: '$receivers' },
         {
@@ -745,16 +740,16 @@ export class RecognitionService {
             from: 'users',
             localField: '_id',
             foreignField: '_id',
-            as: 'giverDetails',
+            as: 'senderDetails',
           },
         },
         {
-          $unwind: { path: '$giverDetails', preserveNullAndEmptyArrays: true },
+          $unwind: { path: '$senderDetails', preserveNullAndEmptyArrays: true },
         },
       ]);
 
-      const topGiversWithCompanyValues = topGivers.map((giver) => {
-        const companyValuesGiven = giver.companyValuesGiven.flat();
+      const topsendersWithCompanyValues = topsenders.map((sender) => {
+        const companyValuesGiven = sender.companyValuesGiven.flat();
         const valueObject = companyValuesGiven.reduce((acc, companyValue) => {
           if (predefinedCompanyValues.includes(companyValue)) {
             acc[companyValue] = (acc[companyValue] || 0) + 1;
@@ -765,12 +760,12 @@ export class RecognitionService {
         }, {});
 
         return {
-          senderId: giver._id,
-          name: giver.giverDetails?.name,
-          email: giver.giverDetails?.email,
-          picture: giver.giverDetails?.picture,
-          totalRecognitionsGiven: giver.totalRecognitionsGiven,
-          totalCoinsGiven: giver.totalCoinsGiven,
+          senderId: sender._id,
+          name: sender.senderDetails?.name,
+          email: sender.senderDetails?.email,
+          picture: sender.senderDetails?.picture,
+          totalRecognitionsGiven: sender.totalRecognitionsGiven,
+          totalCoinsGiven: sender.totalCoinsGiven,
           companyValuesGivenCount: {
             simplicity: valueObject['simplicity'] || 0,
             boldness: valueObject['boldness'] || 0,
@@ -781,7 +776,7 @@ export class RecognitionService {
         };
       });
 
-      return { topRecognitionGivers: topGiversWithCompanyValues };
+      return { topRecognitionsenders: topsendersWithCompanyValues };
     }
 
     const topReceivers = await this.recognitionModel.aggregate([

@@ -12,7 +12,7 @@ export class LeaderboardController {
   async getTopUsers(
     @Query('year') year?: number,
     @Query('month') month?: number,
-    @Query('filterBy') filterBy: 'giver' | 'receiver' = 'giver',
+    @Query('filterBy') filterBy: 'sender' | 'receiver' = 'sender',
   ) {
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
