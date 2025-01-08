@@ -39,7 +39,7 @@ export class RecognitionService {
 
   async createRecognition(
     senderId: string,
-    { receivers, message, companyValues = [] }: CreateRecognitionDto,
+    { receivers, message, companyValues = [], giphyUrl }: CreateRecognitionDto,
   ) {
     const invalidValues = companyValues.filter(
       (value) => !Object.values(CompanyValues).includes(value),
@@ -90,6 +90,7 @@ export class RecognitionService {
       const newRecognition = new this.recognitionModel({
         senderId: new Types.ObjectId(senderId),
         message,
+        giphyUrl,
         receivers: receivers.map((r) => ({
           receiverId: new Types.ObjectId(r.receiverId),
           coinAmount: r.coinAmount ?? 0,
@@ -133,6 +134,7 @@ export class RecognitionService {
           amount: r.coinAmount ?? 0,
         })),
         companyValues,
+        giphyUrl,
       });
       return newRecognition;
     } catch (error) {
@@ -248,6 +250,150 @@ export class RecognitionService {
     await recognition.save({ session });
   }
 
+  // async getAllRecognitions(
+  //   page: number,
+  //   limit: number,
+  //   userId?: string,
+  //   role?: string,
+  // ) {
+  //   if (userId && !Types.ObjectId.isValid(userId)) {
+  //     throw new BadRequestException('Invalid userId format');
+  //   }
+
+  //   if (role && !['sender', 'receiver'].includes(role)) {
+  //     throw new BadRequestException(
+  //       'Invalid role value. Must be "sender" or "receiver".',
+  //     );
+  //   }
+
+  //   const skip = (page - 1) * limit;
+  //   const matchFilter: Record<string, any> = {};
+
+  //   if (userId) {
+  //     if (role === 'sender') {
+  //       matchFilter.senderId = new Types.ObjectId(userId);
+  //     } else if (role === 'receiver') {
+  //       matchFilter['receivers.receiverId'] = new Types.ObjectId(userId);
+  //     } else {
+  //       matchFilter.$or = [
+  //         { senderId: new Types.ObjectId(userId) },
+  //         { 'receivers.receiverId': new Types.ObjectId(userId) },
+  //       ];
+  //     }
+  //   }
+
+  //   const [recognitions, totalCount] = await Promise.all([
+  //     this.recognitionModel.aggregate([
+  //       { $match: matchFilter },
+  //       { $sort: { createdAt: -1 } },
+  //       {
+  //         $lookup: {
+  //           from: 'users',
+  //           localField: 'senderId',
+  //           foreignField: '_id',
+  //           as: 'sender',
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           sender: { $arrayElemAt: ['$sender', 0] },
+  //         },
+  //       },
+  //       {
+  //         $unwind: {
+  //           path: '$receivers',
+  //           preserveNullAndEmptyArrays: true,
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: 'users',
+  //           localField: 'receivers.receiverId',
+  //           foreignField: '_id',
+  //           as: 'receiverDetails',
+  //         },
+  //       },
+  //       {
+  //         $addFields: {
+  //           'receivers.details': { $arrayElemAt: ['$receiverDetails', 0] },
+  //         },
+  //       },
+  //       {
+  //         $lookup: {
+  //           from: 'reactions',
+  //           let: { recognitionId: '$_id' },
+  //           pipeline: [
+  //             {
+  //               $match: {
+  //                 $expr: { $eq: ['$recognitionId', '$$recognitionId'] },
+  //               },
+  //             },
+  //             {
+  //               $lookup: {
+  //                 from: 'users',
+  //                 localField: 'userId',
+  //                 foreignField: '_id',
+  //                 as: 'user',
+  //               },
+  //             },
+  //             { $unwind: '$user' },
+  //             {
+  //               $group: {
+  //                 _id: '$shortcodes',
+  //                 users: { $push: '$user.name' },
+  //                 count: { $sum: 1 },
+  //               },
+  //             },
+  //             {
+  //               $project: {
+  //                 _id: 0,
+  //                 shortcode: '$_id',
+  //                 users: 1,
+  //                 count: 1,
+  //               },
+  //             },
+  //           ],
+  //           as: 'reactions',
+  //         },
+  //       },
+  //       {
+  //         $group: {
+  //           _id: '$_id',
+  //           message: { $first: '$message' },
+  //           companyValues: { $first: '$companyValues' },
+  //           createdAt: { $first: '$createdAt' },
+  //           isAuto: { $first: '$isAuto' },
+  //           sender: { $first: '$sender' },
+  //           receivers: {
+  //             $push: {
+  //               _id: '$receivers.receiverId',
+  //               coinAmount: '$receivers.coinAmount',
+  //               name: '$receivers.details.name',
+  //               picture: '$receivers.details.picture',
+  //               role: '$receivers.details.role',
+  //             },
+  //           },
+  //           commentCount: { $first: { $size: { $ifNull: ['$comments', []] } } },
+  //           reactions: { $first: '$reactions' },
+  //         },
+  //       },
+  //       { $sort: { createdAt: -1 } },
+  //       { $skip: skip },
+  //       { $limit: limit },
+  //     ]),
+  //     this.recognitionModel.countDocuments(matchFilter),
+  //   ]);
+
+  //   return {
+  //     data: recognitions,
+  //     meta: {
+  //       totalCount,
+  //       page,
+  //       limit,
+  //       totalPages: Math.ceil(totalCount / limit),
+  //     },
+  //   };
+  // }
   async getAllRecognitions(
     page: number,
     limit: number,
@@ -362,6 +508,7 @@ export class RecognitionService {
             createdAt: { $first: '$createdAt' },
             isAuto: { $first: '$isAuto' },
             sender: { $first: '$sender' },
+            giphyUrl: { $first: '$giphyUrl' }, // Add giphyUrl here
             receivers: {
               $push: {
                 _id: '$receivers.receiverId',

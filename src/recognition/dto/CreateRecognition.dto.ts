@@ -10,6 +10,8 @@ import {
   IsPositive,
   ValidateNested,
   Min,
+  Matches,
+  IsUrl,
 } from 'class-validator';
 import { CompanyValues } from 'src/constants/companyValues';
 
@@ -39,4 +41,12 @@ export class CreateRecognitionDto {
   @IsArray()
   @IsEnum(CompanyValues, { each: true })
   companyValues?: CompanyValues[];
+
+  @IsOptional()
+  @IsString()
+  @Matches(/^https:\/\/media\.giphy\.com\/media\/.+\.(gif|mp4)$/, {
+    message: 'Invalid Giphy URL',
+  })
+  @IsUrl()
+  giphyUrl?: string;
 }
