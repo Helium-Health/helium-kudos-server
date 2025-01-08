@@ -7,16 +7,25 @@ import { AdminGuard } from 'src/auth/guards/admin.guard';
 export class LeaderboardController {
   constructor(private readonly leaderboardService: LeaderboardService) {}
 
-  @UseGuards(AdminGuard)
-  @Get('top-givers')
-  async getTopGivers() {
-    return this.leaderboardService.getTopGivers();
-  }
+  @UseGuards(JwtAuthGuard)
+  @Get('top-users')
+  async getTopUsers(
+    @Query('year') year?: number,
+    @Query('month') month?: number,
+    @Query('filterBy') filterBy: 'sender' | 'receiver' = 'sender',
+  ) {
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1;
 
-  @UseGuards(AdminGuard)
-  @Get('top-receivers')
-  async getTopReceivers() {
-    return this.leaderboardService.getTopReceivers();
+    const effectiveYear = year || currentYear;
+    const effectiveMonth = month || currentMonth;
+
+    return this.leaderboardService.topUsers(
+      effectiveYear,
+      filterBy,
+      effectiveMonth,
+    );
   }
 
   @UseGuards(AdminGuard)

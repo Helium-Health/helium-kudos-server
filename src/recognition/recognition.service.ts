@@ -703,4 +703,151 @@ export class RecognitionService {
       monthlyDetails,
     };
   }
+
+  private getStartAndEndDates(
+    year: number,
+    month?: number,
+  ): { startDate: Date; endDate: Date } {
+    let startDate: Date, endDate: Date;
+
+    if (month) {
+      startDate = new Date(year, month - 1, 1); // Start of the month
+      endDate = new Date(year, month, 0, 23, 59, 59); // End of the month
+    } else {
+      startDate = new Date(year, 0, 1); // Start of the year
+      endDate = new Date(year, 11, 31, 23, 59, 59); // End of the year
+    }
+
+    return { startDate, endDate };
+  }
+
+  async topUsers(
+    year: number,
+    filterBy: 'sender' | 'receiver' = 'sender',
+    month?: number,
+  ) {
+    const { startDate, endDate } = this.getStartAndEndDates(year, month);
+
+    const predefinedCompanyValues = Object.values(CompanyValues);
+
+    if (filterBy === 'sender') {
+      const topSenders = await this.recognitionModel.aggregate([
+        { $match: { createdAt: { $gte: startDate, $lte: endDate } } },
+        { $unwind: '$receivers' },
+        {
+          $group: {
+            _id: '$senderId',
+            totalRecognitionsGiven: { $sum: 1 },
+            totalCoinsGiven: { $sum: '$receivers.coinAmount' },
+            companyValuesGiven: { $push: '$companyValues' },
+          },
+        },
+        { $sort: { totalRecognitionsGiven: -1 } },
+        { $limit: 10 },
+        {
+          $lookup: {
+            from: 'users',
+            localField: '_id',
+            foreignField: '_id',
+            as: 'senderDetails',
+          },
+        },
+        {
+          $unwind: { path: '$senderDetails', preserveNullAndEmptyArrays: true },
+        },
+      ]);
+
+      const topSendersWithCompanyValues = topSenders.map((sender) => {
+        const companyValuesGiven = sender.companyValuesGiven.flat();
+        const valueObject = companyValuesGiven.reduce((acc, companyValue) => {
+          if (predefinedCompanyValues.includes(companyValue)) {
+            acc[companyValue] = (acc[companyValue] || 0) + 1;
+          } else {
+            acc['others'] = (acc['others'] || 0) + 1;
+          }
+          return acc;
+        }, {});
+
+        return {
+          senderId: sender._id,
+          name: sender.senderDetails?.name,
+          email: sender.senderDetails?.email,
+          picture: sender.senderDetails?.picture,
+          totalRecognitionsGiven: sender.totalRecognitionsGiven,
+          totalCoinsGiven: sender.totalCoinsGiven,
+          companyValuesGivenCount: {
+            [CompanyValues.Simplicity]:
+              valueObject[CompanyValues.Simplicity] || 0,
+            [CompanyValues.Boldness]: valueObject[CompanyValues.Boldness] || 0,
+            [CompanyValues.Innovation]:
+              valueObject[CompanyValues.Innovation] || 0,
+            [CompanyValues.Camaraderie]:
+              valueObject[CompanyValues.Camaraderie] || 0,
+            others: valueObject['others'] || 0,
+          },
+        };
+      });
+
+      return { topRecognitionSenders: topSendersWithCompanyValues };
+    }
+
+    const topReceivers = await this.recognitionModel.aggregate([
+      { $match: { createdAt: { $gte: startDate, $lte: endDate } } },
+      { $unwind: '$receivers' },
+      {
+        $group: {
+          _id: '$receivers.receiverId',
+          totalRecognitionsReceived: { $sum: 1 },
+          totalCoinsReceived: { $sum: '$receivers.coinAmount' },
+          companyValuesReceived: { $push: '$companyValues' },
+        },
+      },
+      { $sort: { totalRecognitionsReceived: -1 } },
+      { $limit: 10 },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'receiverDetails',
+        },
+      },
+      {
+        $unwind: { path: '$receiverDetails', preserveNullAndEmptyArrays: true },
+      },
+    ]);
+
+    const topReceiversWithCompanyValues = topReceivers.map((receiver) => {
+      const companyValuesReceived = receiver.companyValuesReceived.flat();
+      const valueObject = companyValuesReceived.reduce((acc, companyValue) => {
+        if (predefinedCompanyValues.includes(companyValue)) {
+          acc[companyValue] = (acc[companyValue] || 0) + 1;
+        } else {
+          acc['others'] = (acc['others'] || 0) + 1;
+        }
+        return acc;
+      }, {});
+
+      return {
+        receiverId: receiver._id,
+        name: receiver.receiverDetails?.name,
+        email: receiver.receiverDetails?.email,
+        picture: receiver.receiverDetails?.picture,
+        totalRecognitionsReceived: receiver.totalRecognitionsReceived,
+        totalCoinsReceived: receiver.totalCoinsReceived,
+        companyValuesReceivedCount: {
+          [CompanyValues.Simplicity]:
+            valueObject[CompanyValues.Simplicity] || 0,
+          [CompanyValues.Boldness]: valueObject[CompanyValues.Boldness] || 0,
+          [CompanyValues.Innovation]:
+            valueObject[CompanyValues.Innovation] || 0,
+          [CompanyValues.Camaraderie]:
+            valueObject[CompanyValues.Camaraderie] || 0,
+          others: valueObject['others'] || 0,
+        },
+      };
+    });
+
+    return { topRecognitionReceivers: topReceiversWithCompanyValues };
+  }
 }
