@@ -54,6 +54,10 @@ export class UpdateMissionDto {
   endDate?: string;
 
   @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @IsOptional()
   @IsString()
   status?: string;
 }

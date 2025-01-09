@@ -58,6 +58,9 @@ export class MissionService {
     if (updateMissionDto.maxParticipants !== undefined) {
       mission.maxParticipants = updateMissionDto.maxParticipants;
     }
+    if (updateMissionDto.startDate !== undefined) {
+      mission.startDate = new Date(updateMissionDto.startDate);
+    }
     if (updateMissionDto.endDate !== undefined) {
       mission.endDate = new Date(updateMissionDto.endDate);
     }
