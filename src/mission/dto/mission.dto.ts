@@ -38,6 +38,10 @@ export class CreateMissionDto {
 
 export class UpdateMissionDto {
   @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
   @IsNumber()
   pointValue?: number;
 

@@ -36,7 +36,7 @@ export class MissionService {
     const mission = new this.missionModel({
       ...createMissionDto,
       startDate: new Date(createMissionDto.startDate),
-      endDate: new Date(createMissionDto.startDate),
+      endDate: new Date(createMissionDto.endDate),
     });
     return mission.save();
   }
@@ -46,6 +46,10 @@ export class MissionService {
 
     if (!mission) {
       throw new NotFoundException(`Mission with ID ${missionId} not found`);
+    }
+
+    if (updateMissionDto.name !== undefined) {
+      mission.name = updateMissionDto.name;
     }
 
     if (updateMissionDto.pointValue !== undefined) {

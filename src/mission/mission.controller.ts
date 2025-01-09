@@ -25,13 +25,13 @@ import { Types } from 'mongoose';
 export class MissionController {
   constructor(private readonly missionService: MissionService) {}
 
-  @UseGuards(AdminGuard) //
+  @UseGuards(AdminGuard)
   @Post()
   create(@Body() createMissionDto: CreateMissionDto) {
     return this.missionService.create(createMissionDto);
   }
 
-  @UseGuards(JwtAuthGuard) //
+  @UseGuards(AdminGuard)
   @Patch(':id')
   async updateMission(
     @Param('id') missionId: string,
@@ -65,7 +65,7 @@ export class MissionController {
     });
   }
 
-  @UseGuards(JwtAuthGuard) //
+  @UseGuards(AdminGuard)
   @Patch(':missionId/assign-points')
   async assignPointsToParticipants(
     @Param('missionId') missionId: string,
@@ -77,7 +77,7 @@ export class MissionController {
     );
   }
 
-  @UseGuards(JwtAuthGuard) //
+  @UseGuards(AdminGuard)
   @Get(':id/participants')
   async getMissionParticipants(@Param('id') missionId: string) {
     return await this.missionService.getMissionParticipants(
@@ -85,7 +85,7 @@ export class MissionController {
     );
   }
 
-  @UseGuards(JwtAuthGuard) //
+  @UseGuards(AdminGuard)
   async updateMissionWinners(
     @Param('missionId') missionId: string,
     @Body() updateWinnersDto: UpdateWinnersDto,
@@ -96,7 +96,7 @@ export class MissionController {
     );
   }
 
-  @UseGuards(JwtAuthGuard) //
+  @UseGuards(AdminGuard)
   @Delete(':id')
   async deleteMission(@Param('id') missionId: string) {
     return await this.missionService.deleteMission(
