@@ -25,7 +25,7 @@ import { Types } from 'mongoose';
 export class MissionController {
   constructor(private readonly missionService: MissionService) {}
 
-  @UseGuards(JwtAuthGuard) //
+  @UseGuards(AdminGuard) //
   @Post()
   create(@Body() createMissionDto: CreateMissionDto) {
     return this.missionService.create(createMissionDto);
@@ -47,7 +47,7 @@ export class MissionController {
     return await this.missionService.addParticipant(missionId, userId);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AdminGuard)
   @Get()
   async getAllMissions(
     @Query('status') status?: string,
