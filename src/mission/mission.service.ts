@@ -135,6 +135,8 @@ export class MissionService {
         startDate: 1,
         endDate: 1,
         status: 1,
+        pointValue: 1,
+        maxParticipants: 1,
         participants: {
           $map: {
             input: '$participants',
