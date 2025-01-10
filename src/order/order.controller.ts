@@ -73,7 +73,6 @@ export class OrderController {
     return response;
   }
 
-  // @UseGuards(AdminGuard)
   @Patch(':orderId/deliver')
   async deliverOrder(
     @Request() req,

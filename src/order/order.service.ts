@@ -223,15 +223,6 @@ export class OrderService {
     session.startTransaction();
 
     try {
-      for (const orderItem of order.items) {
-        await this.productService.deductStock(
-          orderItem.productId,
-          orderItem.variants,
-          orderItem.quantity,
-          session,
-        );
-      }
-
       order.status = OrderStatus.IN_PROGRESS;
       order.expectedDeliveryDate = new Date(expectedDeliveryDate);
       await order.save({ session });
@@ -323,19 +314,6 @@ export class OrderService {
       order.deliveredAt = new Date();
       order.deliveredBy = userId;
       await order.save({ session });
-
-      await this.transactionService.recordCreditTransaction(
-        {
-          receiverId: order.userId,
-          amount: order.totalAmount,
-          entityType: EntityType.ORDER,
-          entityId: order.id,
-          senderId: order.userId,
-          status: transactionStatus.SUCCESS,
-          claimId: order.id,
-        },
-        session,
-      );
 
       await session.commitTransaction();
 
