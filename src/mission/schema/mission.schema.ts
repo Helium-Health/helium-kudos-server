@@ -38,6 +38,12 @@ export class Mission {
   @Prop({ required: true })
   name: string;
 
+  @Prop({ required: true })
+  description: string;
+
+  @Prop({ required: true })
+  author: Types.ObjectId;
+
   @Prop({ required: true, type: Date })
   startDate: Date;
 

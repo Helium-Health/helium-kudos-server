@@ -16,6 +16,12 @@ export class CreateMissionDto {
   @IsString()
   name: string;
 
+  @IsMongoId()
+  author: Types.ObjectId;
+
+  @IsString()
+  description: string;
+
   @IsDateString()
   startDate: Date;
 
@@ -41,6 +47,9 @@ export class UpdateMissionDto {
   @IsString()
   name?: string;
 
+  @IsString()
+  description: string;
+
   @IsOptional()
   @IsNumber()
   pointValue?: number;
@@ -51,11 +60,11 @@ export class UpdateMissionDto {
 
   @IsOptional()
   @IsDateString()
-  endDate?: string;
+  startDate?: string;
 
   @IsOptional()
   @IsDateString()
-  startDate?: string;
+  endDate?: string;
 
   @IsOptional()
   @IsString()

@@ -52,6 +52,10 @@ export class MissionService {
       mission.name = updateMissionDto.name;
     }
 
+    if (updateMissionDto.name !== undefined) {
+      mission.description = updateMissionDto.description;
+    }
+
     if (updateMissionDto.pointValue !== undefined) {
       mission.pointValue = updateMissionDto.pointValue;
     }
@@ -83,6 +87,135 @@ export class MissionService {
     return mission;
   }
 
+  //  async getAllMissions(filter: {
+  //     status?: string;
+  //     page?: number;
+  //     limit?: number;
+  //     upcoming?: boolean;
+  //     startDate?: string;
+  //   }) {
+  //     const { status, page = 1, limit = 10, upcoming, startDate } = filter;
+  //     const skip = (page - 1) * limit;
+  //     const now = new Date();
+
+  //     const pipeline: any[] = [];
+
+  //     if (status) {
+  //       pipeline.push({
+  //         $match: { status },
+  //       });
+  //     }
+
+  //     if (upcoming) {
+  //       const upcomingStartDate = startDate ? new Date(startDate) : now;
+  //       pipeline.push({
+  //         $match: {
+  //           startDate: { $gt: upcomingStartDate },
+  //         },
+  //       });
+  //     }
+
+  //     pipeline.push({
+  //       $sort: { startDate: 1 },
+  //     });
+
+  //     pipeline.push({ $skip: skip }, { $limit: limit });
+
+  //     pipeline.push({
+  //       $lookup: {
+  //         from: 'users',
+  //         localField: 'participants.participantId',
+  //         foreignField: '_id',
+  //         as: 'participantDetails',
+  //       },
+  //     });
+
+  //     pipeline.push({
+  //       $lookup: {
+  //         from: 'users',
+  //         localField: 'winners.winnerId',
+  //         foreignField: '_id',
+  //         as: 'winnerDetails',
+  //       },
+  //     });
+
+  //     pipeline.push({
+  //       $project: {
+  //         _id: 1,
+  //         name: 1,
+  //         startDate: 1,
+  //         endDate: 1,
+  //         status: 1,
+  //         pointValue: 1,
+  //         maxParticipants: 1,
+  //         participants: {
+  //           $map: {
+  //             input: '$participants',
+  //             as: 'participant',
+  //             in: {
+  //               participantId: '$$participant.participantId',
+  //               points: '$$participant.points',
+  //               rank: '$$participant.rank',
+  //               details: {
+  //                 $arrayElemAt: [
+  //                   {
+  //                     $filter: {
+  //                       input: '$participantDetails',
+  //                       as: 'user',
+  //                       cond: {
+  //                         $eq: ['$$user._id', '$$participant.participantId'],
+  //                       },
+  //                     },
+  //                   },
+  //                   0,
+  //                 ],
+  //               },
+  //             },
+  //           },
+  //         },
+  //         winners: {
+  //           $map: {
+  //             input: '$winners',
+  //             as: 'winner',
+  //             in: {
+  //               winnerId: '$$winner.winnerId',
+  //               points: '$$winner.points',
+  //               coinAmount: '$$winner.coinAmount',
+  //               rank: '$$winner.rank',
+  //               details: {
+  //                 $arrayElemAt: [
+  //                   {
+  //                     $filter: {
+  //                       input: '$winnerDetails',
+  //                       as: 'user',
+  //                       cond: {
+  //                         $eq: ['$$user._id', '$$winner.winnerId'],
+  //                       },
+  //                     },
+  //                   },
+  //                   0,
+  //                 ],
+  //               },
+  //             },
+  //           },
+  //         },
+  //       },
+  //     });
+
+  //     const missions = await this.missionModel.aggregate(pipeline);
+
+  //     const totalMissions = await this.missionModel.countDocuments(
+  //       pipeline.length > 0 && pipeline[0].$match ? pipeline[0].$match : {},
+  //     );
+
+  //     return {
+  //       missions,
+  //       total: totalMissions,
+  //       page,
+  //       totalPages: Math.ceil(totalMissions / limit),
+  //     };
+  //   }
+
   async getAllMissions(filter: {
     status?: string;
     page?: number;
@@ -96,12 +229,14 @@ export class MissionService {
 
     const pipeline: any[] = [];
 
+    // Match by status if provided
     if (status) {
       pipeline.push({
         $match: { status },
       });
     }
 
+    // Filter by upcoming start date if required
     if (upcoming) {
       const upcomingStartDate = startDate ? new Date(startDate) : now;
       pipeline.push({
@@ -111,12 +246,15 @@ export class MissionService {
       });
     }
 
+    // Sort missions by start date
     pipeline.push({
       $sort: { startDate: 1 },
     });
 
+    // Paginate results
     pipeline.push({ $skip: skip }, { $limit: limit });
 
+    // Lookup participant details
     pipeline.push({
       $lookup: {
         from: 'users',
@@ -126,6 +264,7 @@ export class MissionService {
       },
     });
 
+    // Lookup winner details
     pipeline.push({
       $lookup: {
         from: 'users',
@@ -135,15 +274,30 @@ export class MissionService {
       },
     });
 
+    // Lookup author details
+    pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'author',
+        foreignField: '_id',
+        as: 'authorDetails',
+      },
+    });
+
+    // Project required fields
     pipeline.push({
       $project: {
         _id: 1,
         name: 1,
+        description: 1,
         startDate: 1,
         endDate: 1,
         status: 1,
         pointValue: 1,
         maxParticipants: 1,
+        author: {
+          $arrayElemAt: ['$authorDetails', 0],
+        },
         participants: {
           $map: {
             input: '$participants',
