@@ -6,7 +6,7 @@ export type OrderDocument = Document & Order;
 export enum OrderStatus {
   NEW = 'new',
   IN_PROGRESS = 'in_progress',
-  DELIVERED = 'delievered',
+  DELIVERED = 'delivered',
   REJECTED = 'rejected',
   CANCELED = 'canceled',
 }
@@ -60,6 +60,9 @@ export class Order {
 
   @Prop({ type: Date, default: null })
   deliveredAt: Date;
+
+  @Prop({ type: Types.ObjectId, default: null, ref: 'User' })
+  deliveredBy: Types.ObjectId;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

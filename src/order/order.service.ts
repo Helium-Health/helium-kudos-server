@@ -213,7 +213,7 @@ export class OrderService {
       throw new BadRequestException('Order not found');
     }
 
-    if (order.status !== 'new') {
+    if (order.status !== OrderStatus.NEW) {
       throw new BadRequestException(
         'Only new orders can be marked as in progress',
       );
@@ -300,7 +300,10 @@ export class OrderService {
     }
   }
 
-  async deliverOrder(orderId: Types.ObjectId): Promise<any> {
+  async deliverOrder(
+    orderId: Types.ObjectId,
+    userId: Types.ObjectId,
+  ): Promise<any> {
     const order = await this.findById(orderId);
     if (!order) {
       throw new BadRequestException('Order not found');
@@ -318,6 +321,7 @@ export class OrderService {
     try {
       order.status = OrderStatus.DELIVERED;
       order.deliveredAt = new Date();
+      order.deliveredBy = userId;
       await order.save({ session });
 
       await this.transactionService.recordCreditTransaction(

@@ -75,8 +75,12 @@ export class OrderController {
 
   // @UseGuards(AdminGuard)
   @Patch(':orderId/deliver')
-  async deliverOrder(@Param('orderId') orderId: Types.ObjectId) {
-    const response = await this.orderService.deliverOrder(orderId);
+  async deliverOrder(
+    @Request() req,
+    @Param('orderId') orderId: Types.ObjectId,
+  ) {
+    const userId = req.user.userId;
+    const response = await this.orderService.deliverOrder(orderId, userId);
     return response;
   }
 }
