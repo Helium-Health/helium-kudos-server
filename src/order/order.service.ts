@@ -103,7 +103,7 @@ export class OrderService {
         userId: new Types.ObjectId(userId),
         items: orderItems,
         totalAmount,
-        status: OrderStatus.PENDING,
+        status: OrderStatus.NEW,
       });
 
       await order.save({ session });
@@ -204,14 +204,19 @@ export class OrderService {
     return this.orderModel.findById(orderId);
   }
 
-  async approveOrder(orderId: Types.ObjectId): Promise<any> {
+  async markOrderInProgress(
+    orderId: Types.ObjectId,
+    expectedDeliveryDate: string,
+  ): Promise<any> {
     const order = await this.findById(orderId);
     if (!order) {
       throw new BadRequestException('Order not found');
     }
 
-    if (order.status !== 'pending') {
-      throw new BadRequestException('Only pending orders can be approved');
+    if (order.status !== 'new') {
+      throw new BadRequestException(
+        'Only new orders can be marked as in progress',
+      );
     }
 
     const session = await this.orderModel.db.startSession();
@@ -227,16 +232,22 @@ export class OrderService {
         );
       }
 
-      order.status = OrderStatus.APPROVED;
+      order.status = OrderStatus.IN_PROGRESS;
+      order.expectedDeliveryDate = new Date(expectedDeliveryDate);
       await order.save({ session });
 
       await session.commitTransaction();
 
-      return { message: 'Order approved successfully', order };
+      return {
+        message: 'Order status updated to in progress successfully',
+        order,
+      };
     } catch (error) {
-      console.error('Error approving order:', error);
+      console.error('Error updating order status to in progress:', error);
       await session.abortTransaction();
-      throw new BadRequestException('Order approval failed');
+      throw new BadRequestException(
+        'Failed to update order status to in progress',
+      );
     } finally {
       session.endSession();
     }
@@ -247,8 +258,9 @@ export class OrderService {
     if (!order) {
       throw new BadRequestException('Order not found');
     }
-    if (order.status !== 'pending') {
-      throw new BadRequestException('Only pending orders can be rejected');
+
+    if (![OrderStatus.NEW, OrderStatus.IN_PROGRESS].includes(order.status)) {
+      throw new BadRequestException('Only new orders can be rejected.');
     }
     const session = await this.orderModel.db.startSession();
     session.startTransaction();
@@ -288,6 +300,54 @@ export class OrderService {
     }
   }
 
+  async deliverOrder(orderId: Types.ObjectId): Promise<any> {
+    const order = await this.findById(orderId);
+    if (!order) {
+      throw new BadRequestException('Order not found');
+    }
+
+    if (order.status !== OrderStatus.IN_PROGRESS) {
+      throw new BadRequestException(
+        'Only orders in progress can be marked as delivered.',
+      );
+    }
+
+    const session = await this.orderModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      order.status = OrderStatus.DELIVERED;
+      order.deliveredAt = new Date();
+      await order.save({ session });
+
+      await this.transactionService.recordCreditTransaction(
+        {
+          receiverId: order.userId,
+          amount: order.totalAmount,
+          entityType: EntityType.ORDER,
+          entityId: order.id,
+          senderId: order.userId,
+          status: transactionStatus.SUCCESS,
+          claimId: order.id,
+        },
+        session,
+      );
+
+      await session.commitTransaction();
+
+      return {
+        message: 'Order marked as delivered successfully',
+        order,
+      };
+    } catch (error) {
+      console.error('Failed to mark order as delivered', error);
+      await session.abortTransaction();
+      throw new BadRequestException('Failed to mark order as delivered');
+    } finally {
+      session.endSession();
+    }
+  }
+
   async cancelOrder(
     orderId: Types.ObjectId,
     userId: Types.ObjectId,
@@ -303,6 +363,10 @@ export class OrderService {
 
       if (!order.userId || order.userId.toString() !== userId.toString()) {
         throw new BadRequestException('You can only cancel your own orders');
+      }
+
+      if (![OrderStatus.NEW, OrderStatus.IN_PROGRESS].includes(order.status)) {
+        throw new BadRequestException('Only new orders can be cancelled.');
       }
 
       await this.walletService.refundEarnedBalance(
