@@ -16,9 +16,6 @@ export class CreateMissionDto {
   @IsString()
   name: string;
 
-  @IsMongoId()
-  author: Types.ObjectId;
-
   @IsString()
   description: string;
 

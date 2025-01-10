@@ -27,8 +27,9 @@ export class MissionController {
 
   @UseGuards(AdminGuard)
   @Post()
-  create(@Body() createMissionDto: CreateMissionDto) {
-    return this.missionService.create(createMissionDto);
+  create(@Body() createMissionDto: CreateMissionDto, @Request() req: any) {
+    const userId = new Types.ObjectId(req.user.userId);
+    return this.missionService.create(createMissionDto, userId);
   }
 
   @UseGuards(AdminGuard)
@@ -86,6 +87,7 @@ export class MissionController {
   }
 
   @UseGuards(AdminGuard)
+  @Patch(':missionId/winners')
   async updateMissionWinners(
     @Param('missionId') missionId: string,
     @Body() updateWinnersDto: UpdateWinnersDto,
