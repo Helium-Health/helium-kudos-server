@@ -38,6 +38,7 @@ export class Mission {
   @Prop({ required: true })
   name: string;
 
+  
   @Prop({ required: true, type: Date })
   startDate: Date;
 

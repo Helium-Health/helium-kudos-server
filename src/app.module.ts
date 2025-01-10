@@ -22,6 +22,7 @@ import { StorageModule } from './storage/storage.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { MissionModule } from './mission/mission.module';
 import { FeedbackModule } from './feedback/feedback.module';
+import { DepartmentModule } from './department/department.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { FeedbackModule } from './feedback/feedback.module';
     LeaderboardModule,
     MissionModule,
     FeedbackModule,
+    DepartmentModule,
   ],
   controllers: [],
   providers: [],
