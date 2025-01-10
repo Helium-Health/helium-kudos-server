@@ -219,15 +219,10 @@ export class OrderService {
       );
     }
 
-    const session = await this.orderModel.db.startSession();
-    session.startTransaction();
-
     try {
       order.status = OrderStatus.IN_PROGRESS;
       order.expectedDeliveryDate = new Date(expectedDeliveryDate);
-      await order.save({ session });
-
-      await session.commitTransaction();
+      await order.save();
 
       return {
         message: 'Order status updated to in progress successfully',
@@ -235,12 +230,9 @@ export class OrderService {
       };
     } catch (error) {
       console.error('Error updating order status to in progress:', error);
-      await session.abortTransaction();
       throw new BadRequestException(
         'Failed to update order status to in progress',
       );
-    } finally {
-      session.endSession();
     }
   }
 
@@ -306,16 +298,11 @@ export class OrderService {
       );
     }
 
-    const session = await this.orderModel.db.startSession();
-    session.startTransaction();
-
     try {
       order.status = OrderStatus.DELIVERED;
       order.deliveredAt = new Date();
       order.deliveredBy = userId;
-      await order.save({ session });
-
-      await session.commitTransaction();
+      await order.save();
 
       return {
         message: 'Order marked as delivered successfully',
@@ -323,10 +310,7 @@ export class OrderService {
       };
     } catch (error) {
       console.error('Failed to mark order as delivered', error);
-      await session.abortTransaction();
       throw new BadRequestException('Failed to mark order as delivered');
-    } finally {
-      session.endSession();
     }
   }
 
