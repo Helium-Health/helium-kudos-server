@@ -376,6 +376,16 @@ export class MissionService {
     missionId: Types.ObjectId,
     updateWinnersDto: UpdateWinnersDto,
   ) {
+    const mission = await this.missionModel.findById(
+      new Types.ObjectId(missionId),
+    );
+
+    if (mission.status == MissionStatus.COMPLETED) {
+      throw new Error(
+        'Cannot Assign Coin to Winners, Mission is already completed',
+      );
+    }
+
     const session: ClientSession = await this.missionModel.db.startSession();
 
     try {
