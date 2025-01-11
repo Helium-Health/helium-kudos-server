@@ -19,7 +19,7 @@ export class CreateCommentDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^https:\/\/media\.giphy\.com\/media\/.+\.(gif|mp4)$/, {
+  @Matches(/^https:\/\/(?:media\d*\.)?giphy\.com\/media\/.+\.(gif|mp4)$/, {
     message: 'Invalid Giphy URL',
   })
   @IsUrl()
