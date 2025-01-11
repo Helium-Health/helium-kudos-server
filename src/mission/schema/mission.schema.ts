@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 export enum MissionStatus {
-  UPCOMING = 'pending',
+  UPCOMING = 'upcoming',
   ONGOING = 'ongoing',
   COMPLETED = 'completed',
   CANCELED = 'canceled',
