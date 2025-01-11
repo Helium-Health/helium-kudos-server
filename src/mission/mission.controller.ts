@@ -32,7 +32,7 @@ export class MissionController {
     return this.missionService.create(createMissionDto, userId);
   }
 
-  @UseGuards(AdminGuard)
+  // @UseGuards(AdminGuard)
   @Patch(':id')
   async updateMission(
     @Param('id') missionId: string,
@@ -48,7 +48,10 @@ export class MissionController {
     return await this.missionService.addParticipant(missionId, userId);
   }
 
-  @UseGuards(JwtAuthGuard, AdminGuard)
+  @UseGuards(
+    JwtAuthGuard,
+    // AdminGuard
+  )
   @Get()
   async getAllMissions(
     @Query('status') status?: string,
@@ -66,7 +69,7 @@ export class MissionController {
     });
   }
 
-  @UseGuards(AdminGuard)
+  // @UseGuards(AdminGuard)
   @Patch(':missionId/assign-points')
   async assignPointsToParticipants(
     @Param('missionId') missionId: string,
@@ -78,7 +81,7 @@ export class MissionController {
     );
   }
 
-  @UseGuards(AdminGuard)
+  // @UseGuards(AdminGuard)
   @Get(':id/participants')
   async getMissionParticipants(@Param('id') missionId: string) {
     return await this.missionService.getMissionParticipants(
@@ -86,7 +89,7 @@ export class MissionController {
     );
   }
 
-  @UseGuards(AdminGuard)
+  // @UseGuards(AdminGuard)
   @Patch(':missionId/winners')
   async updateMissionWinners(
     @Param('missionId') missionId: string,
@@ -98,7 +101,7 @@ export class MissionController {
     );
   }
 
-  @UseGuards(AdminGuard)
+  // @UseGuards(AdminGuard)
   @Delete(':id')
   async deleteMission(@Param('id') missionId: string) {
     return await this.missionService.deleteMission(

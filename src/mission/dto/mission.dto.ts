@@ -45,6 +45,7 @@ export class UpdateMissionDto {
   name?: string;
 
   @IsString()
+  @IsOptional()
   description: string;
 
   @IsOptional()
