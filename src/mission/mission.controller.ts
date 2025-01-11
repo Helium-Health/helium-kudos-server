@@ -25,7 +25,7 @@ import { Types } from 'mongoose';
 export class MissionController {
   constructor(private readonly missionService: MissionService) {}
 
-  @UseGuards(AdminGuard)
+  // @UseGuards(AdminGuard)
   @Post()
   create(@Body() createMissionDto: CreateMissionDto, @Request() req: any) {
     const userId = new Types.ObjectId(req.user.userId);
