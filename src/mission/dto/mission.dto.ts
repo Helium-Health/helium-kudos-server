@@ -35,7 +35,7 @@ export class CreateMissionDto {
   participants: Types.ObjectId[];
 
   @IsString()
-  @IsEnum(['pending', 'active', 'completed', 'canceled'])
+  @IsEnum(['upcoming', 'ongoing', 'completed', 'canceled'])
   status: string;
 }
 
