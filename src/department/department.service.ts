@@ -1,13 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { CreateDepartmentDto, UpdateDepartmentDto } from './dto/department.tdo';
 import { Department, DepartmentDocument } from './schema/department.schema';
 
 @Injectable()
 export class DepartmentService {
   constructor(
-    @InjectModel(Department.name) private departmentModel: Model<DepartmentDocument>,
+    @InjectModel(Department.name)
+    private departmentModel: Model<DepartmentDocument>,
   ) {}
 
   async create(createDepartmentDto: CreateDepartmentDto): Promise<Department> {
@@ -19,15 +20,20 @@ export class DepartmentService {
     return this.departmentModel.find().exec();
   }
 
-  async findOne(id: string): Promise<Department> {
+  async findOne(id: Types.ObjectId): Promise<Department> {
     return this.departmentModel.findById(id).exec();
   }
 
-  async update(id: string, updateDepartmentDto: UpdateDepartmentDto): Promise<Department> {
-    return this.departmentModel.findByIdAndUpdate(id, updateDepartmentDto, { new: true }).exec();
+  async update(
+    id: Types.ObjectId,
+    updateDepartmentDto: UpdateDepartmentDto,
+  ): Promise<Department> {
+    return this.departmentModel
+      .findByIdAndUpdate(id, updateDepartmentDto, { new: true })
+      .exec();
   }
 
-  async delete(id: string): Promise<Department> {
+  async delete(id: Types.ObjectId): Promise<Department> {
     return this.departmentModel.findByIdAndDelete(id).exec();
   }
 }
