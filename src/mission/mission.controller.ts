@@ -25,10 +25,11 @@ import { Types } from 'mongoose';
 export class MissionController {
   constructor(private readonly missionService: MissionService) {}
 
-  @UseGuards(AdminGuard)
+  @UseGuards(JwtAuthGuard)
   @Post()
-  create(@Body() createMissionDto: CreateMissionDto) {
-    return this.missionService.create(createMissionDto);
+  create(@Body() createMissionDto: CreateMissionDto, @Request() req: any) {
+    const userId = new Types.ObjectId(req.user.userId);
+    return this.missionService.create(createMissionDto, userId);
   }
 
   @UseGuards(AdminGuard)
@@ -77,7 +78,6 @@ export class MissionController {
     );
   }
 
-  // @UseGuards(AdminGuard)
   @UseGuards(AdminGuard)
   @Get(':id/participants')
   async getMissionParticipants(@Param('id') missionId: string) {
