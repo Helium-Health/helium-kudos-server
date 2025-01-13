@@ -77,6 +77,7 @@ export class MissionController {
     );
   }
 
+  // @UseGuards(AdminGuard)
   @UseGuards(AdminGuard)
   @Get(':id/participants')
   async getMissionParticipants(@Param('id') missionId: string) {
