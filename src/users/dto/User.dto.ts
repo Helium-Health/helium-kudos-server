@@ -1,5 +1,6 @@
 import { PartialType } from '@nestjs/swagger';
 import {
+  IsArray,
   IsBoolean,
   IsDateString,
   IsEmail,
@@ -53,4 +54,13 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
 export class UpdateUserRoleDto extends PartialType(CreateUserDto) {
   @IsEnum(UserRole)
   role: UserRole;
+}
+
+export class AssignDepartmentDto {
+  @IsArray()
+  @IsNotEmpty({ each: true })
+  userIds: string[];
+
+  @IsNotEmpty()
+  departmentId: string;
 }

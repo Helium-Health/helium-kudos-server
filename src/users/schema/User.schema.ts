@@ -28,7 +28,7 @@ export class User {
   role: UserRole;
 
   @Prop({ type: String, ref: 'Department' })
-  departmentId?: string;
+  departmentId?: Types.ObjectId;
 
   @Prop({ type: Boolean, default: false })
   verified: boolean;

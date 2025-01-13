@@ -153,4 +153,30 @@ export class UsersService {
       },
     };
   }
+
+  async assignToDepartment(
+    userIds: string[],
+    departmentId: string,
+  ): Promise<void> {
+    const objectIds = userIds.map((id) => new Types.ObjectId(id));
+    const departmentObjectId = new Types.ObjectId(departmentId);
+
+    const users = await this.userModel.updateMany(
+      { _id: { $in: objectIds } },
+      { departmentId: departmentObjectId },
+    );
+
+    if (users.matchedCount === 0) {
+      throw new NotFoundException('No users found with the provided IDs.');
+    }
+  }
+
+  async findUsersWithoutDepartment(): Promise<User[]> {
+    return this.userModel.find({ departmentId: { $exists: false } }).exec();
+  }
+
+  async findUsersByDepartment(departmentId: string): Promise<User[]> {
+    const departmentObjectId = new Types.ObjectId(departmentId);
+    return this.userModel.find({ departmentId: departmentObjectId }).exec();
+  }
 }

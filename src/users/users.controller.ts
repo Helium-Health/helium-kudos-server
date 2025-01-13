@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import {
+  AssignDepartmentDto,
   CreateUserDto,
   UpdateUserDto,
   UpdateUserRoleDto,
@@ -68,5 +69,23 @@ export class UsersController {
   @Delete(':id')
   async delete(@Param('id') id: string) {
     return this.usersService.deleteUser(id);
+  }
+
+  @Patch('assign-department')
+  async assignToDepartment(
+    @Body() assignDepartmentDto: AssignDepartmentDto,
+  ): Promise<void> {
+    const { userIds, departmentId } = assignDepartmentDto;
+    await this.usersService.assignToDepartment(userIds, departmentId);
+  }
+
+  @Get('no-department')
+  async findUsersWithoutDepartment(): Promise<User[]> {
+    return this.usersService.findUsersWithoutDepartment();
+  }
+
+  @Get('department/:departmentId')
+  async findUsersByDepartment(@Param('departmentId') departmentId: string): Promise<User[]> {
+    return this.usersService.findUsersByDepartment(departmentId);
   }
 }
