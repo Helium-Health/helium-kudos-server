@@ -41,4 +41,16 @@ jobs:
       #     APP_NAME: helium-kudos-server-staging
       #   run: |
       #     argocd app actions run $APP_NAME restart --kind Deployment --resource-name helium-kudos-server-staging --all
+
+
+      - name: Set up ArgoCD CLI
+        run: |
+          sudo curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          sudo chmod +x /usr/local/bin/argocd
+      - name: ArgoCD Login (Prod)
+        run: |
+          yes | argocd login ${{ vars.ARGOCD_PROD_URL }} --insecure --username ${{ secrets.ARGOCD_USERNAME }} --password  ${{ secrets.ARGOCD_PASSWORD }}
+      - name: ArgoCD Deploy Prod App
+        run: |
+          argocd app actions run helium-kudos-server-prod restart --kind Deployment
           
