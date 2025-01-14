@@ -10,19 +10,20 @@ import { ClaimService } from './claim.service';
 import { Types } from 'mongoose';
 import { Claim } from './schema/claim.schema';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
+import { AdminGuard } from 'src/auth/guards/admin.guard';
 
 @Controller('claim')
 export class ClaimController {
   constructor(private readonly claimService: ClaimService) {}
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AdminGuard)
   @Patch(':id/approve')
   async approveClaim(@Param('id') claimId: Types.ObjectId) {
     await this.claimService.approveClaim(new Types.ObjectId(claimId));
     return { message: 'Claim approved successfully' };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, AdminGuard)
   @Patch(':id/reject')
   async rejectClaim(@Param('id') claimId: Types.ObjectId) {
     await this.claimService.rejectClaim(new Types.ObjectId(claimId));
