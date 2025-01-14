@@ -1,4 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  InternalServerErrorException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { User } from 'src/users/schema/User.schema';
@@ -67,6 +72,29 @@ export class AuthService {
     return this.jwtService.sign(payload);
   }
 
+  async registerUser(
+    email: string,
+    password: string,
+    name: string,
+  ): Promise<User> {
+    try {
+      const hashedPassword = await argon2.hash(password);
+
+      return await this.userService.createUser({
+        email,
+        password: hashedPassword,
+        name,
+        verified: true,
+      });
+    } catch (error) {
+      if (error.code === 11000 && error.keyValue?.email) {
+        throw new ConflictException('A user with this email already exists');
+      }
+
+      throw new InternalServerErrorException('An unexpected error occurred');
+    }
+  }
+
   async validateEmailPassword(
     email: string,
     password: string,
@@ -75,13 +103,14 @@ export class AuthService {
       .findOne({ email })
       .select('+password')
       .exec();
+
     if (!user) {
-      throw new Error('Invalid credentials');
+      throw new UnauthorizedException('Email does not exist!');
     }
 
     const isPasswordValid = await argon2.verify(user.password, password);
     if (!isPasswordValid) {
-      throw new Error('Invalid credentials');
+      throw new UnauthorizedException('Invalid  password!');
     }
 
     const jwtToken = this.generateJwtToken(
@@ -89,20 +118,5 @@ export class AuthService {
     );
 
     return { user, accessToken: jwtToken };
-  }
-
-  async registerUser(
-    email: string,
-    password: string,
-    name: string,
-  ): Promise<User> {
-    const hashedPassword = await argon2.hash(password);
-
-    return this.userService.createUser({
-      email,
-      password: hashedPassword,
-      name,
-      verified: true,
-    });
   }
 }
