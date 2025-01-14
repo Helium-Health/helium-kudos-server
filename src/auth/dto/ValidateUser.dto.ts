@@ -3,6 +3,7 @@ import {
   IsEmail,
   IsNotEmpty,
   IsString,
+  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
@@ -35,7 +36,11 @@ export class LoginDto {
 }
 
 export class RegisterDto {
-  @IsEmail()
+  @IsEmail({}, { message: 'Invalid email format' })
+  @Matches(/^[a-zA-Z0-9._%+-]+@(heliumhealth\.com|healiumhealth\.ng)$/, {
+    message:
+      'Email must be from either heliumhealth.com or healiumhealth.ng domain',
+  })
   email: string;
 
   @IsString()
