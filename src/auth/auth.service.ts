@@ -80,11 +80,15 @@ export class AuthService {
     try {
       const hashedPassword = await argon2.hash(password);
 
-      return await this.userService.createUser({
+      const user = await this.userService.createUser({
         email,
         password: hashedPassword,
         name,
         verified: true,
+      });
+
+      return await this.userModel.findOne({
+        email,
       });
     } catch (error) {
       if (error.code === 11000 && error.keyValue?.email) {
@@ -99,16 +103,20 @@ export class AuthService {
     email: string,
     password: string,
   ): Promise<{ user: User; accessToken: string }> {
-    const user = await this.userModel
+    const userExposed = await this.userModel
       .findOne({ email })
       .select('+password')
       .exec();
+
+    const user = await this.userModel.findOne({
+      email,
+    });
 
     if (!user) {
       throw new UnauthorizedException('Email does not exist!');
     }
 
-    const isPasswordValid = await argon2.verify(user.password, password);
+    const isPasswordValid = await argon2.verify(userExposed.password, password);
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid  password!');
     }
