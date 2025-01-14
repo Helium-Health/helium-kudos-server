@@ -7,6 +7,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  MinLength,
 } from 'class-validator';
 import { UserRole } from 'src/users/schema/User.schema';
 export class CreateUserDto {
@@ -38,6 +39,12 @@ export class CreateUserDto {
 
   @IsOptional()
   coins?: undefined;
+
+  @IsNotEmpty()
+  @IsOptional()
+  @IsString()
+  @MinLength(6)
+  password?: string;
 }
 
 export class UpdateUserDto extends PartialType(CreateUserDto) {
@@ -48,6 +55,12 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsOptional()
   @IsDateString()
   dateOfBirth?: string;
+
+  @IsNotEmpty()
+  @IsOptional()
+  @IsString()
+  @MinLength(6)
+  password: string;
 }
 
 export class UpdateUserRoleDto extends PartialType(CreateUserDto) {

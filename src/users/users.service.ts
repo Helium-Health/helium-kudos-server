@@ -8,6 +8,7 @@ import { Model, Types } from 'mongoose';
 import { User, UserDocument } from 'src/users/schema/User.schema';
 import { CreateUserDto, UpdateUserDto } from './dto/User.dto';
 import { WalletService } from 'src/wallet/wallet.service';
+import * as argon2 from 'argon2';
 
 @Injectable()
 export class UsersService {
@@ -61,8 +62,13 @@ export class UsersService {
 
   async updateUser(
     id: string,
-    updateData: UpdateUserDto,
+    updateData: Partial<UpdateUserDto>,
   ): Promise<User | null> {
+    // If password is provided, hash it before updating
+    if (updateData.password) {
+      updateData.password = await argon2.hash(updateData.password);
+    }
+
     const updatedUser = await this.userModel
       .findByIdAndUpdate(id, updateData, { new: true })
       .exec();
@@ -70,6 +76,7 @@ export class UsersService {
     if (!updatedUser) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
+
     return updatedUser;
   }
 
