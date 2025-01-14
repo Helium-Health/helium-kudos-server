@@ -5,6 +5,7 @@ import { User } from 'src/users/schema/User.schema';
 import { UsersService } from 'src/users/users.service';
 import { OAuth2Client } from 'google-auth-library';
 import { JwtService } from '@nestjs/jwt';
+import * as argon2 from 'argon2';
 @Injectable()
 export class AuthService {
   private oauthClient: OAuth2Client;
@@ -64,5 +65,44 @@ export class AuthService {
   ) {
     const payload = { email: user.email, sub: user._id, role: user.role };
     return this.jwtService.sign(payload);
+  }
+
+  async validateEmailPassword(
+    email: string,
+    password: string,
+  ): Promise<{ user: User; accessToken: string }> {
+    const user = await this.userModel
+      .findOne({ email })
+      .select('+password')
+      .exec();
+    if (!user) {
+      throw new Error('Invalid credentials');
+    }
+
+    const isPasswordValid = await argon2.verify(user.password, password);
+    if (!isPasswordValid) {
+      throw new Error('Invalid credentials');
+    }
+
+    const jwtToken = this.generateJwtToken(
+      user as User & { _id: Types.ObjectId },
+    );
+
+    return { user, accessToken: jwtToken };
+  }
+
+  async registerUser(
+    email: string,
+    password: string,
+    name: string,
+  ): Promise<User> {
+    const hashedPassword = await argon2.hash(password);
+
+    return this.userService.createUser({
+      email,
+      password: hashedPassword,
+      name,
+      verified: true,
+    });
   }
 }
