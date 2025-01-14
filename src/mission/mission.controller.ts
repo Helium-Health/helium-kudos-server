@@ -25,7 +25,7 @@ import { Types } from 'mongoose';
 export class MissionController {
   constructor(private readonly missionService: MissionService) {}
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(AdminGuard)
   @Post()
   create(@Body() createMissionDto: CreateMissionDto, @Request() req: any) {
     const userId = new Types.ObjectId(req.user.userId);
@@ -86,7 +86,7 @@ export class MissionController {
     );
   }
 
-  // @UseGuards(AdminGuard)
+  @UseGuards(AdminGuard)
   async updateMissionWinners(
     @Param('missionId') missionId: string,
     @Body() updateWinnersDto: UpdateWinnersDto,
