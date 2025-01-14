@@ -45,10 +45,17 @@ export class OrderController {
       limitNumber,
     );
   }
+
   @UseGuards(AdminGuard)
-  @Patch(':orderId/approve')
-  async approveOrder(@Param('orderId') orderId: Types.ObjectId) {
-    const response = await this.orderService.approveOrder(orderId);
+  @Patch(':orderId/in-progress')
+  async markOrderInProgress(
+    @Param('orderId') orderId: Types.ObjectId,
+    @Body('expectedDeliveryDate') expectedDeliveryDate: string,
+  ) {
+    const response = await this.orderService.markOrderInProgress(
+      orderId,
+      expectedDeliveryDate,
+    );
     return response;
   }
 
@@ -63,6 +70,16 @@ export class OrderController {
   @Patch(':orderId/reject')
   async rejectOrder(@Param('orderId') orderId: Types.ObjectId) {
     const response = await this.orderService.rejectOrder(orderId);
+    return response;
+  }
+
+  @Patch(':orderId/deliver')
+  async deliverOrder(
+    @Request() req,
+    @Param('orderId') orderId: Types.ObjectId,
+  ) {
+    const userId = req.user.userId;
+    const response = await this.orderService.deliverOrder(orderId, userId);
     return response;
   }
 }
