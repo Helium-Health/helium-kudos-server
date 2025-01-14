@@ -16,6 +16,9 @@ export class CreateMissionDto {
   @IsString()
   name: string;
 
+  @IsString()
+  description: string;
+
   @IsDateString()
   startDate: Date;
 
@@ -32,11 +35,19 @@ export class CreateMissionDto {
   participants: Types.ObjectId[];
 
   @IsString()
-  @IsEnum(['pending', 'active', 'completed', 'canceled'])
+  @IsEnum(['upcoming', 'ongoing', 'completed', 'canceled'])
   status: string;
 }
 
 export class UpdateMissionDto {
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsString()
+  @IsOptional()
+  description: string;
+
   @IsOptional()
   @IsNumber()
   pointValue?: number;
@@ -44,6 +55,10 @@ export class UpdateMissionDto {
   @IsOptional()
   @IsNumber()
   maxParticipants?: number;
+
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
 
   @IsOptional()
   @IsDateString()
