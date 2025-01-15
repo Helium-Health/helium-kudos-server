@@ -8,6 +8,10 @@ export enum UserRole {
   Admin = 'admin',
   User = 'user',
 }
+export enum UserGender {
+  Male = 'male',
+  Female = 'female',
+}
 
 @Schema({ timestamps: true }) // Automatically adds createdAt and updatedAt fields
 export class User {
@@ -16,6 +20,8 @@ export class User {
 
   @Prop({ type: String, required: true })
   name: string;
+
+  @Prop({type: UserGender, enum: Object.values(UserGender)})
 
   @Prop({ type: String })
   picture?: string;
