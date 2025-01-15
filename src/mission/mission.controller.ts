@@ -86,6 +86,7 @@ export class MissionController {
   }
 
   @UseGuards(AdminGuard)
+  @Patch(':missionId/winners')
   async updateMissionWinners(
     @Param('missionId') missionId: string,
     @Body() updateWinnersDto: UpdateWinnersDto,
