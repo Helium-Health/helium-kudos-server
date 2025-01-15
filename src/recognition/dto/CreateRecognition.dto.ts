@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayNotEmpty,
   IsArray,
@@ -43,6 +43,7 @@ export class CreateRecognitionDto {
 
   @IsOptional()
   @IsString()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @Matches(/^https:\/\/(?:media\d*\.)?giphy\.com\/media\/.+\.(gif|mp4)$/, {
     message: 'Invalid Giphy URL',
   })
