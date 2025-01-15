@@ -21,7 +21,8 @@ export class User {
   @Prop({ type: String, required: true })
   name: string;
 
-  @Prop({type: UserGender, enum: Object.values(UserGender)})
+  @Prop({ type: String, enum: Object.values(UserGender) })
+  gender: UserGender;
 
   @Prop({ type: String })
   picture?: string;
