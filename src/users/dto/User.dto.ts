@@ -9,7 +9,7 @@ import {
   IsString,
   MinLength,
 } from 'class-validator';
-import { UserRole } from 'src/users/schema/User.schema';
+import { UserGender, UserRole } from 'src/users/schema/User.schema';
 export class CreateUserDto {
   @IsNotEmpty()
   @IsString()
@@ -55,6 +55,11 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsOptional()
   @IsDateString()
   dateOfBirth?: string;
+
+  @IsOptional()
+  @IsEnum(UserGender)
+  gender?: UserGender;
+
 
   @IsNotEmpty()
   @IsOptional()

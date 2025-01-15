@@ -6,6 +6,8 @@ export type MilestoneDocument = Document & Milestone;
 export enum MilestoneType {
   BIRTHDAY = 'BIRTHDAY',
   WORK_ANNIVERSARY = 'WORK_ANNIVERSARY',
+  INTERNATIONAL_MENS_DAY = 'INTERNATIONAL_MENS_DAY',
+  INTERNATIONAL_WOMENS_DAY = 'INTERNATIONAL_WOMENS_DAY',
 }
 
 @Schema({ timestamps: true })
@@ -24,7 +26,7 @@ export class Milestone {
 
   @Prop({
     type: String,
-    enum: [MilestoneType.BIRTHDAY, MilestoneType.WORK_ANNIVERSARY],
+    enum: Object.values(MilestoneType),
     required: true,
   })
   type: MilestoneType;
