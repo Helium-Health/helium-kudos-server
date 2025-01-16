@@ -50,3 +50,9 @@ export class CreateRecognitionDto {
   @IsUrl()
   giphyUrl?: string;
 }
+
+export class EditRecognitionDto {
+  @IsNotEmpty()
+  @IsString()
+  message: string;
+}
