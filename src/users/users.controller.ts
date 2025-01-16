@@ -51,6 +51,7 @@ export class UsersController {
     const allowedUpdates = {
       dateOfBirth: updateUserDto.dateOfBirth,
       joinDate: updateUserDto.joinDate,
+      gender: updateUserDto.gender,
     };
 
     return this.usersService.updateUser(req.user.userId, allowedUpdates);

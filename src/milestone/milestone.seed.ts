@@ -35,6 +35,22 @@ export class MilestoneSeedService implements OnModuleInit {
           coins: 150,
           isActive: true,
         },
+        {
+          type: MilestoneType.INTERNATIONAL_MENS_DAY,
+          title: "International Men's Day",
+          message:
+            "Happy International Men's Day, {name}! 🎉 Thank you for your strength, kindness, and contributions.",
+          coins: 100,
+          isActive: true,
+        },
+        {
+          type: MilestoneType.INTERNATIONAL_WOMENS_DAY,
+          title: "International Women's Day",
+          message:
+            "Happy International Women's Day, {name}! 🌟 Thank you for your strength, resilience, and invaluable contributions.",
+          coins: 100,
+          isActive: true,
+        },
       ];
 
       await this.milestoneModel.insertMany(defaultMilestones);
