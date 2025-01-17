@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Put,
 } from '@nestjs/common';
@@ -33,7 +34,7 @@ export class DepartmentController {
     return this.departmentService.findOne(new Types.ObjectId(id));
   }
 
-  @Put(':id')
+  @Patch(':id')
   async update(
     @Param('id') id: string,
     @Body() updateDepartmentDto: UpdateDepartmentDto,

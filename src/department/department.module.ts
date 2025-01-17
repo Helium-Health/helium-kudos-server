@@ -3,6 +3,7 @@ import { DepartmentService } from './department.service';
 import { DepartmentController } from './department.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Department, DepartmentSchema } from './schema/department.schema';
+import { DepartmentSeedService } from './department.seed';
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { Department, DepartmentSchema } from './schema/department.schema';
     ]),
   ],
   controllers: [DepartmentController],
-  providers: [DepartmentService],
+  providers: [DepartmentService, DepartmentSeedService],
+  exports: [DepartmentService],
 })
 export class DepartmentModule {}

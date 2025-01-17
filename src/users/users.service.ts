@@ -8,12 +8,14 @@ import { Model, Types } from 'mongoose';
 import { User, UserDocument, UserGender } from 'src/users/schema/User.schema';
 import { CreateUserDto, UpdateUserDto } from './dto/User.dto';
 import { WalletService } from 'src/wallet/wallet.service';
+import { DepartmentService } from 'src/department/department.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     private walletService: WalletService,
+    private departmentService: DepartmentService,
   ) {}
 
   // Method to create a new user
@@ -161,18 +163,30 @@ export class UsersService {
   async assignToDepartment(
     userIds: string[],
     departmentId: string,
-  ): Promise<void> {
+  ): Promise<{ matchedCount: number; modifiedCount: number }> {
     const objectIds = userIds.map((id) => new Types.ObjectId(id));
     const departmentObjectId = new Types.ObjectId(departmentId);
 
-    const users = await this.userModel.updateMany(
+    const department = await this.departmentService.findOne(departmentObjectId);
+    if (!department) {
+      throw new NotFoundException(
+        `Department with ID ${departmentId} not found.`,
+      );
+    }
+
+    const result = await this.userModel.updateMany(
       { _id: { $in: objectIds } },
       { departmentId: departmentObjectId },
     );
 
-    if (users.matchedCount === 0) {
+    if (result.matchedCount === 0) {
       throw new NotFoundException('No users found with the provided IDs.');
     }
+
+    return {
+      matchedCount: result.matchedCount,
+      modifiedCount: result.modifiedCount,
+    };
   }
 
   async findUsersWithoutDepartment(): Promise<User[]> {

@@ -20,7 +20,7 @@ export class DepartmentService {
     return this.departmentModel.find().exec();
   }
 
-  async findOne(id: Types.ObjectId): Promise<Department> {
+  async findOne(id: Types.ObjectId): Promise<Department | DepartmentDocument> {
     return this.departmentModel.findById(id).exec();
   }
 
