@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { User, UserDocument } from 'src/users/schema/User.schema';
+import { User, UserDocument, UserGender } from 'src/users/schema/User.schema';
 import { CreateUserDto, UpdateUserDto } from './dto/User.dto';
 import { WalletService } from 'src/wallet/wallet.service';
 
@@ -107,6 +107,10 @@ export class UsersService {
         },
       })
       .exec();
+  }
+
+  async findUsersByGender(gender: UserGender): Promise<UserDocument[]> {
+    return this.userModel.find({ gender }).exec();
   }
 
   async findUsers(

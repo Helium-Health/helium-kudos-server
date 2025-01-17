@@ -2,8 +2,8 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 export enum MissionStatus {
-  PENDING = 'pending',
-  ACTIVE = 'active',
+  UPCOMING = 'upcoming',
+  ONGOING = 'ongoing',
   COMPLETED = 'completed',
   CANCELED = 'canceled',
 }
@@ -38,6 +38,11 @@ export class Mission {
   @Prop({ required: true })
   name: string;
 
+  @Prop({ required: true })
+  description: string;
+
+  @Prop({ required: true })
+  authorId: Types.ObjectId;
   
   @Prop({ required: true, type: Date })
   startDate: Date;

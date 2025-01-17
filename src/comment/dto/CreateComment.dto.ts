@@ -1,3 +1,4 @@
+import { Transform } from 'class-transformer';
 import {
   IsNotEmpty,
   IsString,
@@ -19,7 +20,8 @@ export class CreateCommentDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^https:\/\/media\.giphy\.com\/media\/.+\.(gif|mp4)$/, {
+  @Transform(({ value }) => (value === '' ? undefined : value))
+  @Matches(/^https:\/\/(?:media\d*\.)?giphy\.com\/media\/.+\.(gif|mp4)$/, {
     message: 'Invalid Giphy URL',
   })
   @IsUrl()

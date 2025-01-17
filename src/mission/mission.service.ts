@@ -32,11 +32,12 @@ export class MissionService {
     private walletService: WalletService,
     private transactionService: TransactionService,
   ) {}
-  create(createMissionDto: CreateMissionDto) {
+  create(createMissionDto: CreateMissionDto, userId: Types.ObjectId) {
     const mission = new this.missionModel({
       ...createMissionDto,
       startDate: new Date(createMissionDto.startDate),
-      endDate: new Date(createMissionDto.startDate),
+      endDate: new Date(createMissionDto.endDate),
+      authorId: userId,
     });
     return mission.save();
   }
@@ -48,11 +49,22 @@ export class MissionService {
       throw new NotFoundException(`Mission with ID ${missionId} not found`);
     }
 
+    if (updateMissionDto.name !== undefined) {
+      mission.name = updateMissionDto.name;
+    }
+
+    if (updateMissionDto.name !== undefined) {
+      mission.description = updateMissionDto.description;
+    }
+
     if (updateMissionDto.pointValue !== undefined) {
       mission.pointValue = updateMissionDto.pointValue;
     }
     if (updateMissionDto.maxParticipants !== undefined) {
       mission.maxParticipants = updateMissionDto.maxParticipants;
+    }
+    if (updateMissionDto.startDate !== undefined) {
+      mission.startDate = new Date(updateMissionDto.startDate);
     }
     if (updateMissionDto.endDate !== undefined) {
       mission.endDate = new Date(updateMissionDto.endDate);
@@ -129,12 +141,38 @@ export class MissionService {
     });
 
     pipeline.push({
+      $lookup: {
+        from: 'users',
+        localField: 'authorId',
+        foreignField: '_id',
+        as: 'authorDetails',
+      },
+    });
+
+    pipeline.push({
       $project: {
         _id: 1,
         name: 1,
+        description: 1,
         startDate: 1,
         endDate: 1,
         status: 1,
+        pointValue: 1,
+        maxParticipants: 1,
+        author: {
+          $let: {
+            vars: {
+              authorDetails: { $arrayElemAt: ['$authorDetails', 0] },
+            },
+            in: {
+              _id: '$authorId',
+              email: '$$authorDetails.email',
+              name: '$$authorDetails.name',
+              role: '$$authorDetails.role',
+              picture: '$$authorDetails.picture',
+            },
+          },
+        },
         participants: {
           $map: {
             input: '$participants',
@@ -338,6 +376,16 @@ export class MissionService {
     missionId: Types.ObjectId,
     updateWinnersDto: UpdateWinnersDto,
   ) {
+    const mission = await this.missionModel.findById(
+      new Types.ObjectId(missionId),
+    );
+
+    if (mission.status == MissionStatus.COMPLETED) {
+      throw new Error(
+        'Cannot Assign Coin to Winners, Mission is already completed',
+      );
+    }
+
     const session: ClientSession = await this.missionModel.db.startSession();
 
     try {

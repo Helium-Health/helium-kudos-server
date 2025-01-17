@@ -103,7 +103,7 @@ export class OrderService {
         userId: new Types.ObjectId(userId),
         items: orderItems,
         totalAmount,
-        status: OrderStatus.PENDING,
+        status: OrderStatus.NEW,
       });
 
       await order.save({ session });
@@ -204,41 +204,35 @@ export class OrderService {
     return this.orderModel.findById(orderId);
   }
 
-  async approveOrder(orderId: Types.ObjectId): Promise<any> {
+  async markOrderInProgress(
+    orderId: Types.ObjectId,
+    expectedDeliveryDate: string,
+  ): Promise<any> {
     const order = await this.findById(orderId);
     if (!order) {
       throw new BadRequestException('Order not found');
     }
 
-    if (order.status !== 'pending') {
-      throw new BadRequestException('Only pending orders can be approved');
+    if (order.status !== OrderStatus.NEW) {
+      throw new BadRequestException(
+        'Only new orders can be marked as in progress',
+      );
     }
 
-    const session = await this.orderModel.db.startSession();
-    session.startTransaction();
-
     try {
-      for (const orderItem of order.items) {
-        await this.productService.deductStock(
-          orderItem.productId,
-          orderItem.variants,
-          orderItem.quantity,
-          session,
-        );
-      }
+      order.status = OrderStatus.IN_PROGRESS;
+      order.expectedDeliveryDate = new Date(expectedDeliveryDate);
+      await order.save();
 
-      order.status = OrderStatus.APPROVED;
-      await order.save({ session });
-
-      await session.commitTransaction();
-
-      return { message: 'Order approved successfully', order };
+      return {
+        message: 'Order status updated to in progress successfully',
+        order,
+      };
     } catch (error) {
-      console.error('Error approving order:', error);
-      await session.abortTransaction();
-      throw new BadRequestException('Order approval failed');
-    } finally {
-      session.endSession();
+      console.error('Error updating order status to in progress:', error);
+      throw new BadRequestException(
+        'Failed to update order status to in progress',
+      );
     }
   }
 
@@ -247,8 +241,9 @@ export class OrderService {
     if (!order) {
       throw new BadRequestException('Order not found');
     }
-    if (order.status !== 'pending') {
-      throw new BadRequestException('Only pending orders can be rejected');
+
+    if (![OrderStatus.NEW, OrderStatus.IN_PROGRESS].includes(order.status)) {
+      throw new BadRequestException('Only new orders can be rejected.');
     }
     const session = await this.orderModel.db.startSession();
     session.startTransaction();
@@ -288,6 +283,37 @@ export class OrderService {
     }
   }
 
+  async deliverOrder(
+    orderId: Types.ObjectId,
+    userId: Types.ObjectId,
+  ): Promise<any> {
+    const order = await this.findById(orderId);
+    if (!order) {
+      throw new BadRequestException('Order not found');
+    }
+
+    if (order.status !== OrderStatus.IN_PROGRESS) {
+      throw new BadRequestException(
+        'Only orders in progress can be marked as delivered.',
+      );
+    }
+
+    try {
+      order.status = OrderStatus.DELIVERED;
+      order.deliveredAt = new Date();
+      order.deliveredBy = userId;
+      await order.save();
+
+      return {
+        message: 'Order marked as delivered successfully',
+        order,
+      };
+    } catch (error) {
+      console.error('Failed to mark order as delivered', error);
+      throw new BadRequestException('Failed to mark order as delivered');
+    }
+  }
+
   async cancelOrder(
     orderId: Types.ObjectId,
     userId: Types.ObjectId,
@@ -303,6 +329,10 @@ export class OrderService {
 
       if (!order.userId || order.userId.toString() !== userId.toString()) {
         throw new BadRequestException('You can only cancel your own orders');
+      }
+
+      if (![OrderStatus.NEW, OrderStatus.IN_PROGRESS].includes(order.status)) {
+        throw new BadRequestException('Only new orders can be cancelled.');
       }
 
       await this.walletService.refundEarnedBalance(

@@ -22,13 +22,15 @@ import {
 import { Types } from 'mongoose';
 
 @Controller('mission')
+@UseGuards(JwtAuthGuard)
 export class MissionController {
   constructor(private readonly missionService: MissionService) {}
 
   @UseGuards(AdminGuard)
   @Post()
-  create(@Body() createMissionDto: CreateMissionDto) {
-    return this.missionService.create(createMissionDto);
+  create(@Body() createMissionDto: CreateMissionDto, @Request() req: any) {
+    const userId = new Types.ObjectId(req.user.userId);
+    return this.missionService.create(createMissionDto, userId);
   }
 
   @UseGuards(AdminGuard)
@@ -40,14 +42,12 @@ export class MissionController {
     return await this.missionService.updateMission(missionId, updateMissionDto);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Patch(':id/join')
   async joinMission(@Param('id') missionId: string, @Request() req: any) {
     const userId = new Types.ObjectId(req.user.userId);
     return await this.missionService.addParticipant(missionId, userId);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get()
   async getAllMissions(
     @Query('status') status?: string,
@@ -85,6 +85,8 @@ export class MissionController {
     );
   }
 
+  @UseGuards(AdminGuard)
+  @Patch(':missionId/winners')
   async updateMissionWinners(
     @Param('missionId') missionId: string,
     @Body() updateWinnersDto: UpdateWinnersDto,
