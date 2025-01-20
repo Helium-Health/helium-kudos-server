@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { GoogleAuthGuard } from './utils/Guards';
+import { Types } from 'mongoose';
 
 @Controller('auth')
 export class AuthController {
@@ -32,9 +33,12 @@ export class AuthController {
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token is required');
     }
+    return await this.authService.refreshAccessToken(refreshToken);
+  }
 
-    const newAccessToken =
-      await this.authService.refreshAccessToken(refreshToken);
-    return { accessToken: newAccessToken };
+  @Post('/logout')
+  async logout(@Request() req) {
+    const userId = new Types.ObjectId(req.user.userId);
+    return await this.authService.logout(userId);
   }
 }

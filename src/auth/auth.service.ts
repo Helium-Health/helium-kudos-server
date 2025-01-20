@@ -89,7 +89,9 @@ export class AuthService {
     return refreshToken;
   }
 
-  async refreshAccessToken(refreshToken: string): Promise<string> {
+  async refreshAccessToken(
+    refreshToken: string,
+  ): Promise<{ newAccessToken: string; newRefreshToken: string }> {
     try {
       const decoded = this.jwtService.verify(refreshToken);
       const user = await this.userModel.findById(decoded.sub);
@@ -102,10 +104,10 @@ export class AuthService {
       if (!isValid) {
         throw new UnauthorizedException('Invalid refresh token');
       }
-
+      const newAccessToken = await this.generateJwtToken(user);
       const newRefreshToken = await this.generateAndStoreRefreshToken(user);
 
-      return this.generateJwtToken(user);
+      return { newAccessToken, newRefreshToken };
     } catch (e) {
       console.error('Error in refreshAccessToken:', e.message);
       throw new UnauthorizedException('Could not refresh access token');
