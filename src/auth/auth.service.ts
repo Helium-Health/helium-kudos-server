@@ -76,8 +76,8 @@ export class AuthService {
   async generateAndStoreRefreshToken(
     user: User & { _id: Types.ObjectId },
   ): Promise<string> {
-    const payload = { email: user.email, sub: user._id };
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+    const payload = { email: user.email, sub: user._id, role: user.role };
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: '2d' });
 
     const hashedToken = await argon2.hash(refreshToken);
 

@@ -1,5 +1,6 @@
 import {
   Body,
+  Headers,
   Controller,
   Inject,
   Post,
@@ -21,18 +22,22 @@ export class AuthController {
   @UseGuards(GoogleAuthGuard)
   async googleLogin(@Request() req) {
     const user = req.user;
-    const accessToken = this.authService.generateJwtToken(user);
-    const refreshToken =
-      await this.authService.generateAndStoreRefreshToken(user);
 
-    return { user, accessToken, refreshToken };
+    return { user };
   }
 
   @Post('/refresh-token')
-  async refreshAccessToken(@Body('refreshToken') refreshToken: string) {
-    if (!refreshToken) {
-      throw new UnauthorizedException('Refresh token is required');
+  async refreshAccessToken(@Headers('authorization') authorization: string) {
+    if (!authorization || !authorization.startsWith('Bearer ')) {
+      throw new UnauthorizedException(
+        'Authorization header is missing or invalid',
+      );
     }
+    const refreshToken = authorization.split(' ')[1];
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token is missing');
+    }
+
     return await this.authService.refreshAccessToken(refreshToken);
   }
 
