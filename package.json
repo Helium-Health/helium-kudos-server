@@ -39,7 +39,7 @@
     "express-session": "^1.18.0",
     "google-auth-library": "^9.14.1",
     "helium-kudos-server": "file:",
-    "mongoose": "^8.8.1",
+    "mongoose": "^8.9.5",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "passport-jwt": "^4.0.1",
