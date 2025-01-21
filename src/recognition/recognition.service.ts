@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   forwardRef,
   Inject,
   Injectable,
@@ -9,18 +10,25 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, Types } from 'mongoose';
 import { Recognition, RecognitionDocument } from './schema/Recognition.schema';
-import { CreateRecognitionDto } from './dto/CreateRecognition.dto';
+import {
+  CreateRecognitionDto,
+  EditRecognitionDto,
+} from './dto/CreateRecognition.dto';
 import { UserRecognitionService } from 'src/user-recognition/user-recognition.service';
 import { UserRecognitionRole } from 'src/user-recognition/schema/UserRecognition.schema';
 import { UsersService } from 'src/users/users.service';
 import { WalletService } from 'src/wallet/wallet.service';
 import { CompanyValues } from 'src/constants/companyValues';
 import { Reaction } from 'src/reactions/schema/reactions.schema';
-import { EntityType } from 'src/transaction/schema/Transaction.schema';
+import {
+  EntityType,
+  transactionStatus,
+} from 'src/transaction/schema/Transaction.schema';
 import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
 import { ClaimService } from 'src/claim/claim.service';
 import { TransactionService } from 'src/transaction/transaction.service';
 import { RecognitionGateway } from './recognition.gateway';
+import { UserRole } from 'src/users/schema/User.schema';
 
 @Injectable()
 export class RecognitionService {
@@ -148,6 +156,35 @@ export class RecognitionService {
     } finally {
       session.endSession();
     }
+  }
+
+  async editRecognition(
+    recognitionId: Types.ObjectId,
+    userId: Types.ObjectId,
+    { message }: EditRecognitionDto,
+  ) {
+    const recognition = await this.recognitionModel.findById(recognitionId);
+
+    if (!recognition) {
+      throw new NotFoundException('Recognition not found');
+    }
+
+    if (!recognition.senderId.equals(userId)) {
+      throw new ForbiddenException(
+        'You are not authorized to edit this recognition',
+      );
+    }
+
+    recognition.message = message;
+    await recognition.save();
+
+    this.recognitionGateway.notifyClients({
+      recognitionId,
+      message: `Recognition updated: ${message}`,
+      userId,
+    });
+
+    return recognition;
   }
 
   async createAutoRecognition({
@@ -852,5 +889,84 @@ export class RecognitionService {
     });
 
     return { topRecognitionReceivers: topReceiversWithCompanyValues };
+  }
+
+  async deleteRecognition(
+    recognitionId: Types.ObjectId,
+    userId: Types.ObjectId,
+  ): Promise<string> {
+    const session = await this.recognitionModel.db.startSession();
+    session.startTransaction();
+    try {
+      const recognition = await this.recognitionModel
+        .findById(recognitionId)
+        .session(session);
+      if (!recognition) {
+        throw new BadRequestException('Recognition not found');
+      }
+
+      if (!recognition.senderId.equals(userId)) {
+        const user = await this.usersService.findById(userId);
+        if (!user || user.role !== UserRole.Admin) {
+          throw new ForbiddenException(
+            'You do not have permission to delete this recognition',
+          );
+        }
+      }
+
+      const claim =
+        await this.claimService.findClaimByRecognitionId(recognitionId);
+      if (claim && claim.status !== 'pending') {
+        throw new BadRequestException(
+          `Recognition cannot be deleted because the claim is ${claim.status}`,
+        );
+      }
+
+      if (claim) {
+        for (const receiver of claim.receivers) {
+          const { receiverId, amount } = receiver;
+
+          await this.transactionService.recordCreditTransaction(
+            {
+              senderId: claim.senderId,
+              receiverId: new Types.ObjectId(receiverId),
+              amount: Math.abs(amount),
+              entityId: new Types.ObjectId(claim.recognitionId),
+              entityType: EntityType.RECOGNITION,
+              claimId: claim._id as Types.ObjectId,
+              status: transactionStatus.REVERSED,
+            },
+            session,
+          );
+        }
+
+        const totalCoinAmount = claim.receivers.reduce(
+          (sum, receiver) => sum + receiver.amount,
+          0,
+        );
+
+        await this.walletService.refundGiveableBalance(
+          claim.senderId,
+          totalCoinAmount,
+          session,
+        );
+        await this.claimService.deleteClaimById(
+          claim._id as Types.ObjectId,
+          session,
+        );
+      }
+
+      await this.recognitionModel
+        .deleteOne({ _id: recognitionId })
+        .session(session);
+
+      await session.commitTransaction();
+      return 'Recognition and associated claim deleted successfully';
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 }

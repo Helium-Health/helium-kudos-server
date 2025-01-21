@@ -2,17 +2,24 @@ import {
   Body,
   Controller,
   DefaultValuePipe,
+  Delete,
   Get,
+  Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
 import { RecognitionService } from './recognition.service';
-import { CreateRecognitionDto } from './dto/CreateRecognition.dto';
+import {
+  CreateRecognitionDto,
+  EditRecognitionDto,
+} from './dto/CreateRecognition.dto';
 import { Recognition } from './schema/Recognition.schema';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
+import { Types } from 'mongoose';
 
 @Controller('recognition')
 @UseGuards(JwtAuthGuard)
@@ -44,6 +51,31 @@ export class RecognitionController {
       limit,
       userId,
       role,
+    );
+  }
+  @Patch(':id')
+  async editRecognition(
+    @Param('id') recognitionId: string,
+    @Body() editRecognitionDto: EditRecognitionDto,
+    @Request() req,
+  ) {
+    const userId = req.user.userId;
+    return this.recognitionService.editRecognition(
+      new Types.ObjectId(recognitionId),
+      new Types.ObjectId(userId),
+      editRecognitionDto,
+    );
+  }
+
+  @Delete('id')
+  async deleteRecogntions(
+    @Request() req,
+    @Param('recognitionId') recognitionId: string,
+  ) {
+    const userId = req.user.userId;
+    return this.recognitionService.deleteRecognition(
+      new Types.ObjectId(recognitionId),
+      new Types.ObjectId(userId),
     );
   }
 }
