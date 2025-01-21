@@ -605,6 +605,26 @@ export class RecognitionService {
           .then((receivers) => new Set([...senders, ...receivers]).size),
       );
 
+    const totalCoinsGivenOut = await this.recognitionModel.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startOfQuarter, $lte: endOfQuarter },
+        },
+      },
+      {
+        $unwind: '$receivers',
+      },
+      {
+        $group: {
+          _id: null,
+          totalCoins: { $sum: '$receivers.coinAmount' },
+        },
+      },
+    ]);
+
+    const totalCoins =
+      totalCoinsGivenOut.length > 0 ? totalCoinsGivenOut[0].totalCoins : 0;
+
     const participationPercentage =
       totalUsersCount > 0
         ? ((totalParticipantsCount / totalUsersCount) * 100).toFixed(2)
@@ -613,6 +633,7 @@ export class RecognitionService {
     return {
       participants,
       participationPercentage: `${participationPercentage}%`,
+      totalCoinsGivenOut: totalCoins,
       currentPage: page,
       totalPages: Math.ceil(totalParticipantsCount / limit),
     };
