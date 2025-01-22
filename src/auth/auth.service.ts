@@ -77,7 +77,7 @@ export class AuthService {
     user: User & { _id: Types.ObjectId },
   ): Promise<string> {
     const payload = { email: user.email, sub: user._id, role: user.role };
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '2d' });
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: '4d' });
 
     const hashedToken = await argon2.hash(refreshToken);
 
@@ -94,7 +94,10 @@ export class AuthService {
   ): Promise<{ newAccessToken: string; newRefreshToken: string }> {
     try {
       const decoded = this.jwtService.verify(refreshToken);
-      const user = await this.userModel.findById(decoded.sub);
+      const user = await this.userModel
+        .findById(decoded.sub)
+        .select('+refreshToken')
+        .exec();
 
       if (!user || !user.refreshToken) {
         throw new UnauthorizedException('Refresh token is invalid or expired');
