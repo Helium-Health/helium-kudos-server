@@ -38,6 +38,14 @@ export class CreateUserDto {
 
   @IsOptional()
   coins?: undefined;
+
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: string;
+
+  @IsOptional()
+  @IsEnum(UserGender)
+  gender?: UserGender;
 }
 
 export class UpdateUserDto extends PartialType(CreateUserDto) {
@@ -52,7 +60,6 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {
   @IsOptional()
   @IsEnum(UserGender)
   gender?: UserGender;
-
 }
 
 export class UpdateUserRoleDto extends PartialType(CreateUserDto) {
