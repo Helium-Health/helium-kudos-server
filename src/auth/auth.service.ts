@@ -6,6 +6,7 @@ import { UsersService } from 'src/users/users.service';
 import { OAuth2Client } from 'google-auth-library';
 import { JwtService } from '@nestjs/jwt';
 import { google } from 'googleapis';
+import axios from 'axios';
 @Injectable()
 export class AuthService {
   private oauthClient: OAuth2Client;
@@ -72,13 +73,15 @@ export class AuthService {
     return this.jwtService.sign(payload);
   }
 
-  async fetchUserDetails(idToken: string): Promise<{ birthday?: Date; gender?: string }> {
+  async fetchUserDetails(
+    idToken: string,
+  ): Promise<{ birthday?: Date; gender?: string }> {
     try {
       // Step 5: Exchange the id_token for access_token
-      const accessToken = await this.exchangeIdTokenForAccessToken(idToken);
-      
+      // const accessToken = await this.exchangeIdTokenForAccessToken(idToken);
+
       // Step 6: Set the access_token to oauthClient
-      this.oauthClient.setCredentials({ access_token: accessToken });
+      this.oauthClient.setCredentials({ access_token: idToken });
 
       // Step 7: Use the access_token to get the user details from Google People API
       const peopleApi = google.people({
@@ -109,25 +112,24 @@ export class AuthService {
     }
   }
 
-  // Exchange the id_token for an access_token
-  async exchangeIdTokenForAccessToken(idToken: string): Promise<string> {
-    try {
-      const response = await axios.post('https://oauth2.googleapis.com/token', null, {
-        params: {
-          id_token: idToken, // Pass the id_token here
-          client_id: process.env.GOOGLE_CLIENT_ID, // Your Google client ID
-          client_secret: process.env.GOOGLE_CLIENT_SECRET, // Your Google client secret
-          grant_type: 'authorization_code', // This grant type is used for exchanging an authorization code for tokens
-        },
-      });
+  // // Exchange the id_token for an access_token
+  // async exchangeIdTokenForAccessToken(idToken: string): Promise<string> {
+  //   try {
+  //     const response = await axios.post('https://oauth2.googleapis.com/token', null, {
+  //       params: {
+  //         id_token: idToken, // Pass the id_token here
+  //         client_id: process.env.GOOGLE_CLIENT_ID, // Your Google client ID
+  //         client_secret: process.env.GOOGLE_CLIENT_SECRET, // Your Google client secret
+  //         grant_type: 'authorization_code', // This grant type is used for exchanging an authorization code for tokens
+  //       },
+  //     });
 
-      // The response will contain the access_token
-      const accessToken = response.data.access_token;
-      return accessToken;
-    } catch (error) {
-      console.error('Error exchanging id_token for access_token:', error.message);
-      throw new Error('Error exchanging id_token for access_token');
-    }
-  }
-
+  //     // The response will contain the access_token
+  //     const accessToken = response.data.access_token;
+  //     return accessToken;
+  //   } catch (error) {
+  //     console.error('Error exchanging id_token for access_token:', error.message);
+  //     throw new Error('Error exchanging id_token for access_token');
+  //   }
+  // }
 }
