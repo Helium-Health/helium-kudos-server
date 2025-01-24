@@ -77,13 +77,10 @@ export class AuthService {
     idToken: string,
   ): Promise<{ birthday?: Date; gender?: string }> {
     try {
-      // Step 5: Exchange the id_token for access_token
       // const accessToken = await this.exchangeIdTokenForAccessToken(idToken);
 
-      // Step 6: Set the access_token to oauthClient
       this.oauthClient.setCredentials({ access_token: idToken });
 
-      // Step 7: Use the access_token to get the user details from Google People API
       const peopleApi = google.people({
         version: 'v1',
         auth: this.oauthClient,
@@ -98,7 +95,7 @@ export class AuthService {
       const birthday = data.birthdays?.[0]?.date
         ? new Date(
             data.birthdays[0].date.year,
-            data.birthdays[0].date.month - 1, // Month is zero-indexed in JS Date
+            data.birthdays[0].date.month - 1,
             data.birthdays[0].date.day,
           )
         : undefined;
