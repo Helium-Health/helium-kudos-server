@@ -6,6 +6,8 @@ import {
   IsOptional,
   Matches,
   IsUrl,
+  IsArray,
+  ArrayMaxSize,
 } from 'class-validator';
 import { Types } from 'mongoose';
 
@@ -19,11 +21,15 @@ export class CreateCommentDto {
   content?: string;
 
   @IsOptional()
-  @IsString()
-  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsArray()
+  @ArrayMaxSize(10)
+  @Transform(({ value }) =>
+    Array.isArray(value) ? value.filter(Boolean) : value,
+  )
   @Matches(/^https:\/\/(?:media\d*\.)?giphy\.com\/media\/.+\.(gif|mp4)$/, {
+    each: true,
     message: 'Invalid Giphy URL',
   })
-  @IsUrl()
-  giphyUrl?: string;
+  @IsUrl({}, { each: true })
+  giphyUrl?: string[];
 }
