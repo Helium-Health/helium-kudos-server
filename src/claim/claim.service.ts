@@ -277,4 +277,14 @@ export class ClaimService {
       },
     };
   }
+
+  async findClaimByRecognitionId(
+    recognitionId: Types.ObjectId,
+  ): Promise<ClaimDocument | null> {
+    return this.claimModel.findOne({ recognitionId }).exec();
+  }
+
+  async deleteClaimById(claimId: Types.ObjectId, session?: any): Promise<void> {
+    await this.claimModel.deleteOne({ _id: claimId }).session(session);
+  }
 }
