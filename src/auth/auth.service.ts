@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { User } from 'src/users/schema/User.schema';
 import { UsersService } from 'src/users/users.service';
 import { OAuth2Client } from 'google-auth-library';
 import { JwtService } from '@nestjs/jwt';
+import * as argon2 from 'argon2';
 @Injectable()
 export class AuthService {
   private oauthClient: OAuth2Client;
@@ -22,7 +23,7 @@ export class AuthService {
 
   async validateUser(
     token: string,
-  ): Promise<{ user: User; accessToken: string }> {
+  ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
     try {
       let userDetails = null; // Todo use correct type
       const googleAuth = await this.oauthClient.verifyIdToken({
@@ -50,7 +51,13 @@ export class AuthService {
       }
 
       const jwtToken = this.generateJwtToken(userDetails);
-      return { user: userDetails, accessToken: jwtToken };
+      const refreshToken = await this.generateAndStoreRefreshToken(userDetails);
+
+      return {
+        user: userDetails,
+        accessToken: jwtToken,
+        refreshToken: refreshToken,
+      };
     } catch (e) {
       console.log('Error in validateUser', e);
       throw new Error('Error in validateUser');
@@ -64,5 +71,56 @@ export class AuthService {
   ) {
     const payload = { email: user.email, sub: user._id, role: user.role };
     return this.jwtService.sign(payload);
+  }
+
+  async generateAndStoreRefreshToken(
+    user: User & { _id: Types.ObjectId },
+  ): Promise<string> {
+    const payload = { email: user.email, sub: user._id, role: user.role };
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: '4d' });
+
+    const hashedToken = await argon2.hash(refreshToken);
+
+    await this.userModel.updateOne(
+      { _id: user._id },
+      { refreshToken: hashedToken },
+    );
+
+    return refreshToken;
+  }
+
+  async refreshAccessToken(
+    refreshToken: string,
+  ): Promise<{ newAccessToken: string; newRefreshToken: string }> {
+    try {
+      const decoded = this.jwtService.verify(refreshToken);
+      const user = await this.userModel
+        .findById(decoded.sub)
+        .select('+refreshToken')
+        .exec();
+
+      if (!user || !user.refreshToken) {
+        throw new UnauthorizedException('Refresh token is invalid or expired');
+      }
+
+      const isValid = await argon2.verify(user.refreshToken, refreshToken);
+      if (!isValid) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+      const newAccessToken = await this.generateJwtToken(user);
+      const newRefreshToken = await this.generateAndStoreRefreshToken(user);
+
+      return { newAccessToken, newRefreshToken };
+    } catch (e) {
+      console.error('Error in refreshAccessToken:', e.message);
+      throw new UnauthorizedException('Could not refresh access token');
+    }
+  }
+
+  async logout(userId: Types.ObjectId): Promise<void> {
+    await this.userModel.updateOne(
+      { _id: userId },
+      { $unset: { refreshToken: 1 } },
+    );
   }
 }

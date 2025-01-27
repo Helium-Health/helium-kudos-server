@@ -75,11 +75,8 @@ export class RecognitionController {
     );
   }
 
-  @Delete('id')
-  async deleteRecogntions(
-    @Request() req,
-    @Param('recognitionId') recognitionId: string,
-  ) {
+  @Delete(':id')
+  async deleteRecogntions(@Request() req, @Param('id') recognitionId: string) {
     const userId = req.user.userId;
     return this.recognitionService.deleteRecognition(
       new Types.ObjectId(recognitionId),
