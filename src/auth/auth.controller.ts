@@ -8,14 +8,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
-import {
-  Body,
-  Controller,
-  Inject,
-  Post,
-  Request,
-  UseGuards,
-} from '@nestjs/common';
+
 import { AuthService } from './auth.service';
 import { GoogleAuthGuard } from './utils/Guards';
 import { Types } from 'mongoose';
@@ -30,7 +23,6 @@ export class AuthController {
   @Post('/login/google')
   @UseGuards(GoogleAuthGuard)
   async googleLogin(@Request() req) {
-    
     const user = req.user;
 
     return { user };
@@ -51,29 +43,19 @@ export class AuthController {
     return await this.authService.refreshAccessToken(refreshToken);
   }
 
+  @Post('/login')
+  async loginWithEmailPassword(@Body() body: LoginDto) {
+    return this.authService.validateEmailPassword(body.email, body.password);
+  }
+
+  @Post('/register')
+  async register(@Body() body: RegisterDto) {
+    return this.authService.registerUser(body.email, body.password, body.name);
+  }
+
   @Post('/logout')
   async logout(@Request() req) {
     const userId = new Types.ObjectId(req.user.userId);
     return await this.authService.logout(userId);
-  }
-
-  @Post('/login')
-  async loginWithEmailPassword(@Body() body: LoginDto) {
-    return this.authService.validateEmailPassword(body.email, body.password);
-  }
-
-  @Post('/register')
-  async register(@Body() body: RegisterDto) {
-    return this.authService.registerUser(body.email, body.password, body.name);
-  }
-
-  @Post('/login')
-  async loginWithEmailPassword(@Body() body: LoginDto) {
-    return this.authService.validateEmailPassword(body.email, body.password);
-  }
-
-  @Post('/register')
-  async register(@Body() body: RegisterDto) {
-    return this.authService.registerUser(body.email, body.password, body.name);
   }
 }
