@@ -44,7 +44,7 @@ export class CreateRecognitionDto {
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(10)
+  @ArrayMaxSize(5)
   @Transform(({ value }) =>
     Array.isArray(value) ? value.filter(Boolean) : value,
   )
