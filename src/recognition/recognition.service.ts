@@ -71,6 +71,10 @@ export class RecognitionService {
       );
     }
 
+    const validGiphyUrls = Array.isArray(giphyUrl)
+      ? giphyUrl.filter(Boolean)
+      : [];
+
     const receiverIds = receivers.map((receiver) => receiver.receiverId);
     const areValidUsers = await this.usersService.validateUserIds(receiverIds);
 
@@ -98,7 +102,7 @@ export class RecognitionService {
       const newRecognition = new this.recognitionModel({
         senderId: new Types.ObjectId(senderId),
         message,
-        giphyUrl,
+        giphyUrl: validGiphyUrls,
         receivers: receivers.map((r) => ({
           receiverId: new Types.ObjectId(r.receiverId),
           coinAmount: r.coinAmount ?? 0,
