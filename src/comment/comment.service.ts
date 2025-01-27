@@ -29,11 +29,15 @@ export class CommentService {
         throw new NotFoundException('Recognition not found');
       }
 
+      const validGiphyUrls = Array.isArray(giphyUrl)
+      ? giphyUrl.filter(Boolean)
+      : [];
+
       const comment = new this.commentModel({
         userId: new Types.ObjectId(userId),
         recognitionId: new Types.ObjectId(recognitionId),
         content,
-        giphyUrl,
+        giphyUrl: validGiphyUrls,
       });
       await comment.save({ session });
 

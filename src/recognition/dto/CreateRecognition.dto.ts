@@ -11,6 +11,7 @@ import {
   Min,
   Matches,
   IsUrl,
+  ArrayMaxSize,
 } from 'class-validator';
 import { CompanyValues } from 'src/constants/companyValues';
 
@@ -42,13 +43,17 @@ export class CreateRecognitionDto {
   companyValues?: CompanyValues[];
 
   @IsOptional()
-  @IsString()
-  @Transform(({ value }) => (value === '' ? undefined : value))
+  @IsArray()
+  @ArrayMaxSize(5)
+  @Transform(({ value }) =>
+    Array.isArray(value) ? value.filter(Boolean) : value,
+  )
   @Matches(/^https:\/\/(?:media\d*\.)?giphy\.com\/media\/.+\.(gif|mp4)$/, {
+    each: true,
     message: 'Invalid Giphy URL',
   })
-  @IsUrl()
-  giphyUrl?: string;
+  @IsUrl({}, { each: true })
+  giphyUrl?: string[];
 }
 
 export class EditRecognitionDto {
