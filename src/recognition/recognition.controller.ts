@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseBoolPipe,
   ParseIntPipe,
   Patch,
   Post,
@@ -20,6 +21,7 @@ import {
 import { Recognition } from './schema/Recognition.schema';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 import { Types } from 'mongoose';
+import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
 
 @Controller('recognition')
 @UseGuards(JwtAuthGuard)
@@ -45,14 +47,20 @@ export class RecognitionController {
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @Query('userId') userId?: string,
     @Query('role') role?: string,
+    @Query('milestoneType') milestoneType?: MilestoneType,
+    @Query('isAuto', new DefaultValuePipe(false), ParseBoolPipe) isAuto?: boolean,
+
   ) {
     return this.recognitionService.getAllRecognitions(
       page,
       limit,
       userId,
       role,
+      milestoneType,
+      isAuto,
     );
   }
+
   @Patch(':id')
   async editRecognition(
     @Param('id') recognitionId: string,
