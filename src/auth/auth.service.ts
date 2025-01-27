@@ -144,6 +144,7 @@ export class AuthService {
         verified: true,
       });
 
+      
       return await this.userModel.findOne({
         email,
       });
@@ -159,7 +160,7 @@ export class AuthService {
   async validateEmailPassword(
     email: string,
     password: string,
-  ): Promise<{ user: User; accessToken: string }> {
+  ): Promise<{ user: User; accessToken: string, refreshToken: string }> {
     const userExposed = await this.userModel
       .findOne({ email })
       .select('+password')
@@ -178,10 +179,15 @@ export class AuthService {
       throw new UnauthorizedException('Invalid  password!');
     }
 
-    const jwtToken = this.generateJwtToken(
-      user as User & { _id: Types.ObjectId },
-    );
+    
+    const jwtToken = this.generateJwtToken(user as User & { _id: Types.ObjectId });
+      const refreshToken = await this.generateAndStoreRefreshToken(user as User & { _id: Types.ObjectId });
 
-    return { user, accessToken: jwtToken };
+      return {
+        user: user,
+        accessToken: jwtToken,
+        refreshToken: refreshToken,
+      };
+
   }
 }
