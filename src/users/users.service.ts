@@ -8,6 +8,7 @@ import { Model, Types } from 'mongoose';
 import { User, UserDocument, UserGender } from 'src/users/schema/User.schema';
 import { CreateUserDto, UpdateUserDto } from './dto/User.dto';
 import { WalletService } from 'src/wallet/wallet.service';
+import { UpdateUserFromSheetDto } from './dto/UpdateFromSheet.dto';
 
 @Injectable()
 export class UsersService {
@@ -156,5 +157,13 @@ export class UsersService {
         totalPages,
       },
     };
+  }
+
+  async updateByEmail(email: string, updateData: UpdateUserFromSheetDto) {
+    return this.userModel.findOneAndUpdate(
+      { email },
+      { $set: updateData },
+      { new: true },
+    );
   }
 }

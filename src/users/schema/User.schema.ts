@@ -48,6 +48,12 @@ export class User {
 
   @Prop({ type: Types.ObjectId, ref: 'Wallet' })
   wallet: Types.Array<Types.ObjectId>;
+
+  @Prop()
+  team: string;
+
+  @Prop()
+  nationality: string;
 }
 
 // Create schema using the class
