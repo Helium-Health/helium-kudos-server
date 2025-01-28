@@ -166,4 +166,94 @@ export class UsersService {
       { new: true },
     );
   }
+  async getUpcomingCelebrations(limit: number, page: number): Promise<any> {
+    const today = new Date();
+    const skip = (page - 1) * limit;
+
+    const pipeline: any[] = [
+      {
+        $addFields: {
+          nextBirthday: {
+            $dateFromParts: {
+              year: { $year: today },
+              month: { $month: '$dateOfBirth' },
+              day: { $dayOfMonth: '$dateOfBirth' },
+            },
+          },
+          nextAnniversary: {
+            $dateFromParts: {
+              year: { $year: today },
+              month: { $month: '$joinDate' },
+              day: { $dayOfMonth: '$joinDate' },
+            },
+          },
+        },
+      },
+      {
+        $match: {
+          $or: [
+            { nextBirthday: { $gte: today } },
+            { nextAnniversary: { $gte: today } },
+          ],
+        },
+      },
+      {
+        $project: {
+          name: 1,
+          picture: 1,
+          celebrations: {
+            $concatArrays: [
+              {
+                $cond: {
+                  if: { $gte: [{ $month: '$dateOfBirth' }, { $month: today }] },
+                  then: [
+                    { celebrationType: 'Birthday', date: '$nextBirthday' },
+                  ],
+                  else: [],
+                },
+              },
+              {
+                $cond: {
+                  if: { $gte: [{ $month: '$joinDate' }, { $month: today }] },
+                  then: [
+                    {
+                      celebrationType: 'Work Anniversary',
+                      date: '$nextAnniversary',
+                    },
+                  ],
+                  else: [],
+                },
+              },
+            ],
+          },
+        },
+      },
+      { $unwind: '$celebrations' },
+      { $sort: { 'celebrations.date': 1 } },
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $facet: {
+          data: [{ $skip: skip }, { $limit: limit }],
+          count: [{ $count: 'totalCelebrations' }],
+        },
+      },
+    ];
+
+    const [result] = await this.userModel.aggregate(pipeline);
+
+    const celebrations = result?.data || [];
+    const totalCount = result?.count[0]?.totalCelebrations || 0;
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return {
+      data: celebrations,
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages,
+      },
+    };
+  }
 }

@@ -46,7 +46,9 @@ export class CreateRecognitionDto {
   @IsArray()
   @ArrayMaxSize(5)
   @Transform(({ value }) =>
-    Array.isArray(value) ? value.filter(Boolean) : value,
+    Array.isArray(value)
+      ? value.filter((url) => typeof url === 'string' && url.trim() !== '')
+      : value,
   )
   @Matches(/^https:\/\/(?:media\d*\.)?giphy\.com\/media\/.+\.(gif|mp4)$/, {
     each: true,
