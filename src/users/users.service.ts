@@ -159,57 +159,29 @@ export class UsersService {
     };
   }
 
-  async getUpcomingCelebrations(limit: number): Promise<any[]> {
+  async getUpcomingCelebrations(limit: number, page: number): Promise<any> {
     const today = new Date();
+    const skip = (page - 1) * limit;
 
-    const upcomingCelebrations = await this.userModel.aggregate([
+    const pipeline: any[] = [
       {
         $addFields: {
           nextBirthday: {
-            $cond: {
-              if: {
-                $gte: [{ $month: '$dateOfBirth' }, { $month: today }],
-              },
-              then: {
-                $dateFromParts: {
-                  year: { $year: today },
-                  month: { $month: '$dateOfBirth' },
-                  day: { $dayOfMonth: '$dateOfBirth' },
-                },
-              },
-              else: {
-                $dateFromParts: {
-                  year: { $add: [{ $year: today }, 1] },
-                  month: { $month: '$dateOfBirth' },
-                  day: { $dayOfMonth: '$dateOfBirth' },
-                },
-              },
+            $dateFromParts: {
+              year: { $year: today },
+              month: { $month: '$dateOfBirth' },
+              day: { $dayOfMonth: '$dateOfBirth' },
             },
           },
           nextAnniversary: {
-            $cond: {
-              if: {
-                $gte: [{ $month: '$joinDate' }, { $month: today }],
-              },
-              then: {
-                $dateFromParts: {
-                  year: { $year: today },
-                  month: { $month: '$joinDate' },
-                  day: { $dayOfMonth: '$joinDate' },
-                },
-              },
-              else: {
-                $dateFromParts: {
-                  year: { $add: [{ $year: today }, 1] },
-                  month: { $month: '$joinDate' },
-                  day: { $dayOfMonth: '$joinDate' },
-                },
-              },
+            $dateFromParts: {
+              year: { $year: today },
+              month: { $month: '$joinDate' },
+              day: { $dayOfMonth: '$joinDate' },
             },
           },
         },
       },
-
       {
         $match: {
           $or: [
@@ -218,7 +190,6 @@ export class UsersService {
           ],
         },
       },
-
       {
         $project: {
           name: 1,
@@ -229,10 +200,7 @@ export class UsersService {
                 $cond: {
                   if: { $gte: [{ $month: '$dateOfBirth' }, { $month: today }] },
                   then: [
-                    {
-                      celebrationType: 'Birthday',
-                      date: '$nextBirthday',
-                    },
+                    { celebrationType: 'Birthday', date: '$nextBirthday' },
                   ],
                   else: [],
                 },
@@ -253,24 +221,32 @@ export class UsersService {
           },
         },
       },
-
       { $unwind: '$celebrations' },
-
       { $sort: { 'celebrations.date': 1 } },
-
+      { $skip: skip },
       { $limit: limit },
-
       {
-        $project: {
-          _id: 0,
-          name: 1,
-          picture: 1,
-          'celebrations.celebrationType': 1,
-          'celebrations.date': 1,
+        $facet: {
+          data: [{ $skip: skip }, { $limit: limit }],
+          count: [{ $count: 'totalCelebrations' }],
         },
       },
-    ]);
+    ];
 
-    return upcomingCelebrations.length > 0 ? upcomingCelebrations : [];
+    const [result] = await this.userModel.aggregate(pipeline);
+
+    const celebrations = result?.data || [];
+    const totalCount = result?.count[0]?.totalCelebrations || 0;
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return {
+      data: celebrations,
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages,
+      },
+    };
   }
 }

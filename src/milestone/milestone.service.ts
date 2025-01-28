@@ -42,7 +42,7 @@ export class MilestoneService {
       })
       .exec();
   }
-  async getUpcomingCelebrations(limit: number) {
-    return await this.usersService.getUpcomingCelebrations(limit);
+  async getUpcomingCelebrations(limit: number, page: number) {
+    return await this.usersService.getUpcomingCelebrations(limit, page);
   }
 }
