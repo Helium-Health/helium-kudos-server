@@ -48,16 +48,16 @@ export class RecognitionController {
     @Query('userId') userId?: string,
     @Query('role') role?: string,
     @Query('milestoneType') milestoneType?: MilestoneType,
-    @Query('isAuto', new DefaultValuePipe(false), ParseBoolPipe) isAuto?: boolean,
-
+    @Query('isAuto', new DefaultValuePipe(undefined)) isAuto?: string,
   ) {
+    const parsedIsAuto = isAuto === undefined ? undefined : isAuto === 'true';
     return this.recognitionService.getAllRecognitions(
       page,
       limit,
       userId,
       role,
       milestoneType,
-      isAuto,
+      parsedIsAuto,
     );
   }
 
