@@ -159,7 +159,7 @@ export class UsersService {
     };
   }
 
-  async getUpcomingCelebrations(): Promise<any[]> {
+  async getUpcomingCelebrations(limit: number): Promise<any[]> {
     const today = new Date();
 
     const upcomingCelebrations = await this.userModel.aggregate([
@@ -258,7 +258,7 @@ export class UsersService {
 
       { $sort: { 'celebrations.date': 1 } },
 
-      { $limit: 10 },
+      { $limit: limit },
 
       {
         $project: {

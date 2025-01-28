@@ -8,7 +8,6 @@ import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class MilestoneService {
-  
   constructor(
     @InjectModel(Milestone.name)
     private milestoneModel: Model<MilestoneDocument>,
@@ -43,7 +42,7 @@ export class MilestoneService {
       })
       .exec();
   }
-  async getUpcomingCelebrations() {
-    return await this.usersService.getUpcomingCelebrations();
+  async getUpcomingCelebrations(limit: number) {
+    return await this.usersService.getUpcomingCelebrations(limit);
   }
 }
