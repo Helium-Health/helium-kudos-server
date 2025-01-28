@@ -8,7 +8,6 @@ import { Model, Types } from 'mongoose';
 import { User, UserDocument, UserGender } from 'src/users/schema/User.schema';
 import { CreateUserDto, UpdateUserDto } from './dto/User.dto';
 import { WalletService } from 'src/wallet/wallet.service';
-import { addMonths, isBefore } from 'date-fns';
 
 @Injectable()
 export class UsersService {
