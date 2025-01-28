@@ -28,6 +28,12 @@ export class MilestoneController {
     return this.milestoneService.findAll();
   }
 
+
+  @Get('upcoming-celebrations')
+  async getUpcomingCelebrations() {
+    return await this.milestoneService.getUpcomingCelebrations();
+  }
+
   @Patch(':id')
   update(
     @Param('id') milestoneId: string,

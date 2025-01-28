@@ -8,6 +8,7 @@ import { Model, Types } from 'mongoose';
 import { User, UserDocument, UserGender } from 'src/users/schema/User.schema';
 import { CreateUserDto, UpdateUserDto } from './dto/User.dto';
 import { WalletService } from 'src/wallet/wallet.service';
+import { addMonths, isBefore } from 'date-fns';
 
 @Injectable()
 export class UsersService {
@@ -156,5 +157,120 @@ export class UsersService {
         totalPages,
       },
     };
+  }
+
+  async getUpcomingCelebrations(): Promise<any[]> {
+    const today = new Date();
+
+    const upcomingCelebrations = await this.userModel.aggregate([
+      {
+        $addFields: {
+          nextBirthday: {
+            $cond: {
+              if: {
+                $gte: [{ $month: '$dateOfBirth' }, { $month: today }],
+              },
+              then: {
+                $dateFromParts: {
+                  year: { $year: today },
+                  month: { $month: '$dateOfBirth' },
+                  day: { $dayOfMonth: '$dateOfBirth' },
+                },
+              },
+              else: {
+                $dateFromParts: {
+                  year: { $add: [{ $year: today }, 1] },
+                  month: { $month: '$dateOfBirth' },
+                  day: { $dayOfMonth: '$dateOfBirth' },
+                },
+              },
+            },
+          },
+          nextAnniversary: {
+            $cond: {
+              if: {
+                $gte: [{ $month: '$joinDate' }, { $month: today }],
+              },
+              then: {
+                $dateFromParts: {
+                  year: { $year: today },
+                  month: { $month: '$joinDate' },
+                  day: { $dayOfMonth: '$joinDate' },
+                },
+              },
+              else: {
+                $dateFromParts: {
+                  year: { $add: [{ $year: today }, 1] },
+                  month: { $month: '$joinDate' },
+                  day: { $dayOfMonth: '$joinDate' },
+                },
+              },
+            },
+          },
+        },
+      },
+
+      {
+        $match: {
+          $or: [
+            { nextBirthday: { $gte: today } },
+            { nextAnniversary: { $gte: today } },
+          ],
+        },
+      },
+
+      {
+        $project: {
+          name: 1,
+          picture: 1,
+          celebrations: {
+            $concatArrays: [
+              {
+                $cond: {
+                  if: { $gte: [{ $month: '$dateOfBirth' }, { $month: today }] },
+                  then: [
+                    {
+                      celebrationType: 'Birthday',
+                      date: '$nextBirthday',
+                    },
+                  ],
+                  else: [],
+                },
+              },
+              {
+                $cond: {
+                  if: { $gte: [{ $month: '$joinDate' }, { $month: today }] },
+                  then: [
+                    {
+                      celebrationType: 'Work Anniversary',
+                      date: '$nextAnniversary',
+                    },
+                  ],
+                  else: [],
+                },
+              },
+            ],
+          },
+        },
+      },
+
+      { $unwind: '$celebrations' },
+
+      { $sort: { 'celebrations.date': 1 } },
+
+      { $limit: 10 },
+
+      {
+        $project: {
+          _id: 0,
+          name: 1,
+          picture: 1,
+          'celebrations.celebrationType': 1,
+          'celebrations.date': 1,
+        },
+      },
+    ]);
+
+    return upcomingCelebrations.length > 0 ? upcomingCelebrations : [];
   }
 }
