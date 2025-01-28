@@ -17,17 +17,13 @@ export class MigrationService implements OnModuleInit {
     await this.migrateRecognitionGiphyUrls();
     console.log('Migration completed.');
 
-    
     console.log('Starting cleanup for empty strings...');
     await this.cleanUpEmptyStringsInGiphyUrls();
     console.log('Cleanup completed.');
   }
 
   async migrateCommentGiphyUrls() {
-    const result = await this.commentModel.aggregate([
-      {
-        $match: { giphyUrl: { $type: 'string' } },
-      },
+    await this.commentModel.updateMany({ giphyUrl: { $type: 'string' } }, [
       {
         $set: {
           giphyUrl: {
@@ -38,9 +34,6 @@ export class MigrationService implements OnModuleInit {
             },
           },
         },
-      },
-      {
-        $out: 'comments',
       },
     ]);
   }
