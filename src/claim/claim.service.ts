@@ -232,7 +232,7 @@ export class ClaimService {
       claims.map(async (claim) => {
         const recognition = await this.recognitionService.findById(
           claim.recognitionId,
-        );
+        ).catch(() => null);
 
         const senderDetails = await this.userService.findById(claim.senderId);
 
