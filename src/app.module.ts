@@ -25,6 +25,8 @@ import { FeedbackModule } from './feedback/feedback.module';
 import { MigrationService } from './migrations/migrations.service';
 import { CommentSchema } from './comment/schema/comment.schema';
 import { RecognitionSchema } from './recognition/schema/Recognition.schema';
+import { GoogleSheetsService } from './google/google-sheets/google-sheets.service';
+import { UserSyncService } from './users/user-sync.service';
 
 @Module({
   imports: [
@@ -62,6 +64,8 @@ import { RecognitionSchema } from './recognition/schema/Recognition.schema';
   providers: [
     //TODO: Remove this provider and import after migration is done
     MigrationService,
+    UserSyncService,
+    GoogleSheetsService,
   ],
 })
 export class AppModule {}
