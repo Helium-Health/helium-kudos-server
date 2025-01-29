@@ -24,7 +24,7 @@ export class GoogleSheetsService {
     async getEmployeeData() {
       const response = await this.sheets.spreadsheets.values.get({
         spreadsheetId: this.spreadsheetId,
-        range: `${SHEET_NAME}!A:Z`,
+        range: `${SHEET_NAME}!A2:Z`,
       });
       return response.data.values;
     }
