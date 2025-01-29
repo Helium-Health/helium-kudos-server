@@ -11,3 +11,5 @@ export const COMPANY_VALUES = [
   { id: '3', name: CompanyValues.Camaraderie },
   { id: '3', name: CompanyValues.Simplicity },
 ];
+
+export const SHEET_NAME = 'Employee Data'

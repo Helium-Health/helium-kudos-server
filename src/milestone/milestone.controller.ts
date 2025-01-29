@@ -6,6 +6,9 @@ import {
   Patch,
   Param,
   UseGuards,
+  DefaultValuePipe,
+  ParseIntPipe,
+  Query,
 } from '@nestjs/common';
 import { MilestoneService } from './milestone.service';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
@@ -26,6 +29,15 @@ export class MilestoneController {
   @Get()
   findAll() {
     return this.milestoneService.findAll();
+  }
+
+
+  @Get('upcoming-celebrations')
+  async getUpcomingCelebrations(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    return await this.milestoneService.getUpcomingCelebrations(limit, page);
   }
 
   @Patch(':id')

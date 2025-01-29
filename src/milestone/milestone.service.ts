@@ -4,12 +4,14 @@ import { UpdateMilestoneDto } from './dto/update-milestone.dto';
 import { Milestone, MilestoneDocument } from './schema/Milestone.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
+import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class MilestoneService {
   constructor(
     @InjectModel(Milestone.name)
     private milestoneModel: Model<MilestoneDocument>,
+    private usersService: UsersService,
   ) {}
 
   async create(createMilestoneDto: CreateMilestoneDto): Promise<Milestone> {
@@ -39,5 +41,8 @@ export class MilestoneService {
         new: true,
       })
       .exec();
+  }
+  async getUpcomingCelebrations(limit: number, page: number) {
+    return await this.usersService.getUpcomingCelebrations(limit, page);
   }
 }

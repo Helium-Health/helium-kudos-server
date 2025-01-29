@@ -16,13 +16,14 @@ export class MigrationService implements OnModuleInit {
     await this.migrateCommentGiphyUrls();
     await this.migrateRecognitionGiphyUrls();
     console.log('Migration completed.');
+
+    console.log('Starting cleanup for empty strings...');
+    await this.cleanUpEmptyStringsInGiphyUrls();
+    console.log('Cleanup completed.');
   }
 
   async migrateCommentGiphyUrls() {
-    const result = await this.commentModel.aggregate([
-      {
-        $match: { giphyUrl: { $type: 'string' } },
-      },
+    await this.commentModel.updateMany({ giphyUrl: { $type: 'string' } }, [
       {
         $set: {
           giphyUrl: {
@@ -33,9 +34,6 @@ export class MigrationService implements OnModuleInit {
             },
           },
         },
-      },
-      {
-        $out: 'comments',
       },
     ]);
   }
@@ -59,6 +57,40 @@ export class MigrationService implements OnModuleInit {
       {
         $out: 'recognitions',
       },
+    ]);
+  }
+
+  async cleanUpEmptyStringsInGiphyUrls() {
+    await this.commentModel.aggregate([
+      { $match: { giphyUrl: { $exists: true, $type: 'array' } } },
+      {
+        $set: {
+          giphyUrl: {
+            $filter: {
+              input: '$giphyUrl',
+              as: 'url',
+              cond: { $ne: ['$$url', ''] },
+            },
+          },
+        },
+      },
+      { $out: 'comments' },
+    ]);
+
+    await this.recognitionModel.aggregate([
+      { $match: { giphyUrl: { $exists: true, $type: 'array' } } },
+      {
+        $set: {
+          giphyUrl: {
+            $filter: {
+              input: '$giphyUrl',
+              as: 'url',
+              cond: { $ne: ['$$url', ''] },
+            },
+          },
+        },
+      },
+      { $out: 'recognitions' },
     ]);
   }
 }
