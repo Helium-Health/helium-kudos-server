@@ -9,7 +9,7 @@ import {
 
 @Module({
   imports: [
-    MongooseModule.forRoot(process.env.MONGODB_URI),
+    MongooseModule.forRoot(process.env.LOCAL_MONGODB_URI),
     MongooseModule.forFeature([
       { name: 'Comment', schema: CommentSchema },
       { name: 'Recognition', schema: RecognitionSchema },

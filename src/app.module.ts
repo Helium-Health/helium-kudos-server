@@ -31,7 +31,7 @@ import { UserSyncService } from './users/user-sync.service';
 @Module({
   imports: [
     ConfigModule.forRoot(),
-    MongooseModule.forRoot(process.env.MONGODB_URI),
+    MongooseModule.forRoot(process.env.LOCAL_MONGODB_URI),
     AuthModule,
     UsersModule,
     RecognitionModule,
