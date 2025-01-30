@@ -54,37 +54,40 @@ export class MigrationService implements OnModuleInit {
     ]);
   }
 
-  async cleanUpEmptyStringsInGiphyUrls() {
-    await this.commentModel.aggregate([
-      { $match: { giphyUrl: { $exists: true, $type: 'array' } } },
-      {
-        $set: {
-          giphyUrl: {
-            $filter: {
-              input: '$giphyUrl',
-              as: 'url',
-              cond: { $ne: ['$$url', ''] },
-            },
-          },
-        },
-      },
-      { $out: 'comments' },
-    ]);
 
-    await this.recognitionModel.aggregate([
-      { $match: { giphyUrl: { $exists: true, $type: 'array' } } },
-      {
-        $set: {
-          giphyUrl: {
-            $filter: {
-              input: '$giphyUrl',
-              as: 'url',
-              cond: { $ne: ['$$url', ''] },
+  async cleanUpEmptyStringsInGiphyUrls() {
+    await this.commentModel.updateMany(
+      { giphyUrl: { $exists: true, $type: 'array' } },
+      [
+        {
+          $set: {
+            giphyUrl: {
+              $filter: {
+                input: '$giphyUrl',
+                as: 'url',
+                cond: { $ne: ['$$url', ''] },
+              },
             },
           },
         },
-      },
-      { $out: 'recognitions' },
-    ]);
+      ],
+    );
+
+    await this.recognitionModel.updateMany(
+      { giphyUrl: { $exists: true, $type: 'array' } },
+      [
+        {
+          $set: {
+            giphyUrl: {
+              $filter: {
+                input: '$giphyUrl',
+                as: 'url',
+                cond: { $ne: ['$$url', ''] },
+              },
+            },
+          },
+        },
+      ],
+    );
   }
 }
