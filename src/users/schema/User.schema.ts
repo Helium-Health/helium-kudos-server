@@ -37,6 +37,10 @@ export class User {
   @Prop({ type: Boolean, default: false })
   verified: boolean;
 
+  // TEMP FIX: make refresh token required after deployment on 31/01/2025
+  @Prop({ type: String, required: false, select: false })
+  refreshToken: string;
+
   @Prop({ type: Date })
   joinDate: Date;
 
@@ -45,6 +49,12 @@ export class User {
 
   @Prop({ type: Types.ObjectId, ref: 'Wallet' })
   wallet: Types.Array<Types.ObjectId>;
+
+  @Prop()
+  team: string;
+
+  @Prop()
+  nationality: string;
 }
 
 // Create schema using the class

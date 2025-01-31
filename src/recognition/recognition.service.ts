@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   forwardRef,
   Inject,
   Injectable,
@@ -9,18 +10,25 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, Types } from 'mongoose';
 import { Recognition, RecognitionDocument } from './schema/Recognition.schema';
-import { CreateRecognitionDto } from './dto/CreateRecognition.dto';
+import {
+  CreateRecognitionDto,
+  EditRecognitionDto,
+} from './dto/CreateRecognition.dto';
 import { UserRecognitionService } from 'src/user-recognition/user-recognition.service';
 import { UserRecognitionRole } from 'src/user-recognition/schema/UserRecognition.schema';
 import { UsersService } from 'src/users/users.service';
 import { WalletService } from 'src/wallet/wallet.service';
 import { CompanyValues } from 'src/constants/companyValues';
 import { Reaction } from 'src/reactions/schema/reactions.schema';
-import { EntityType } from 'src/transaction/schema/Transaction.schema';
+import {
+  EntityType,
+  transactionStatus,
+} from 'src/transaction/schema/Transaction.schema';
 import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
 import { ClaimService } from 'src/claim/claim.service';
 import { TransactionService } from 'src/transaction/transaction.service';
 import { RecognitionGateway } from './recognition.gateway';
+import { UserRole } from 'src/users/schema/User.schema';
 
 @Injectable()
 export class RecognitionService {
@@ -63,6 +71,10 @@ export class RecognitionService {
       );
     }
 
+    const validGiphyUrls = Array.isArray(giphyUrl)
+      ? giphyUrl.filter(Boolean)
+      : [];
+
     const receiverIds = receivers.map((receiver) => receiver.receiverId);
     const areValidUsers = await this.usersService.validateUserIds(receiverIds);
 
@@ -90,7 +102,7 @@ export class RecognitionService {
       const newRecognition = new this.recognitionModel({
         senderId: new Types.ObjectId(senderId),
         message,
-        giphyUrl,
+        giphyUrl: validGiphyUrls,
         receivers: receivers.map((r) => ({
           receiverId: new Types.ObjectId(r.receiverId),
           coinAmount: r.coinAmount ?? 0,
@@ -148,6 +160,35 @@ export class RecognitionService {
     } finally {
       session.endSession();
     }
+  }
+
+  async editRecognition(
+    recognitionId: Types.ObjectId,
+    userId: Types.ObjectId,
+    { message }: EditRecognitionDto,
+  ) {
+    const recognition = await this.recognitionModel.findById(recognitionId);
+
+    if (!recognition) {
+      throw new NotFoundException('Recognition not found');
+    }
+
+    if (!recognition.senderId.equals(userId)) {
+      throw new ForbiddenException(
+        'You are not authorized to edit this recognition',
+      );
+    }
+
+    recognition.message = message;
+    await recognition.save();
+
+    this.recognitionGateway.notifyClients({
+      recognitionId,
+      message: `Recognition updated: ${message}`,
+      userId,
+    });
+
+    return recognition;
   }
 
   async createAutoRecognition({
@@ -255,6 +296,8 @@ export class RecognitionService {
     limit: number,
     userId?: string,
     role?: string,
+    milestoneType?: MilestoneType,
+    isAuto?: Boolean,
   ) {
     if (userId && !Types.ObjectId.isValid(userId)) {
       throw new BadRequestException('Invalid userId format');
@@ -280,6 +323,17 @@ export class RecognitionService {
           { 'receivers.receiverId': new Types.ObjectId(userId) },
         ];
       }
+    }
+
+    if (milestoneType) {
+      if (!Object.values(MilestoneType).includes(milestoneType)) {
+        throw new BadRequestException('Invalid milestoneType value');
+      }
+      matchFilter.milestoneType = milestoneType;
+    }
+
+    if (isAuto !== undefined) {
+      matchFilter.isAuto = { $eq: isAuto };
     }
 
     const [recognitions, totalCount] = await Promise.all([
@@ -364,7 +418,7 @@ export class RecognitionService {
             createdAt: { $first: '$createdAt' },
             isAuto: { $first: '$isAuto' },
             sender: { $first: '$sender' },
-            giphyUrl: { $first: '$giphyUrl' }, // Add giphyUrl here
+            giphyUrl: { $first: '$giphyUrl' },
             receivers: {
               $push: {
                 _id: '$receivers.receiverId',
@@ -568,6 +622,26 @@ export class RecognitionService {
           .then((receivers) => new Set([...senders, ...receivers]).size),
       );
 
+    const totalCoinsGivenOut = await this.recognitionModel.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startOfQuarter, $lte: endOfQuarter },
+        },
+      },
+      {
+        $unwind: '$receivers',
+      },
+      {
+        $group: {
+          _id: null,
+          totalCoins: { $sum: '$receivers.coinAmount' },
+        },
+      },
+    ]);
+
+    const totalCoins =
+      totalCoinsGivenOut.length > 0 ? totalCoinsGivenOut[0].totalCoins : 0;
+
     const participationPercentage =
       totalUsersCount > 0
         ? ((totalParticipantsCount / totalUsersCount) * 100).toFixed(2)
@@ -576,6 +650,7 @@ export class RecognitionService {
     return {
       participants,
       participationPercentage: `${participationPercentage}%`,
+      totalCoinsGivenOut: totalCoins,
       currentPage: page,
       totalPages: Math.ceil(totalParticipantsCount / limit),
     };
@@ -852,5 +927,84 @@ export class RecognitionService {
     });
 
     return { topRecognitionReceivers: topReceiversWithCompanyValues };
+  }
+
+  async deleteRecognition(
+    recognitionId: Types.ObjectId,
+    userId: Types.ObjectId,
+  ): Promise<string> {
+    const session = await this.recognitionModel.db.startSession();
+    session.startTransaction();
+    try {
+      const recognition = await this.recognitionModel
+        .findById(recognitionId)
+        .session(session);
+      if (!recognition) {
+        throw new BadRequestException('Recognition not found');
+      }
+
+      if (!recognition.senderId.equals(userId)) {
+        const user = await this.usersService.findById(userId);
+        if (!user || user.role !== UserRole.Admin) {
+          throw new ForbiddenException(
+            'You do not have permission to delete this recognition',
+          );
+        }
+      }
+
+      const claim =
+        await this.claimService.findClaimByRecognitionId(recognitionId);
+      if (claim && claim.status !== 'pending') {
+        throw new BadRequestException(
+          `Recognition cannot be deleted because the claim is ${claim.status}`,
+        );
+      }
+
+      if (claim) {
+        for (const receiver of claim.receivers) {
+          const { receiverId, amount } = receiver;
+
+          await this.transactionService.recordCreditTransaction(
+            {
+              senderId: claim.senderId,
+              receiverId: new Types.ObjectId(receiverId),
+              amount: Math.abs(amount),
+              entityId: new Types.ObjectId(claim.recognitionId),
+              entityType: EntityType.RECOGNITION,
+              claimId: claim._id as Types.ObjectId,
+              status: transactionStatus.REVERSED,
+            },
+            session,
+          );
+        }
+
+        const totalCoinAmount = claim.receivers.reduce(
+          (sum, receiver) => sum + receiver.amount,
+          0,
+        );
+
+        await this.walletService.refundGiveableBalance(
+          claim.senderId,
+          totalCoinAmount,
+          session,
+        );
+        await this.claimService.deleteClaimById(
+          claim._id as Types.ObjectId,
+          session,
+        );
+      }
+
+      await this.recognitionModel
+        .deleteOne({ _id: recognitionId })
+        .session(session);
+
+      await session.commitTransaction();
+      return 'Recognition and associated claim deleted successfully';
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 }

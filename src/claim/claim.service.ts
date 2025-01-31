@@ -232,7 +232,7 @@ export class ClaimService {
       claims.map(async (claim) => {
         const recognition = await this.recognitionService.findById(
           claim.recognitionId,
-        );
+        ).catch(() => null);
 
         const senderDetails = await this.userService.findById(claim.senderId);
 
@@ -276,5 +276,15 @@ export class ClaimService {
         totalPages,
       },
     };
+  }
+
+  async findClaimByRecognitionId(
+    recognitionId: Types.ObjectId,
+  ): Promise<ClaimDocument | null> {
+    return this.claimModel.findOne({ recognitionId }).exec();
+  }
+
+  async deleteClaimById(claimId: Types.ObjectId, session?: any): Promise<void> {
+    await this.claimModel.deleteOne({ _id: claimId }).session(session);
   }
 }
