@@ -39,10 +39,7 @@ export class MigrationService implements OnModuleInit {
   }
 
   async migrateRecognitionGiphyUrls() {
-    const result = await this.recognitionModel.aggregate([
-      {
-        $match: { giphyUrl: { $type: 'string' } },
-      },
+    await this.recognitionModel.updateMany({ giphyUrl: { $type: 'string' } }, [
       {
         $set: {
           giphyUrl: {
@@ -53,9 +50,6 @@ export class MigrationService implements OnModuleInit {
             },
           },
         },
-      },
-      {
-        $out: 'recognitions',
       },
     ]);
   }
