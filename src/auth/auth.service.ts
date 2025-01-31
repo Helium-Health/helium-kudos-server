@@ -52,6 +52,11 @@ export class AuthService {
 
         const refreshToken =
           await this.generateAndStoreRefreshToken(userDetails);
+
+        if (!refreshToken) {
+          throw new Error('Failed to generate refresh token.');
+        }
+
         userDetails.refreshToken = refreshToken;
 
         await userDetails.save();
