@@ -42,12 +42,20 @@ export class AuthService {
         userDetails = userExists;
       } else {
         console.log('User not found. Creating...');
-        userDetails = await this.userService.createUser({
+
+        userDetails = new this.userModel({
           email: payload.email,
           name: payload.name,
           picture: payload.picture,
           verified: payload.email_verified || false,
         });
+
+        const refreshToken =
+          await this.generateAndStoreRefreshToken(userDetails);
+        userDetails.refreshToken = refreshToken;
+
+        await userDetails.save();
+        console.log('New user created:', userDetails);
       }
 
       const jwtToken = this.generateJwtToken(userDetails);
