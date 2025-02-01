@@ -1,4 +1,5 @@
 import {
+  Inject,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -9,12 +10,14 @@ import { User, UserDocument, UserGender } from 'src/users/schema/User.schema';
 import { CreateUserDto, UpdateUserDto } from './dto/User.dto';
 import { WalletService } from 'src/wallet/wallet.service';
 import { UpdateUserFromSheetDto } from './dto/UpdateFromSheet.dto';
+import * as argon2 from 'argon2';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     private walletService: WalletService,
+    @Inject('AUTH_SERVICE') private authService
   ) {}
 
   // Method to create a new user
@@ -23,13 +26,21 @@ export class UsersService {
     session.startTransaction();
 
     try {
-      const newUser = new this.userModel(createUserDto);
+      const newUser = new this.userModel({...createUserDto, refreshToken: 'initialRefreshToken'}); 
       await newUser.save({ session });
 
       await this.walletService.createWallet(newUser._id, session);
 
+      const newUserRefreshToken = await this.authService.generateAndStoreRefreshToken(newUser);
+
+      newUser.refreshToken = await argon2.hash(newUserRefreshToken);
+
+      await newUser.save({ session });
+
+
+
       await session.commitTransaction();
-      return newUser;
+      return {newUser, newUserRefreshToken};
     } catch (error) {
       await session.abortTransaction();
       throw error;
