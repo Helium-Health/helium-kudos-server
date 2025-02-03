@@ -230,9 +230,9 @@ export class ClaimService {
 
     const claimsWithDetails = await Promise.all(
       claims.map(async (claim) => {
-        const recognition = await this.recognitionService.findById(
-          claim.recognitionId,
-        ).catch(() => null);
+        const recognition = await this.recognitionService
+          .findById(claim.recognitionId)
+          .catch(() => null);
 
         const senderDetails = await this.userService.findById(claim.senderId);
 
@@ -246,7 +246,7 @@ export class ClaimService {
               _id: receiver.receiverId,
               name: receiverUser?.name,
               picture: receiverUser?.picture,
-              amountReceived: receiver.amount,
+              coinAmount: receiver.amount,
             };
           }),
         );
@@ -254,13 +254,30 @@ export class ClaimService {
         return {
           claimId: claim.id,
           status: claim.status,
-          senderDetails: {
+          sender: {
             _id: claim.senderId,
             name: senderDetails?.name,
             picture: senderDetails?.picture,
+            team: senderDetails?.team,
           },
           receivers: receiverDetails,
-          recognitionDetails: recognition,
+          recognition: recognition && {
+            _id: recognition._id.toString(),
+            message: recognition.message,
+            companyValues: recognition.companyValues,
+            createdAt: recognition.createdAt,
+            receivers: receiverDetails,
+            commentCount: recognition.comments?.length || 0,
+            isAuto: recognition.isAuto,
+            giphyUrl: recognition.giphyUrl || [],
+            reactions: recognition.reactions,
+            sender: {
+              _id: claim.senderId,
+              name: senderDetails?.name,
+              picture: senderDetails?.picture,
+              team: senderDetails?.team,
+            },
+          },
         };
       }),
     );

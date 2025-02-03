@@ -1,8 +1,9 @@
 const { execSync } = require('child_process');
 require('dotenv').config();
+const dumpDir = process.env.NODE_ENV === 'production' ? 'dump/helium_kudos' : 'dump/helium-kudos';
 
 try {
-    const command = `mongodump ${process.env.REMOTE_MONGODB_URI} && mongorestore ${process.env.LOCAL_MONGODB_URI} --drop --dir=dump/helium-kudos`;
+    const command = `mongodump ${process.env.REMOTE_MONGODB_URI} && mongorestore ${process.env.LOCAL_MONGODB_URI} --drop --dir=${dumpDir}`;
 
   
   execSync(command, { 

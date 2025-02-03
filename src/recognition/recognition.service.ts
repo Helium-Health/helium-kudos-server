@@ -426,6 +426,7 @@ export class RecognitionService {
                 name: '$receivers.details.name',
                 picture: '$receivers.details.picture',
                 role: '$receivers.details.role',
+                team: '$receivers.details.team',
               },
             },
             commentCount: { $first: { $size: { $ifNull: ['$comments', []] } } },

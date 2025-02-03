@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Cron, SchedulerRegistry } from '@nestjs/schedule';
 import { UsersService } from '../users/users.service';
 import { GoogleSheetsService } from 'src/google/google-sheets/google-sheets.service';
+import { UserGender } from './schema/User.schema';
 
 @Injectable()
 export class UserSyncService {
@@ -41,9 +42,17 @@ export class UserSyncService {
 
       await this.usersService.updateByEmail(email, {
         team,
-        joinDate: new Date(workAnniversary),
-        dateOfBirth: new Date(dob),
-        gender,
+        joinDate:
+          workAnniversary && !isNaN(new Date(workAnniversary).getTime())
+            ? new Date(workAnniversary)
+            : undefined,
+        dateOfBirth:
+          dob && !isNaN(new Date(dob).getTime()) ? new Date(dob) : undefined,
+        gender:
+          gender &&
+          [UserGender.Female, UserGender.Male].includes(gender.toLowerCase())
+            ? gender.toLowerCase()
+            : undefined,
         nationality,
       });
     }
