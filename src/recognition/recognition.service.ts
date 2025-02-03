@@ -245,6 +245,13 @@ export class RecognitionService {
       }
 
       await session.commitTransaction();
+      this.recognitionGateway.notifyClients({
+        recognitionId: newRecognition._id,
+        message: `Recognition created: ${message}`,
+        recognitionType: EntityType.RECOGNITION,
+        receivers: receiverId,
+        amount: coinAmount,
+      });
       return newRecognition;
     } catch (error) {
       await session.abortTransaction();
@@ -426,6 +433,7 @@ export class RecognitionService {
                 name: '$receivers.details.name',
                 picture: '$receivers.details.picture',
                 role: '$receivers.details.role',
+                team: '$receivers.details.team',
               },
             },
             commentCount: { $first: { $size: { $ifNull: ['$comments', []] } } },
