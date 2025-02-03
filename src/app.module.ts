@@ -22,8 +22,6 @@ import { StorageModule } from './storage/storage.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { MissionModule } from './mission/mission.module';
 import { FeedbackModule } from './feedback/feedback.module';
-import { CommentSchema } from './comment/schema/comment.schema';
-import { RecognitionSchema } from './recognition/schema/Recognition.schema';
 import { GoogleSheetsService } from './google/google-sheets/google-sheets.service';
 import { UserSyncService } from './users/user-sync.service';
 
@@ -52,11 +50,6 @@ import { UserSyncService } from './users/user-sync.service';
     LeaderboardModule,
     MissionModule,
     FeedbackModule,
-
-    MongooseModule.forFeature([
-      { name: 'Comment', schema: CommentSchema },
-      { name: 'Recognition', schema: RecognitionSchema },
-    ]),
   ],
   controllers: [],
   providers: [UserSyncService, GoogleSheetsService],
