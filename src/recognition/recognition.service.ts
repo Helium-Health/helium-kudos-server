@@ -245,6 +245,13 @@ export class RecognitionService {
       }
 
       await session.commitTransaction();
+      this.recognitionGateway.notifyClients({
+        recognitionId: newRecognition._id,
+        message: `Recognition created: ${message}`,
+        recognitionType: EntityType.RECOGNITION,
+        receivers: receiverId,
+        amount: coinAmount,
+      });
       return newRecognition;
     } catch (error) {
       await session.abortTransaction();
