@@ -22,7 +22,6 @@ import { StorageModule } from './storage/storage.module';
 import { LeaderboardModule } from './leaderboard/leaderboard.module';
 import { MissionModule } from './mission/mission.module';
 import { FeedbackModule } from './feedback/feedback.module';
-import { MigrationService } from './migrations/migrations.service';
 import { CommentSchema } from './comment/schema/comment.schema';
 import { RecognitionSchema } from './recognition/schema/Recognition.schema';
 import { GoogleSheetsService } from './google/google-sheets/google-sheets.service';
@@ -54,18 +53,12 @@ import { UserSyncService } from './users/user-sync.service';
     MissionModule,
     FeedbackModule,
 
-    // TODO: remove this module after migration is done
     MongooseModule.forFeature([
       { name: 'Comment', schema: CommentSchema },
       { name: 'Recognition', schema: RecognitionSchema },
     ]),
   ],
   controllers: [],
-  providers: [
-    //TODO: Remove this provider and import after migration is done
-    MigrationService,
-    UserSyncService,
-    GoogleSheetsService,
-  ],
+  providers: [UserSyncService, GoogleSheetsService],
 })
 export class AppModule {}
