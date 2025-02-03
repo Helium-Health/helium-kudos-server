@@ -37,7 +37,7 @@ export class ClaimController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('recent') recent?: 'ASCENDING_ORDER' | 'DESCENDING_ORDER',
-  ): Promise<Claim[]> {
+  ) {
     return this.claimService.filterClaims(
       userId ? new Types.ObjectId(userId) : undefined,
       status,
