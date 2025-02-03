@@ -184,6 +184,7 @@ export class OrderService {
             status: 1,
             items: 1,
             totalAmount: 1,
+            expectedDeliveryDate: 1,
             createdAt: 1,
           },
         },
