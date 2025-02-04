@@ -24,6 +24,7 @@ import { MissionModule } from './mission/mission.module';
 import { FeedbackModule } from './feedback/feedback.module';
 import { GoogleSheetsService } from './google/google-sheets/google-sheets.service';
 import { UserSyncService } from './users/user-sync.service';
+import { SlackModule } from './slack/slack.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { UserSyncService } from './users/user-sync.service';
     LeaderboardModule,
     MissionModule,
     FeedbackModule,
+    SlackModule,
   ],
   controllers: [],
   providers: [UserSyncService, GoogleSheetsService],

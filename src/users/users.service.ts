@@ -166,6 +166,7 @@ export class UsersService {
       { new: true },
     );
   }
+
   async getUpcomingCelebrations(limit: number, page: number): Promise<any> {
     const today = new Date();
     const skip = (page - 1) * limit;
@@ -230,8 +231,6 @@ export class UsersService {
       },
       { $unwind: '$celebrations' },
       { $sort: { 'celebrations.date': 1 } },
-      { $skip: skip },
-      { $limit: limit },
       {
         $facet: {
           data: [{ $skip: skip }, { $limit: limit }],
