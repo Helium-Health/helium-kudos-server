@@ -19,7 +19,7 @@ export class SlackService {
         channel: userId, // The Slack user ID
         text: message,
       });
-      console.log('Message sent:', result);
+      console.log('Message sent:');
     } catch (error) {
       console.error('Error sending message to Slack:', error);
     }
