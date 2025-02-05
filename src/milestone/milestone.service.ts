@@ -1,7 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { CreateMilestoneDto } from './dto/create-milestone.dto';
 import { UpdateMilestoneDto } from './dto/update-milestone.dto';
-import { Milestone, MilestoneDocument } from './schema/Milestone.schema';
+import {
+  Milestone,
+  MilestoneDocument,
+  MilestoneType,
+} from './schema/Milestone.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { UsersService } from 'src/users/users.service';
@@ -42,7 +46,18 @@ export class MilestoneService {
       })
       .exec();
   }
-  async getUpcomingCelebrations(limit: number, page: number) {
-    return await this.usersService.getUpcomingCelebrations(limit, page);
+  async getUpcomingCelebrations(
+    limit: number,
+    page: number,
+    month?: number,
+    celebrationType?: MilestoneType,
+  ) {
+
+    return await this.usersService.getUpcomingCelebrations(
+      limit,
+      page,
+      month,
+      celebrationType,
+    );
   }
 }
