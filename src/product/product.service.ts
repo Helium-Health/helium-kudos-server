@@ -22,6 +22,10 @@ export class ProductService {
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
     if (createProductDto.categories?.length) {
+      const categoryObjectIds = createProductDto.categories.map(
+        (categoryId) => new Types.ObjectId(categoryId),
+      );
+
       const categories = await this.categoryModel.find({
         _id: { $in: createProductDto.categories },
       });
@@ -29,46 +33,179 @@ export class ProductService {
       if (categories.length !== createProductDto.categories.length) {
         throw new NotFoundException('One or more categories not found');
       }
+      createProductDto.categories = categoryObjectIds;
     }
 
     const product = new this.productModel(createProductDto);
     return product.save();
   }
 
-  async findAll(
-    page: number = 1,
-    limit: number = 10,
-  ): Promise<{
-    data: ProductResponse[];
-    meta: {
-      totalCount: number;
-      page: number;
-      limit: number;
-      totalPages: number;
-    };
-  }> {
-    const skip = (page - 1) * limit;
+  // async findAll(
+  //   page: number = 1,
+  //   limit: number = 10,
+  //   category?: string, // Optional filter by category name
+  // ): Promise<{
+  //   data: ProductResponse[];
+  //   meta: {
+  //     totalCount: number;
+  //     page: number;
+  //     limit: number;
+  //     totalPages: number;
+  //   };
+  // }> {
+  //   const skip = (page - 1) * limit;
 
-    const [products, totalCount] = await Promise.all([
-      this.productModel
-        .find()
-        .populate('categories')
-        .skip(skip)
-        .limit(limit)
-        .exec(),
-      this.productModel.countDocuments(),
-    ]);
+  //   let query: any = {};
 
-    return {
-      data: products,
-      meta: {
-        totalCount,
-        page,
-        limit,
-        totalPages: Math.ceil(totalCount / limit),
-      },
-    };
+  //   console.log('Page:', page, 'Limit:', limit, 'Category filter:', category);
+
+  //   if (category) {
+  //     // Fetch categories based on the category name filter
+  //     const categories = await this.categoryModel
+  //       .find({ name: { $regex: category, $options: 'i' } }) // Case-insensitive match
+  //       .exec();
+
+  //     console.log('Fetched categories:', categories);
+
+  //     if (categories.length === 0) {
+  //       console.log('No categories found, returning empty result.');
+  //       return {
+  //         data: [],
+  //         meta: {
+  //           totalCount: 0,
+  //           page,
+  //           limit,
+  //           totalPages: 0,
+  //         },
+  //       };
+  //     }
+
+  //     // Convert the category _id's to ObjectId (if they're strings, they are converted here)
+  //     const categoryIds = categories.map(
+  //       (category) => new Types.ObjectId(category._id), // Ensure that category _ids are ObjectId instances
+  //     );
+
+  //     console.log('Category IDs to filter by:', categoryIds);
+
+  //     // Update the query to filter by category _id (now converted to ObjectId)
+  //     query['categories'] = { $in: categoryIds };
+  //   }
+
+  //   console.log('Query being executed:', query);
+
+  //   const [products, totalCount] = await Promise.all([
+  //     this.productModel
+  //       .find(query) // Apply the category filter if any
+  //       .populate('categories') // Populate the category field
+  //       .skip(skip)
+  //       .limit(limit)
+  //       .exec(),
+  //     this.productModel.countDocuments(query), // Count matching products
+  //   ]);
+
+  //   console.log('Fetched products:', products);
+  //   console.log('Total product count:', totalCount);
+
+  //   return {
+  //     data: products,
+  //     meta: {
+  //       totalCount,
+  //       page,
+  //       limit,
+  //       totalPages: Math.ceil(totalCount / limit),
+  //     },
+  //   };
+  // }
+
+async findAll(
+  page: number = 1,
+  limit: number = 10,
+  category?: string, // Optional filter by category name
+): Promise<{
+  data: ProductResponse[];
+  meta: {
+    totalCount: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}> {
+  const skip = (page - 1) * limit;
+
+  let query: any = {};
+
+  console.log('Page:', page, 'Limit:', limit, 'Category filter:', category);
+
+  if (category) {
+    // Fetch categories based on the category name filter
+    const categories = await this.categoryModel
+      .find({ name: { $regex: category, $options: 'i' } }) // Case-insensitive match
+      .exec();
+
+    console.log('Fetched categories:', categories);
+
+    if (categories.length === 0) {
+      console.log('No categories found, returning empty result.');
+      return {
+        data: [],
+        meta: {
+          totalCount: 0,
+          page,
+          limit,
+          totalPages: 0,
+        },
+      };
+    }
+
+    // Convert the category _id's to ObjectId (if they're strings, they are converted here)
+    const categoryIds = categories.map(
+      (category) => new Types.ObjectId(category._id), // Ensure that category _ids are ObjectId instances
+    );
+
+    console.log('Category IDs to filter by:', categoryIds);
+
+    // Update the query to filter by category _id (now converted to ObjectId)
+    query['categories'] = { $in: categoryIds };
   }
+
+  console.log('Query being executed:', query);
+
+  const [products, totalCount] = await Promise.all([
+    this.productModel
+      .find(query) // Apply the category filter if any
+      .populate('categories', 'name') // Populate only the name of the categories
+      .skip(skip)
+      .limit(limit)
+      .exec(),
+    this.productModel.countDocuments(query), // Count matching products
+  ]);
+
+  console.log('Fetched products:', products);
+  console.log('Total product count:', totalCount);
+
+  // Map over the products to ensure the response includes category names
+  const productsWithCategories = products.map((product) => {
+    const productWithCategoryNames = {
+      ...product.toObject(),
+      categories: product.categories.map((category: any) => ({
+        id: category._id,
+        name: category.name,
+      })),
+    };
+
+    return productWithCategoryNames;
+  });
+
+  return {
+    data: productsWithCategories,
+    meta: {
+      totalCount,
+      page,
+      limit,
+      totalPages: Math.ceil(totalCount / limit),
+    },
+  };
+}
 
   async findById(id: string): Promise<ProductResponse> {
     const product = await this.productModel
@@ -95,6 +232,10 @@ export class ProductService {
     }
 
     if (updateProductDto.categories?.length) {
+      const categoryObjectIds = updateProductDto.categories.map(
+        (categoryId) => new Types.ObjectId(categoryId),
+      );
+
       const categories = await this.categoryModel.find({
         _id: { $in: updateProductDto.categories },
       });
@@ -102,6 +243,7 @@ export class ProductService {
       if (categories.length !== updateProductDto.categories.length) {
         throw new NotFoundException('One or more categories not found');
       }
+      updateProductDto.categories = categoryObjectIds;
     }
 
     const updatedImages = updateProductDto.images

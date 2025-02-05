@@ -99,10 +99,13 @@ export class AuthService {
         .select('+refreshToken')
         .exec();
 
-      if (!user || !user.refreshToken) {
-        throw new UnauthorizedException('Refresh token is invalid or expired');
+      if (!user) {
+        throw new UnauthorizedException('User not found');
       }
 
+      if (!user.refreshToken) {
+        throw new UnauthorizedException('User does not have a refresh token');
+      }
       const isValid = await argon2.verify(user.refreshToken, refreshToken);
       if (!isValid) {
         throw new UnauthorizedException('Invalid refresh token');

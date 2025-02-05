@@ -27,6 +27,12 @@ export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
   @UseGuards(AdminGuard)
+  @Get('categories')
+  findAllCategories() {
+    return this.productService.findAllCategories();
+  }
+
+  @UseGuards(AdminGuard)
   @Post()
   create(@Body() createProductDto: CreateProductDto) {
     return this.productService.create(createProductDto);
@@ -36,8 +42,9 @@ export class ProductController {
   findAll(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('category') category?: string, 
   ) {
-    return this.productService.findAll(page, limit);
+    return this.productService.findAll(page, limit, category);
   }
 
   @Get(':id')
@@ -49,12 +56,6 @@ export class ProductController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateProductDto: UpdateProductDto) {
     return this.productService.update(id, updateProductDto);
-  }
-
-  @UseGuards(AdminGuard)
-  @Get('categories')
-  findAllCategories() {
-    return this.productService.findAllCategories();
   }
 
   @Post('categories')
