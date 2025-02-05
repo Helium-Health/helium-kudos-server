@@ -136,6 +136,53 @@ export class ClaimService {
     }
   }
 
+  async approveAllClaims() {
+    const session = await this.claimModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      const claims = await this.claimModel
+        .find({ status: Status.PENDING })
+        .session(session);
+
+      for (const claim of claims) {
+        claim.status = Status.APPROVED;
+        await claim.save({ session });
+
+        for (const receiver of claim.receivers) {
+          const { receiverId, amount } = receiver;
+
+          await this.walletService.incrementEarnedBalance(
+            new Types.ObjectId(receiverId),
+            amount,
+            session,
+          );
+
+          await this.transactionService.recordCreditTransaction(
+            {
+              senderId: claim.senderId,
+              receiverId: new Types.ObjectId(receiverId),
+              amount: Math.abs(amount),
+              entityId: new Types.ObjectId(claim.recognitionId),
+              entityType: EntityType.RECOGNITION,
+              claimId: claim._id as Types.ObjectId,
+              status: transactionStatus.SUCCESS,
+            },
+            session,
+          );
+        }
+      }
+
+      await session.commitTransaction();
+    } catch (error) {
+      await session.abortTransaction();
+      console.error('Error approving all claims:', error);
+      throw new InternalServerErrorException('Failed to approve all claims');
+    } finally {
+      session.endSession();
+    }
+  }
+
   async rejectClaim(claimId: Types.ObjectId) {
     const session = await this.claimModel.db.startSession();
     session.startTransaction();
