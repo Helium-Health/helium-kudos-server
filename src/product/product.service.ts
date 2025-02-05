@@ -54,159 +54,105 @@ export class ProductService {
   //   };
   // }> {
   //   const skip = (page - 1) * limit;
-
-  //   let query: any = {};
-
-  //   console.log('Page:', page, 'Limit:', limit, 'Category filter:', category);
-
+  
+  //   let aggregationPipeline: any[] = [];
+  
+  //   // Match by category if provided
   //   if (category) {
-  //     // Fetch categories based on the category name filter
-  //     const categories = await this.categoryModel
-  //       .find({ name: { $regex: category, $options: 'i' } }) // Case-insensitive match
-  //       .exec();
-
-  //     console.log('Fetched categories:', categories);
-
-  //     if (categories.length === 0) {
-  //       console.log('No categories found, returning empty result.');
-  //       return {
-  //         data: [],
-  //         meta: {
-  //           totalCount: 0,
-  //           page,
-  //           limit,
-  //           totalPages: 0,
+  //     aggregationPipeline.push(
+  //       {
+  //         $lookup: {
+  //           from: 'categories', // Assuming the name of the categories collection is 'categories'
+  //           let: { categoryName: category },
+  //           pipeline: [
+  //             {
+  //               $match: {
+  //                 $expr: {
+  //                   $regexMatch: {
+  //                     input: { $toLower: '$name' }, // Convert category name to lowercase
+  //                     regex: { $toLower: category }, // Convert filter to lowercase for case-insensitive match
+  //                   },
+  //                 },
+  //               },
+  //             },
+  //             {
+  //               $project: { _id: 1, name: 1 }, // Only return _id and name fields
+  //             },
+  //           ],
+  //           as: 'matchedCategories',
   //         },
-  //       };
-  //     }
-
-  //     // Convert the category _id's to ObjectId (if they're strings, they are converted here)
-  //     const categoryIds = categories.map(
-  //       (category) => new Types.ObjectId(category._id), // Ensure that category _ids are ObjectId instances
+  //       },
+  //       {
+  //         $match: {
+  //           'categories': { $in: [] }, // Initialize an empty array for category filter
+  //         },
+  //       },
+  //       {
+  //         $set: {
+  //           'categories': { $ifNull: [{ $arrayElemAt: ['$matchedCategories._id', 0] }, []] },
+  //         },
+  //       }
   //     );
-
-  //     console.log('Category IDs to filter by:', categoryIds);
-
-  //     // Update the query to filter by category _id (now converted to ObjectId)
-  //     query['categories'] = { $in: categoryIds };
   //   }
-
-  //   console.log('Query being executed:', query);
-
-  //   const [products, totalCount] = await Promise.all([
-  //     this.productModel
-  //       .find(query) // Apply the category filter if any
-  //       .populate('categories') // Populate the category field
-  //       .skip(skip)
-  //       .limit(limit)
-  //       .exec(),
-  //     this.productModel.countDocuments(query), // Count matching products
-  //   ]);
-
-  //   console.log('Fetched products:', products);
-  //   console.log('Total product count:', totalCount);
-
+  
+  //   // Match the products based on the categoryIds
+  //   aggregationPipeline.push(
+  //     {
+  //       $match: {
+  //         ...(category ? { categories: { $in: [] } } : {}),
+  //       },
+  //     },
+  //     {
+  //       $lookup: {
+  //         from: 'categories',
+  //         localField: 'categories',
+  //         foreignField: '_id',
+  //         as: 'categories',
+  //       },
+  //     },
+  //     {
+  //       $project: {
+  //         'categories.createdAt': 0, // Exclude createdAt field
+  //         'categories.updatedAt': 0, // Exclude updatedAt field
+  //         'categories.__v': 0, // Exclude __v field
+  //       },
+  //     }
+  //   );
+  
+  //   // First, calculate the total count without pagination
+  //   const totalCountPipeline = [...aggregationPipeline];
+  //   totalCountPipeline.push({ $count: 'totalCount' });
+  
+  //   // Perform the count query separately to get the totalCount
+  //   const totalCountResult = await this.productModel.aggregate(totalCountPipeline).exec();
+  //   const totalCount = totalCountResult.length > 0 ? totalCountResult[0].totalCount : 0;
+  
+  //   // Calculate the total pages based on totalCount and limit
+  //   const totalPages = Math.ceil(totalCount / limit);
+  
+  //   // Now, add pagination to the pipeline
+  //   aggregationPipeline.push(
+  //     { $skip: skip },
+  //     { $limit: limit }
+  //   );
+  
+  //   // Execute the aggregation with pagination
+  //   const result = await this.productModel.aggregate(aggregationPipeline).exec();
+  
   //   return {
-  //     data: products,
+  //     data: result,
   //     meta: {
   //       totalCount,
   //       page,
   //       limit,
-  //       totalPages: Math.ceil(totalCount / limit),
+  //       totalPages,
   //     },
   //   };
   // }
-
-async findAll(
-  page: number = 1,
-  limit: number = 10,
-  category?: string, // Optional filter by category name
-): Promise<{
-  data: ProductResponse[];
-  meta: {
-    totalCount: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
-}> {
-  const skip = (page - 1) * limit;
-
-  let query: any = {};
-
-  console.log('Page:', page, 'Limit:', limit, 'Category filter:', category);
-
-  if (category) {
-    // Fetch categories based on the category name filter
-    const categories = await this.categoryModel
-      .find({ name: { $regex: category, $options: 'i' } }) // Case-insensitive match
-      .exec();
-
-    console.log('Fetched categories:', categories);
-
-    if (categories.length === 0) {
-      console.log('No categories found, returning empty result.');
-      return {
-        data: [],
-        meta: {
-          totalCount: 0,
-          page,
-          limit,
-          totalPages: 0,
-        },
-      };
-    }
-
-    // Convert the category _id's to ObjectId (if they're strings, they are converted here)
-    const categoryIds = categories.map(
-      (category) => new Types.ObjectId(category._id), // Ensure that category _ids are ObjectId instances
-    );
-
-    console.log('Category IDs to filter by:', categoryIds);
-
-    // Update the query to filter by category _id (now converted to ObjectId)
-    query['categories'] = { $in: categoryIds };
-  }
-
-  console.log('Query being executed:', query);
-
-  const [products, totalCount] = await Promise.all([
-    this.productModel
-      .find(query) // Apply the category filter if any
-      .populate('categories', 'name') // Populate only the name of the categories
-      .skip(skip)
-      .limit(limit)
-      .exec(),
-    this.productModel.countDocuments(query), // Count matching products
-  ]);
-
-  console.log('Fetched products:', products);
-  console.log('Total product count:', totalCount);
-
-  // Map over the products to ensure the response includes category names
-  const productsWithCategories = products.map((product) => {
-    const productWithCategoryNames = {
-      ...product.toObject(),
-      categories: product.categories.map((category: any) => ({
-        id: category._id,
-        name: category.name,
-      })),
-    };
-
-    return productWithCategoryNames;
-  });
-
-  return {
-    data: productsWithCategories,
-    meta: {
-      totalCount,
-      page,
-      limit,
-      totalPages: Math.ceil(totalCount / limit),
-    },
-  };
-}
-
+  
+  
+  
+  
   async findById(id: string): Promise<ProductResponse> {
     const product = await this.productModel
       .findById(new Types.ObjectId(id))
