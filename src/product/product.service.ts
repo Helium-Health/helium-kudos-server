@@ -9,7 +9,7 @@ import { Product, ProductResponse } from './schema/product.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, Types } from 'mongoose';
 import { StorageService } from 'src/storage/storage.service';
-import { Category } from './schema/category.schema';
+import { Category, CategoryDocument } from './schema/category.schema';
 import { CreateCategoryDto } from './dto/create-category.dto';
 
 @Injectable()
@@ -40,34 +40,51 @@ export class ProductService {
     return product.save();
   }
 
+
   async findAll(
     page: number = 1,
     limit: number = 10,
-    category?: string,
-  ): Promise<ProductResponse[]> {
-    const skip = (page - 1) * limit;
+    categoryFilter?: string,
+  ) {
     let query: any = {};
 
-    if (category) {
-      const matchingCategories = await this.categoryModel
-        .find({ name: { $regex: category, $options: 'i' } })
-        .select('_id');
-
-      const categoryIds = matchingCategories.map((cat) => cat._id);
-
-      if (categoryIds.length > 0) {
+    if (categoryFilter) {
+      const categories = await this.categoryModel.find({
+        name: { $regex: new RegExp(categoryFilter, 'i') },
+      });
+      if (categories.length > 0) {
+        const categoryIds = categories.map((category) => new Types.ObjectId(category._id));
         query.categories = { $in: categoryIds };
       } else {
-        return [];
+        return {
+          products: [],
+          meta: {
+            totalCount: 0,
+            page,
+            limit,
+            totalPages: 0,
+          },
+        };
       }
     }
 
-    return this.productModel
+    const totalCount = await this.productModel.countDocuments(query);
+    const totalPages = Math.ceil(totalCount / limit);
+    const products = await this.productModel
       .find(query)
-      .populate('categories')
-      .skip(skip)
+      .skip((page - 1) * limit)
       .limit(limit)
-      .exec();
+      .populate('categories');
+
+    return {
+      products,
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages,
+      },
+    };
   }
 
   async findById(id: string): Promise<ProductResponse> {
