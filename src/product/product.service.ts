@@ -40,119 +40,120 @@ export class ProductService {
     return product.save();
   }
 
-  // async findAll(
-  //   page: number = 1,
-  //   limit: number = 10,
-  //   category?: string, // Optional filter by category name
-  // ): Promise<{
-  //   data: ProductResponse[];
-  //   meta: {
-  //     totalCount: number;
-  //     page: number;
-  //     limit: number;
-  //     totalPages: number;
-  //   };
-  // }> {
-  //   const skip = (page - 1) * limit;
-  
-  //   let aggregationPipeline: any[] = [];
-  
-  //   // Match by category if provided
-  //   if (category) {
-  //     aggregationPipeline.push(
-  //       {
-  //         $lookup: {
-  //           from: 'categories', // Assuming the name of the categories collection is 'categories'
-  //           let: { categoryName: category },
-  //           pipeline: [
-  //             {
-  //               $match: {
-  //                 $expr: {
-  //                   $regexMatch: {
-  //                     input: { $toLower: '$name' }, // Convert category name to lowercase
-  //                     regex: { $toLower: category }, // Convert filter to lowercase for case-insensitive match
-  //                   },
-  //                 },
-  //               },
-  //             },
-  //             {
-  //               $project: { _id: 1, name: 1 }, // Only return _id and name fields
-  //             },
-  //           ],
-  //           as: 'matchedCategories',
-  //         },
-  //       },
-  //       {
-  //         $match: {
-  //           'categories': { $in: [] }, // Initialize an empty array for category filter
-  //         },
-  //       },
-  //       {
-  //         $set: {
-  //           'categories': { $ifNull: [{ $arrayElemAt: ['$matchedCategories._id', 0] }, []] },
-  //         },
-  //       }
-  //     );
-  //   }
-  
-  //   // Match the products based on the categoryIds
-  //   aggregationPipeline.push(
-  //     {
-  //       $match: {
-  //         ...(category ? { categories: { $in: [] } } : {}),
-  //       },
-  //     },
-  //     {
-  //       $lookup: {
-  //         from: 'categories',
-  //         localField: 'categories',
-  //         foreignField: '_id',
-  //         as: 'categories',
-  //       },
-  //     },
-  //     {
-  //       $project: {
-  //         'categories.createdAt': 0, // Exclude createdAt field
-  //         'categories.updatedAt': 0, // Exclude updatedAt field
-  //         'categories.__v': 0, // Exclude __v field
-  //       },
-  //     }
-  //   );
-  
-  //   // First, calculate the total count without pagination
-  //   const totalCountPipeline = [...aggregationPipeline];
-  //   totalCountPipeline.push({ $count: 'totalCount' });
-  
-  //   // Perform the count query separately to get the totalCount
-  //   const totalCountResult = await this.productModel.aggregate(totalCountPipeline).exec();
-  //   const totalCount = totalCountResult.length > 0 ? totalCountResult[0].totalCount : 0;
-  
-  //   // Calculate the total pages based on totalCount and limit
-  //   const totalPages = Math.ceil(totalCount / limit);
-  
-  //   // Now, add pagination to the pipeline
-  //   aggregationPipeline.push(
-  //     { $skip: skip },
-  //     { $limit: limit }
-  //   );
-  
-  //   // Execute the aggregation with pagination
-  //   const result = await this.productModel.aggregate(aggregationPipeline).exec();
-  
-  //   return {
-  //     data: result,
-  //     meta: {
-  //       totalCount,
-  //       page,
-  //       limit,
-  //       totalPages,
-  //     },
-  //   };
-  // }
-  
-  
-  
-  
+  async findAll(
+    page: number = 1,
+    limit: number = 10,
+    category?: string, // Optional filter by category name
+  ): Promise<{
+    data: ProductResponse[];
+    meta: {
+      totalCount: number;
+      page: number;
+      limit: number;
+      totalPages: number;
+    };
+  }> {
+    const skip = (page - 1) * limit;
+
+    let aggregationPipeline: any[] = [];
+
+    // Match by category if provided
+    if (category) {
+      aggregationPipeline.push(
+        {
+          $lookup: {
+            from: 'categories', // Assuming the name of the categories collection is 'categories'
+            let: { categoryName: category },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $regexMatch: {
+                      input: { $toLower: '$name' }, // Convert category name to lowercase
+                      regex: { $toLower: category }, // Convert filter to lowercase for case-insensitive match
+                    },
+                  },
+                },
+              },
+              {
+                $project: { _id: 1, name: 1 }, // Only return _id and name fields
+              },
+            ],
+            as: 'matchedCategories',
+          },
+        },
+        {
+          $match: {
+            categories: { $in: [] }, // Initialize an empty array for category filter
+          },
+        },
+        {
+          $set: {
+            categories: {
+              $ifNull: [{ $arrayElemAt: ['$matchedCategories._id', 0] }, []],
+            },
+          },
+        },
+      );
+    }
+
+    // Match the products based on the categoryIds
+    aggregationPipeline.push(
+      {
+        $match: {
+          ...(category ? { categories: { $in: [] } } : {}),
+        },
+      },
+      {
+        $lookup: {
+          from: 'categories',
+          localField: 'categories',
+          foreignField: '_id',
+          as: 'categories',
+        },
+      },
+      {
+        $project: {
+          'categories.createdAt': 0, // Exclude createdAt field
+          'categories.updatedAt': 0, // Exclude updatedAt field
+          'categories.__v': 0, // Exclude __v field
+        },
+      },
+    );
+
+    // First, calculate the total count without pagination
+    const totalCountPipeline = [...aggregationPipeline];
+    totalCountPipeline.push({ $count: 'totalCount' });
+
+    // Perform the count query separately to get the totalCount
+    const totalCountResult = await this.productModel
+      .aggregate(totalCountPipeline)
+      .exec();
+    const totalCount =
+      totalCountResult.length > 0 ? totalCountResult[0].totalCount : 0;
+
+    // Calculate the total pages based on totalCount and limit
+    const totalPages = Math.ceil(totalCount / limit);
+
+    // Now, add pagination to the pipeline
+    aggregationPipeline.push({ $skip: skip }, { $limit: limit });
+
+    // Execute the aggregation with pagination
+    const result = await this.productModel
+      .aggregate(aggregationPipeline)
+      .exec();
+
+    return {
+      data: result,
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages,
+      },
+    };
+  }
+
   async findById(id: string): Promise<ProductResponse> {
     const product = await this.productModel
       .findById(new Types.ObjectId(id))
