@@ -26,7 +26,6 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
-  @UseGuards(AdminGuard)
   @Get('categories')
   findAllCategories() {
     return this.productService.findAllCategories();
@@ -42,7 +41,7 @@ export class ProductController {
   findAll(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-    @Query('category') category?: string, 
+    @Query('category') category?: string,
   ) {
     return this.productService.findAll(page, limit, category);
   }
