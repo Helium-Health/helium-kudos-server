@@ -37,8 +37,7 @@ export class User {
   @Prop({ type: Boolean, default: false })
   verified: boolean;
 
-  // TEMP FIX: make refresh token required after deployment on 31/01/2025
-  @Prop({ type: String, required: false, select: false })
+  @Prop({ type: String, required: true, select: false })
   refreshToken: string;
 
   @Prop({ type: Date })
