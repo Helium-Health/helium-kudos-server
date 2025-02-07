@@ -70,14 +70,14 @@ export class ProductService {
 
     const totalCount = await this.productModel.countDocuments(query);
     const totalPages = Math.ceil(totalCount / limit);
-    const products = await this.productModel
+    const data = await this.productModel
       .find(query)
       .skip((page - 1) * limit)
       .limit(limit)
       .populate('categories');
 
     return {
-      products,
+      data,
       meta: {
         totalCount,
         page,
