@@ -136,6 +136,53 @@ export class ClaimService {
     }
   }
 
+  async approveAllClaims() {
+    const session = await this.claimModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      const claims = await this.claimModel
+        .find({ status: Status.PENDING })
+        .session(session);
+
+      for (const claim of claims) {
+        claim.status = Status.APPROVED;
+        await claim.save({ session });
+
+        for (const receiver of claim.receivers) {
+          const { receiverId, amount } = receiver;
+
+          await this.walletService.incrementEarnedBalance(
+            new Types.ObjectId(receiverId),
+            amount,
+            session,
+          );
+
+          await this.transactionService.recordCreditTransaction(
+            {
+              senderId: claim.senderId,
+              receiverId: new Types.ObjectId(receiverId),
+              amount: Math.abs(amount),
+              entityId: new Types.ObjectId(claim.recognitionId),
+              entityType: EntityType.RECOGNITION,
+              claimId: claim._id as Types.ObjectId,
+              status: transactionStatus.SUCCESS,
+            },
+            session,
+          );
+        }
+      }
+
+      await session.commitTransaction();
+    } catch (error) {
+      await session.abortTransaction();
+      console.error('Error approving all claims:', error);
+      throw new InternalServerErrorException('Failed to approve all claims');
+    } finally {
+      session.endSession();
+    }
+  }
+
   async rejectClaim(claimId: Types.ObjectId) {
     const session = await this.claimModel.db.startSession();
     session.startTransaction();
@@ -230,9 +277,9 @@ export class ClaimService {
 
     const claimsWithDetails = await Promise.all(
       claims.map(async (claim) => {
-        const recognition = await this.recognitionService.findById(
-          claim.recognitionId,
-        ).catch(() => null);
+        const recognition = await this.recognitionService
+          .findById(claim.recognitionId)
+          .catch(() => null);
 
         const senderDetails = await this.userService.findById(claim.senderId);
 
@@ -246,7 +293,7 @@ export class ClaimService {
               _id: receiver.receiverId,
               name: receiverUser?.name,
               picture: receiverUser?.picture,
-              amountReceived: receiver.amount,
+              coinAmount: receiver.amount,
             };
           }),
         );
@@ -254,13 +301,30 @@ export class ClaimService {
         return {
           claimId: claim.id,
           status: claim.status,
-          senderDetails: {
+          sender: {
             _id: claim.senderId,
             name: senderDetails?.name,
             picture: senderDetails?.picture,
+            team: senderDetails?.team,
           },
           receivers: receiverDetails,
-          recognitionDetails: recognition,
+          recognition: recognition && {
+            _id: recognition._id.toString(),
+            message: recognition.message,
+            companyValues: recognition.companyValues,
+            createdAt: recognition.createdAt,
+            receivers: receiverDetails,
+            commentCount: recognition.comments?.length || 0,
+            isAuto: recognition.isAuto,
+            giphyUrl: recognition.giphyUrl || [],
+            reactions: recognition.reactions,
+            sender: {
+              _id: claim.senderId,
+              name: senderDetails?.name,
+              picture: senderDetails?.picture,
+              team: senderDetails?.team,
+            },
+          },
         };
       }),
     );

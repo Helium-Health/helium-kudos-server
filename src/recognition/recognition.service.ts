@@ -29,6 +29,8 @@ import { ClaimService } from 'src/claim/claim.service';
 import { TransactionService } from 'src/transaction/transaction.service';
 import { RecognitionGateway } from './recognition.gateway';
 import { UserRole } from 'src/users/schema/User.schema';
+import { SlackService } from 'src/slack/slack.service';
+import { PRODUCTION_CLIENT, STAGING_CLIENT } from 'src/constants';
 
 @Injectable()
 export class RecognitionService {
@@ -41,7 +43,7 @@ export class RecognitionService {
     private readonly userRecognitionService: UserRecognitionService,
     private readonly walletService: WalletService,
     private readonly usersService: UsersService,
-
+    private readonly slackService: SlackService,
     private readonly transactionService: TransactionService,
   ) {}
 
@@ -137,6 +139,7 @@ export class RecognitionService {
       }
 
       await session.commitTransaction();
+
       this.recognitionGateway.notifyClients({
         recognitionId: newRecognition._id,
         message: `Recognition created: ${message}`,
@@ -148,6 +151,9 @@ export class RecognitionService {
         companyValues,
         giphyUrl,
       });
+
+      await this.notifyReceiversViaSlack(new Types.ObjectId(senderId), receivers);
+
       return newRecognition;
     } catch (error) {
       await session.abortTransaction();
@@ -161,6 +167,27 @@ export class RecognitionService {
       session.endSession();
     }
   }
+
+  private async notifyReceiversViaSlack(
+    senderId: Types.ObjectId,
+    receivers: CreateRecognitionDto['receivers'],
+  ) {
+    const sender = await this.usersService.findById(senderId);
+    const clientUrl = process.env.NODE_ENV === 'production' 
+    ? PRODUCTION_CLIENT
+    : STAGING_CLIENT;
+    
+    for (const receiver of receivers) {
+      const receiverUser = await this.usersService.findById(new Types.ObjectId(receiver.receiverId));
+      if (receiverUser?.email) {
+        const slackUserId = await this.slackService.getUserIdByEmail(receiverUser.email);
+        if (slackUserId) {
+          const notificationMessage = `🌟 Hey ${receiverUser.name}!\n\n ${sender.name} just recognized your awesome work!\n\nCheck it out here: ${clientUrl}`;
+          await this.slackService.sendDirectMessage(slackUserId, notificationMessage);
+        }
+      }
+    }
+  }  
 
   async editRecognition(
     recognitionId: Types.ObjectId,
@@ -245,6 +272,13 @@ export class RecognitionService {
       }
 
       await session.commitTransaction();
+      this.recognitionGateway.notifyClients({
+        recognitionId: newRecognition._id,
+        message: `Recognition created: ${message}`,
+        recognitionType: EntityType.RECOGNITION,
+        receivers: receiverId,
+        amount: coinAmount,
+      });
       return newRecognition;
     } catch (error) {
       await session.abortTransaction();
@@ -426,6 +460,7 @@ export class RecognitionService {
                 name: '$receivers.details.name',
                 picture: '$receivers.details.picture',
                 role: '$receivers.details.role',
+                team: '$receivers.details.team',
               },
             },
             commentCount: { $first: { $size: { $ifNull: ['$comments', []] } } },

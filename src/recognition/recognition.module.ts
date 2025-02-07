@@ -9,6 +9,7 @@ import { TransactionModule } from 'src/transaction/transaction.module';
 import { RecognitionSchema, Recognition } from './schema/Recognition.schema';
 import { ClaimModule } from 'src/claim/claim.module';
 import { RecognitionGateway } from './recognition.gateway';
+import { SlackModule } from 'src/slack/slack.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { RecognitionGateway } from './recognition.gateway';
     WalletModule,
     forwardRef(() => ClaimModule),
     UsersModule,
+    SlackModule,
   ],
   controllers: [RecognitionController],
   providers: [RecognitionService, RecognitionGateway],

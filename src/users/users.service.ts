@@ -1,4 +1,5 @@
 import {
+  Inject,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -9,12 +10,15 @@ import { User, UserDocument, UserGender } from 'src/users/schema/User.schema';
 import { CreateUserDto, UpdateUserDto } from './dto/User.dto';
 import { WalletService } from 'src/wallet/wallet.service';
 import { UpdateUserFromSheetDto } from './dto/UpdateFromSheet.dto';
+import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
+import * as argon2 from 'argon2';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     private walletService: WalletService,
+    @Inject('AUTH_SERVICE') private authService
   ) {}
 
   // Method to create a new user
@@ -23,13 +27,21 @@ export class UsersService {
     session.startTransaction();
 
     try {
-      const newUser = new this.userModel(createUserDto);
+      const newUser = new this.userModel({...createUserDto, refreshToken: 'initialRefreshToken'}); 
       await newUser.save({ session });
 
       await this.walletService.createWallet(newUser._id, session);
 
+      const newUserRefreshToken = await this.authService.generateAndStoreRefreshToken(newUser);
+
+      newUser.refreshToken = await argon2.hash(newUserRefreshToken);
+
+      await newUser.save({ session });
+
+
+
       await session.commitTransaction();
-      return newUser;
+      return {newUser, newUserRefreshToken};
     } catch (error) {
       await session.abortTransaction();
       throw error;
@@ -166,7 +178,13 @@ export class UsersService {
       { new: true },
     );
   }
-  async getUpcomingCelebrations(limit: number, page: number): Promise<any> {
+
+  async getUpcomingCelebrations(
+    limit: number,
+    page: number,
+    month?: number,
+    celebrationType?: MilestoneType,
+  ): Promise<any> {
     const today = new Date();
     const skip = (page - 1) * limit;
 
@@ -190,14 +208,6 @@ export class UsersService {
         },
       },
       {
-        $match: {
-          $or: [
-            { nextBirthday: { $gte: today } },
-            { nextAnniversary: { $gte: today } },
-          ],
-        },
-      },
-      {
         $project: {
           name: 1,
           picture: 1,
@@ -205,19 +215,22 @@ export class UsersService {
             $concatArrays: [
               {
                 $cond: {
-                  if: { $gte: [{ $month: '$dateOfBirth' }, { $month: today }] },
+                  if: { $gte: ['$nextBirthday', today] },
                   then: [
-                    { celebrationType: 'Birthday', date: '$nextBirthday' },
+                    {
+                      celebrationType: MilestoneType.BIRTHDAY,
+                      date: '$nextBirthday',
+                    },
                   ],
                   else: [],
                 },
               },
               {
                 $cond: {
-                  if: { $gte: [{ $month: '$joinDate' }, { $month: today }] },
+                  if: { $gte: ['$nextAnniversary', today] },
                   then: [
                     {
-                      celebrationType: 'Work Anniversary',
+                      celebrationType: MilestoneType.WORK_ANNIVERSARY,
                       date: '$nextAnniversary',
                     },
                   ],
@@ -229,16 +242,33 @@ export class UsersService {
         },
       },
       { $unwind: '$celebrations' },
+    ];
+
+    if (month) {
+      pipeline.push({
+        $match: {
+          $expr: {
+            $eq: [{ $month: '$celebrations.date' }, month],
+          },
+        },
+      });
+    }
+
+    if (celebrationType) {
+      pipeline.push({
+        $match: { 'celebrations.celebrationType': celebrationType },
+      });
+    }
+
+    pipeline.push(
       { $sort: { 'celebrations.date': 1 } },
-      { $skip: skip },
-      { $limit: limit },
       {
         $facet: {
           data: [{ $skip: skip }, { $limit: limit }],
           count: [{ $count: 'totalCelebrations' }],
         },
       },
-    ];
+    );
 
     const [result] = await this.userModel.aggregate(pipeline);
 

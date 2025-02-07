@@ -1,4 +1,9 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { User } from 'src/users/schema/User.schema';
@@ -13,7 +18,7 @@ export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     private jwtService: JwtService,
-    private userService: UsersService,
+    @Inject(forwardRef(() => UsersService)) private userService: UsersService,
   ) {
     this.oauthClient = new OAuth2Client(
       process.env.GOOGLE_CLIENT_ID,
@@ -26,6 +31,7 @@ export class AuthService {
   ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
     try {
       let userDetails = null; // Todo use correct type
+      let refreshToken = null;
       const googleAuth = await this.oauthClient.verifyIdToken({
         idToken: token,
         audience: process.env.GOOGLE_CLIENT_ID,
@@ -40,18 +46,21 @@ export class AuthService {
       if (userExists) {
         console.log('User exists. Getting...');
         userDetails = userExists;
+        refreshToken = await this.generateAndStoreRefreshToken(userDetails);
       } else {
         console.log('User not found. Creating...');
-        userDetails = await this.userService.createUser({
-          email: payload.email,
-          name: payload.name,
-          picture: payload.picture,
-          verified: payload.email_verified || false,
-        });
+        const { newUser, newUserRefreshToken } =
+          await this.userService.createUser({
+            email: payload.email,
+            name: payload.name,
+            picture: payload.picture,
+            verified: payload.email_verified || false,
+          });
+        userDetails = newUser;
+        refreshToken = newUserRefreshToken;
       }
 
       const jwtToken = this.generateJwtToken(userDetails);
-      const refreshToken = await this.generateAndStoreRefreshToken(userDetails);
 
       return {
         user: userDetails,
