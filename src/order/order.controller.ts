@@ -29,20 +29,23 @@ export class OrderController {
 
   @Get()
   async getOrders(
-    @Request() req,
+    @Query('userId') userId?: string,
     @Query('status') status?: string,
     @Query('page') page = '1',
     @Query('limit') limit = '10',
+    @Query('recent') recent?: 'ASCENDING_ORDER' | 'DESCENDING_ORDER',
+    @Query('search') search?: string,
   ): Promise<{ orders: Order[]; total: number; totalPages: number }> {
-    const userIdObj = new Types.ObjectId(req.user?.userId);
     const pageNumber = parseInt(page, 10);
     const limitNumber = parseInt(limit, 10);
 
     return this.orderService.getOrders(
-      userIdObj,
+      userId ? new Types.ObjectId(userId) : undefined,
       status,
       pageNumber,
       limitNumber,
+      recent,
+      search,
     );
   }
 
