@@ -11,69 +11,121 @@ import { UsersService } from 'src/users/users.service';
 import { OAuth2Client } from 'google-auth-library';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
+import * as jwt from 'jsonwebtoken';
+import * as jwksClient from 'jwks-rsa';
 @Injectable()
 export class AuthService {
-  private oauthClient: OAuth2Client;
+  private jwksClient: jwksClient.JwksClient;
 
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     private jwtService: JwtService,
     @Inject(forwardRef(() => UsersService)) private userService: UsersService,
   ) {
-    this.oauthClient = new OAuth2Client(
-      process.env.GOOGLE_CLIENT_ID,
-      process.env.GOOGLE_CLIENT_SECRET,
-    );
+    this.jwksClient = jwksClient({
+      jwksUri: `https://${process.env.AUTH0_DOMAIN}/.well-known/jwks.json`,
+    });
   }
+
+  private async getKey(kid: string) {
+    const key = await this.jwksClient.getSigningKey(kid);
+    return key.getPublicKey();
+  }
+
+  // async validateUser(
+  //   token: string,
+  // ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
+  //   if (!token) {
+  //     throw new UnauthorizedException('No token provided');
+  //   }
+
+  //   try {
+  //     const decoded = jwt.decode(token, { complete: true });
+  //     if (!decoded) throw new UnauthorizedException('Invalid token format');
+
+  //     console.log('Decoded token:', decoded); // Debugging: See token contents
+
+  //     const kid = decoded?.header.kid;
+  //     if (!kid) {
+  //       throw new UnauthorizedException('Invalid token (no kid found)');
+  //     }
+
+  //     const publicKey = await this.getKey(kid);
+
+  //     const verified = jwt.verify(token, publicKey, {
+  //       algorithms: ['RS256'],
+  //       audience: process.env.AUTH0_AUDIENCE, 
+  //       issuer: `https://${process.env.AUTH0_DOMAIN}/`,
+  //     }) as any;
+
+  //     console.log('Verified token:', verified);
+
+  //     const user = await this.userModel.findOne({ email: verified.email });
+  //     if (!user) {
+  //       throw new UnauthorizedException('User not found');
+  //     }
+  //     const accessToken = this.generateJwtToken(user);
+  //     const refreshToken = await this.generateAndStoreRefreshToken(user);
+  //     return { user, accessToken, refreshToken };
+  //   } catch (error) {
+  //     console.error('Token validation error:', error.message);
+  //     throw new UnauthorizedException('Token verification failed');
+  //   }
+  // }
 
   async validateUser(
     token: string,
   ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
+    if (!token) {
+      throw new UnauthorizedException('No token provided');
+    }
+
     try {
-      let userDetails = null; // Todo use correct type
-      let refreshToken = null;
-      const googleAuth = await this.oauthClient.verifyIdToken({
-        idToken: token,
-        audience: process.env.GOOGLE_CLIENT_ID,
-      });
+      const decoded = jwt.decode(token, { complete: true });
+      if (!decoded) throw new UnauthorizedException('Invalid token format');
 
-      const payload = googleAuth.getPayload();
+      console.log('Decoded token:', decoded); // Debugging: See token contents
 
-      const userExists = await this.userModel.findOne({
-        email: payload.email,
-      });
-
-      if (userExists) {
-        console.log('User exists. Getting...');
-        userDetails = userExists;
-        refreshToken = await this.generateAndStoreRefreshToken(userDetails);
-      } else {
-        console.log('User not found. Creating...');
-        const { newUser, newUserRefreshToken } =
-          await this.userService.createUser({
-            email: payload.email,
-            name: payload.name,
-            picture: payload.picture,
-            verified: payload.email_verified || false,
-          });
-        userDetails = newUser;
-        refreshToken = newUserRefreshToken;
+      const kid = decoded?.header.kid;
+      if (!kid) {
+        throw new UnauthorizedException('Invalid token (no kid found)');
       }
 
-      const jwtToken = this.generateJwtToken(userDetails);
+      const publicKey = await this.getKey(kid);
 
-      return {
-        user: userDetails,
-        accessToken: jwtToken,
-        refreshToken: refreshToken,
-      };
-    } catch (e) {
-      console.log('Error in validateUser', e);
-      throw new Error('Error in validateUser');
+      const verified = jwt.verify(token, publicKey, {
+        algorithms: ['RS256'],
+        audience: process.env.AUTH0_AUDIENCE, 
+        issuer: `https://${process.env.AUTH0_DOMAIN}/`,
+      }) as any;
+
+      console.log('Verified token:', verified);
+
+      const user = await this.userModel.findOne({ email: verified.email });
+      if (user) {
+        const refreshToken = await this.generateAndStoreRefreshToken(user);
+        const accessToken = this.generateJwtToken(user);
+        return { user, accessToken, refreshToken };
+      } else {
+        console.log('User not found, creating new user');
+        const { newUser, newUserRefreshToken } =
+          await this.userService.createUser({
+            email: verified.email,
+            name: verified.name,
+            picture: verified.picture,
+            verified: verified.email_verified || false,
+          });
+      const accessToken = this.generateJwtToken(newUser);
+      const refreshToken = await this.generateAndStoreRefreshToken(newUser);
+      return { user: newUser, accessToken, refreshToken };
+    }
+    } catch (error) {
+      console.error('Token validation error:', error.message);
+      throw new UnauthorizedException('Token verification failed');
     }
   }
 
-  generateJwtToken(
+generateJwtToken(
     user: User & {
       _id: Types.ObjectId;
     },

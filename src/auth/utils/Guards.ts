@@ -6,28 +6,36 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from '../auth.service';
+import { Reflector } from '@nestjs/core';
 
 @Injectable()
-export class GoogleAuthGuard extends AuthGuard('google') {
+export class Auth0AuthGuard extends AuthGuard('jwt') {
   constructor(
-    @Inject('AUTH_SERVICE') private readonly authService: AuthService,
+    @Inject('AUTH_SERVICE') private authService: AuthService,
+    private readonly reflector: Reflector,
   ) {
     super();
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest();
-    const token = request.body.token;
+    console.log('Auth0AuthGuard triggered');
 
+    const request = context.switchToHttp().getRequest();
+    console.log('Incoming Headers:', request.headers);
+
+    const token = request.headers.authorization?.split(' ')[1];
     if (!token) {
+      console.error('No token provided');
       throw new UnauthorizedException('No token provided');
     }
 
     try {
       const user = await this.authService.validateUser(token);
       request.user = user;
+      console.log('User authenticated:', user);
       return true;
-    } catch {
+    } catch (error) {
+      console.error('Token verification failed:', error.message);
       throw new UnauthorizedException('Invalid token');
     }
   }
