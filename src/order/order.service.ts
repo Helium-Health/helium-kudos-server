@@ -135,30 +135,28 @@ export class OrderService {
     status?: string,
     page: number = 1,
     limit: number = 10,
-  ): Promise<{ orders: any[]; total: number; totalPages: number }> {
-    const user = this.userService.findById(userId);
+    recent: 'ASCENDING_ORDER' | 'DESCENDING_ORDER' = 'DESCENDING_ORDER',
+    search?: string,
+  ) {
+    const filter: Record<string, any>  = {};
 
-    if (!user) {
-      throw new Error('User not found');
-    }
-
-    const isAdmin = (await user).role === UserRole.Admin;
-    const filter: { userId?: Types.ObjectId; status?: string } = {};
-
-    if (!isAdmin) {
-      filter.userId = userId;
-    }
+    if (userId) filter.userId = userId;
 
     if (status) filter.status = status;
+    const sortDirection = recent === 'ASCENDING_ORDER' ? 1 : -1;
 
     const skip = (page - 1) * limit;
 
+    // Add search conditions if search parameter exists
+    if (search) {
+      filter.$or = [
+        { 'user.name': { $regex: search, $options: 'i' } },
+        { 'items.name': { $regex: search, $options: 'i' } },
+      ];
+    }
+
     const [orders, totalCount] = await Promise.all([
       this.orderModel.aggregate([
-        { $match: filter },
-        { $sort: { createdAt: -1 } },
-        { $skip: skip },
-        { $limit: limit },
         {
           $lookup: {
             from: 'users',
@@ -173,6 +171,10 @@ export class OrderService {
             preserveNullAndEmptyArrays: true,
           },
         },
+        { $match: filter },
+        { $sort: { createdAt: sortDirection } },
+        { $skip: skip },
+        { $limit: limit },
         {
           $project: {
             _id: 1,
