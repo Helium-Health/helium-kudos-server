@@ -9,6 +9,7 @@ import {
   ValidateIf,
   IsMongoId,
 } from 'class-validator';
+import { Types } from 'mongoose';
 export class ProductVariantDto {
   @IsString()
   @IsNotEmpty()
@@ -42,7 +43,7 @@ export class CreateProductDto {
   @IsArray()
   @IsMongoId({ each: true })
   @IsOptional()
-  categories?: string[];
+  categories?: Types.ObjectId[];
 
   @ValidateIf((product) => !product.basePrice)
   @IsArray()
