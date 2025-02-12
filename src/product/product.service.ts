@@ -9,7 +9,7 @@ import { Product, ProductResponse } from './schema/product.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, Types } from 'mongoose';
 import { StorageService } from 'src/storage/storage.service';
-import { Category } from './schema/category.schema';
+import { Category, CategoryDocument } from './schema/category.schema';
 import { CreateCategoryDto } from './dto/create-category.dto';
 
 @Injectable()
@@ -22,6 +22,10 @@ export class ProductService {
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
     if (createProductDto.categories?.length) {
+      const categoryObjectIds = createProductDto.categories.map(
+        (categoryId) => new Types.ObjectId(categoryId),
+      );
+
       const categories = await this.categoryModel.find({
         _id: { $in: createProductDto.categories },
       });
@@ -29,43 +33,56 @@ export class ProductService {
       if (categories.length !== createProductDto.categories.length) {
         throw new NotFoundException('One or more categories not found');
       }
+      createProductDto.categories = categoryObjectIds;
     }
 
     const product = new this.productModel(createProductDto);
     return product.save();
   }
 
+
   async findAll(
     page: number = 1,
     limit: number = 10,
-  ): Promise<{
-    data: ProductResponse[];
-    meta: {
-      totalCount: number;
-      page: number;
-      limit: number;
-      totalPages: number;
-    };
-  }> {
-    const skip = (page - 1) * limit;
+    categoryFilter?: string,
+  ) {
+    let query: any = {};
 
-    const [products, totalCount] = await Promise.all([
-      this.productModel
-        .find()
-        .populate('categories')
-        .skip(skip)
-        .limit(limit)
-        .exec(),
-      this.productModel.countDocuments(),
-    ]);
+    if (categoryFilter) {
+      const categories = await this.categoryModel.find({
+        name: { $regex: new RegExp(categoryFilter, 'i') },
+      });
+      if (categories.length > 0) {
+        const categoryIds = categories.map((category) => new Types.ObjectId(category._id));
+        query.categories = { $in: categoryIds };
+      } else {
+        return {
+          products: [],
+          meta: {
+            totalCount: 0,
+            page,
+            limit,
+            totalPages: 0,
+          },
+        };
+      }
+    }
+
+    const totalCount = await this.productModel.countDocuments(query);
+    const totalPages = Math.ceil(totalCount / limit);
+    const data = await this.productModel
+      .find(query)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate('categories');
 
     return {
-      data: products,
+      data,
       meta: {
         totalCount,
         page,
         limit,
-        totalPages: Math.ceil(totalCount / limit),
+        totalPages,
       },
     };
   }
@@ -95,6 +112,10 @@ export class ProductService {
     }
 
     if (updateProductDto.categories?.length) {
+      const categoryObjectIds = updateProductDto.categories.map(
+        (categoryId) => new Types.ObjectId(categoryId),
+      );
+
       const categories = await this.categoryModel.find({
         _id: { $in: updateProductDto.categories },
       });
@@ -102,6 +123,7 @@ export class ProductService {
       if (categories.length !== updateProductDto.categories.length) {
         throw new NotFoundException('One or more categories not found');
       }
+      updateProductDto.categories = categoryObjectIds;
     }
 
     const updatedImages = updateProductDto.images
