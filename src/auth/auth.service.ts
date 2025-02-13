@@ -16,7 +16,6 @@ import { AuthenticationClient, UserInfoClient } from 'auth0';
 @Injectable()
 export class AuthService {
   private oauthClient: OAuth2Client;
-  private auth0: AuthenticationClient;
   private auth0UserInfo: UserInfoClient;
 
   constructor(
@@ -28,11 +27,6 @@ export class AuthService {
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
     );
-    this.auth0 = new AuthenticationClient({
-      domain: process.env.AUTH0_DOMAIN,
-      clientId: process.env.AUTH0_CLIENT_ID,
-      clientSecret: process.env.AUTH0_CLIENT_SECRET
-    });
     this.auth0UserInfo = new UserInfoClient({
       domain: process.env.AUTH0_DOMAIN,
     });
@@ -42,7 +36,7 @@ export class AuthService {
     token: string,
   ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
     try {
-      let userDetails = null; // Todo use correct type
+      let userDetails = null;
       let refreshToken = null;
       
       const googleAuth = await this.oauthClient.verifyIdToken({
@@ -57,9 +51,23 @@ export class AuthService {
       });
 
       if (userExists) {
-        console.log('User exists. Getting...');
-        userDetails = userExists;
-        refreshToken = await this.generateAndStoreRefreshToken(userDetails);
+        if (userExists.verified) {
+          console.log('Verified user exists. Getting...');
+          userDetails = userExists;
+          refreshToken = await this.generateAndStoreRefreshToken(userDetails);
+        } else {
+          console.log('Unverified user exists. Updating with Google data...');
+
+          const updatedUser = await this.userService.updateByEmail(
+            payload.email,
+            {
+              picture: payload.picture,
+              verified: payload.email_verified || false,
+            },
+          );
+          userDetails = updatedUser;
+          refreshToken = await this.generateAndStoreRefreshToken(updatedUser);
+        }
       } else {
         console.log('User not found. Creating...');
         const { newUser, newUserRefreshToken } =
@@ -94,38 +102,39 @@ export class AuthService {
       let userDetails = null;
       let refreshToken = null;
 
-      // // Decode and verify Auth0 token
-      // const decodedToken = this.jwtService.verify(token, {
-      //   secret: process.env.AUTH0_CLIENT_SECRET,
-      // });
-
-      // const userExists = await this.userModel.findOne({
-      //   email: decodedToken.email,
-      // });
-
-      console.log('userInfo', userInfo);
-
       const userExists = await this.userModel.findOne({
         email: userInfo.data.email,
       });
 
-      console.log('userExists', userExists);
-
       if (userExists) {
-        console.log('User exists. Getting...');
-        userDetails = userExists;
-        refreshToken = await this.generateAndStoreRefreshToken(userDetails);
+        if (userExists.verified) {
+          console.log('Verified user exists. Getting...');
+          userDetails = userExists;
+          refreshToken = await this.generateAndStoreRefreshToken(userDetails);
+        } else {
+          console.log('Unverified user exists. Updating with Auth0 data...');
+
+          const updatedUser = await this.userService.updateByEmail(
+            userInfo.data.email,
+            {
+              picture: userInfo.data.picture,
+              verified: true,
+            },
+          );
+          userDetails = updatedUser;
+          refreshToken = await this.generateAndStoreRefreshToken(updatedUser);
+        }
       } else {
         console.log('User not found. Creating...');
-        // const { newUser, newUserRefreshToken } =
-        //   await this.userService.createUser({
-        //     email: decodedToken.email,
-        //     name: decodedToken.name,
-        //     picture: decodedToken.picture,
-        //     verified: true,
-        //   });
-        // userDetails = newUser;
-        // refreshToken = newUserRefreshToken;
+        const { newUser, newUserRefreshToken } =
+          await this.userService.createUser({
+            email: userInfo.data.email,
+            name: userInfo.data.name,
+            picture: userInfo.data.picture,
+            verified: true,
+          });
+        userDetails = newUser;
+        refreshToken = newUserRefreshToken;
       }
 
       const jwtToken = this.generateJwtToken(userDetails);

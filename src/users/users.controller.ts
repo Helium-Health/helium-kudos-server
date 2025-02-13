@@ -19,18 +19,28 @@ import {
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 import { User } from './schema/User.schema';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
+import { UserSyncService } from './user-sync.service';
 
-@UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly userSyncService: UserSyncService,
+  ) {}
 
+  @UseGuards(JwtAuthGuard)
   @Post()
   async create(@Body() createUserDto: CreateUserDto): Promise<User> {
-   const {newUser} = await this.usersService.createUser(createUserDto);
-   return newUser;
+    const { newUser } = await this.usersService.createUser(createUserDto);
+    return newUser;
   }
 
+  @Post('create-users-from-sheet')
+  async createInitialUsers() {
+    return await this.userSyncService.createInitialUsers();
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get()
   async searchUsers(
     @Query('name') name: string,
@@ -42,11 +52,13 @@ export class UsersController {
     return this.usersService.findUsers(name, userId, page, limit);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('me')
   async getProfile(@Request() req) {
     return this.usersService.findByEmail(req.user.email);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch('me')
   async update(@Request() req, @Body() updateUserDto: UpdateUserDto) {
     const allowedUpdates = {
@@ -58,6 +70,7 @@ export class UsersController {
     return this.usersService.updateUser(req.user.userId, allowedUpdates);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id/role')
   @UseGuards(AdminGuard)
   async updateUserRole(
@@ -67,6 +80,7 @@ export class UsersController {
     return this.usersService.updateUser(id, { role: updateUserRoleDto.role });
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async delete(@Param('id') id: string) {
     return this.usersService.deleteUser(id);
