@@ -62,19 +62,10 @@ export class UserSyncService {
 
     const currentYear = new Date().getFullYear();
     const [month, day] = dateString.split(' ');
-    console.log('month, day', month, day);
 
-    // const date = new Date(`${month} ${day}, ${currentYear}`);
     const date = new Date(
       Date.UTC(currentYear, new Date(`${month} 1`).getMonth(), parseInt(day)),
     );
-
-    console.log('System timezone offset (minutes):', new Date(`${month} ${day}, ${currentYear}`).getTimezoneOffset());
-    console.log(
-      'System timezone offset (hours):',
-      new Date(`${month} ${day}, ${currentYear}`).getTimezoneOffset() / -60,
-    );
-    console.log('date', date);
 
     return date;
   }
