@@ -29,7 +29,7 @@ export class MilestoneSeedService implements OnModuleInit {
         title: 'Birthday Celebration',
         message:
           'Happy Birthday {name}! 🎉 Wishing you a fantastic day filled with joy and celebration.',
-        coins: 100,
+        coins: 5,
         isActive: true,
       },
       {
@@ -37,7 +37,7 @@ export class MilestoneSeedService implements OnModuleInit {
         title: 'Work Anniversary',
         message:
           'Congratulations {name} on your work anniversary! 🎊 Thank you for your valuable contributions.',
-        coins: 150,
+        coins: 5,
         isActive: true,
       },
       {
@@ -45,7 +45,7 @@ export class MilestoneSeedService implements OnModuleInit {
         title: "International Men's Day",
         message:
           "Happy International Men's Day, {name}! 🎉 Thank you for your strength, kindness, and contributions.",
-        coins: 100,
+        coins: 5,
         isActive: true,
       },
       {
@@ -53,7 +53,15 @@ export class MilestoneSeedService implements OnModuleInit {
         title: "International Women's Day",
         message:
           "Happy International Women's Day, {name}! 🌟 Thank you for your strength, resilience, and invaluable contributions.",
-        coins: 100,
+        coins: 5,
+        isActive: true,
+      },
+      {
+        type: MilestoneType.VALENTINE_DAY,
+        title: "Happy Women's Day",
+        message:
+          "Happy Valentine's Day Team! 💖 Thank you for your love, support, and dedication.",
+        coins: 5,
         isActive: true,
       },
     ];
