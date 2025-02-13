@@ -11,9 +11,13 @@ import { UsersService } from 'src/users/users.service';
 import { OAuth2Client } from 'google-auth-library';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
+import { AuthenticationClient, UserInfoClient } from 'auth0';
+
 @Injectable()
 export class AuthService {
   private oauthClient: OAuth2Client;
+  private auth0: AuthenticationClient;
+  private auth0UserInfo: UserInfoClient;
 
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
@@ -24,14 +28,23 @@ export class AuthService {
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
     );
+    this.auth0 = new AuthenticationClient({
+      domain: process.env.AUTH0_DOMAIN,
+      clientId: process.env.AUTH0_CLIENT_ID,
+      clientSecret: process.env.AUTH0_CLIENT_SECRET
+    });
+    this.auth0UserInfo = new UserInfoClient({
+      domain: process.env.AUTH0_DOMAIN,
+    });
   }
 
-  async validateUser(
+  async validateGoogleUser(
     token: string,
   ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
     try {
       let userDetails = null; // Todo use correct type
       let refreshToken = null;
+      
       const googleAuth = await this.oauthClient.verifyIdToken({
         idToken: token,
         audience: process.env.GOOGLE_CLIENT_ID,
@@ -70,6 +83,61 @@ export class AuthService {
     } catch (e) {
       console.log('Error in validateUser', e);
       throw new Error('Error in validateUser');
+    }
+  }
+
+  async validateAuth0User(
+    token: string,
+  ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
+    try {
+      const userInfo = await this.auth0UserInfo.getUserInfo(token);
+      let userDetails = null;
+      let refreshToken = null;
+
+      // // Decode and verify Auth0 token
+      // const decodedToken = this.jwtService.verify(token, {
+      //   secret: process.env.AUTH0_CLIENT_SECRET,
+      // });
+
+      // const userExists = await this.userModel.findOne({
+      //   email: decodedToken.email,
+      // });
+
+      console.log('userInfo', userInfo);
+
+      const userExists = await this.userModel.findOne({
+        email: userInfo.data.email,
+      });
+
+      console.log('userExists', userExists);
+
+      if (userExists) {
+        console.log('User exists. Getting...');
+        userDetails = userExists;
+        refreshToken = await this.generateAndStoreRefreshToken(userDetails);
+      } else {
+        console.log('User not found. Creating...');
+        // const { newUser, newUserRefreshToken } =
+        //   await this.userService.createUser({
+        //     email: decodedToken.email,
+        //     name: decodedToken.name,
+        //     picture: decodedToken.picture,
+        //     verified: true,
+        //   });
+        // userDetails = newUser;
+        // refreshToken = newUserRefreshToken;
+      }
+
+      const jwtToken = this.generateJwtToken(userDetails);
+
+      return {
+        user: userDetails,
+        accessToken: jwtToken,
+        refreshToken: refreshToken,
+      };
+    } catch (e) {
+      console.log('Error in validateAuth0User', e);
+      throw new Error('Error in validateAuth0User');
     }
   }
 
