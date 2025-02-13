@@ -18,8 +18,26 @@ export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     private walletService: WalletService,
-    @Inject('AUTH_SERVICE') private authService
+    @Inject('AUTH_SERVICE') private authService,
   ) {}
+
+  async runTransactionWithRetry(session, operation) {
+    for (let i = 0; i < 5; i++) {
+      try {
+        return await operation(session);
+      } catch (err) {
+        if (err.hasErrorLabel('TransientTransactionError')) {
+          console.warn(`Retrying transaction due to error: ${err}`);
+          await new Promise((resolve) =>
+            setTimeout(resolve, Math.pow(2, i) * 100),
+          );
+        } else {
+          throw err;
+        }
+      }
+    }
+    throw new Error('Transaction failed after multiple retries');
+  }
 
   // Method to create a new user
   async createUser(createUserDto: CreateUserDto) {
@@ -27,21 +45,33 @@ export class UsersService {
     session.startTransaction();
 
     try {
-      const newUser = new this.userModel({...createUserDto, refreshToken: 'initialRefreshToken'}); 
-      await newUser.save({ session });
+      const op = async (session) => {
+        // Step 1: Create user with placeholder refresh token
+        const newUser = new this.userModel({
+          ...createUserDto,
+          refreshToken: '',
+        });
+        await newUser.save({ session });
 
-      await this.walletService.createWallet(newUser._id, session);
+        // Step 2: Create wallet
+        await this.walletService.createWallet(newUser._id, session);
 
-      const newUserRefreshToken = await this.authService.generateAndStoreRefreshToken(newUser);
+        // Step 3: Generate and hash the refresh token
+        const newUserRefreshToken =
+          await this.authService.generateAndStoreRefreshToken(newUser);
+        const hashedRefreshToken = await argon2.hash(newUserRefreshToken);
 
-      newUser.refreshToken = await argon2.hash(newUserRefreshToken);
+        // Step 4: Update the user with the hashed refresh token
+        await this.userModel.updateOne(
+          { _id: newUser._id },
+          { $set: { refreshToken: hashedRefreshToken } },
+          { session },
+        );
 
-      await newUser.save({ session });
-
-
-
-      await session.commitTransaction();
-      return {newUser, newUserRefreshToken};
+        await session.commitTransaction();
+        return { newUser, newUserRefreshToken };
+      };
+      return await this.runTransactionWithRetry(session, op);
     } catch (error) {
       await session.abortTransaction();
       throw error;
@@ -49,9 +79,10 @@ export class UsersService {
       session.endSession();
     }
   }
+
   // Method to find a user by email
   async findByEmail(email: string): Promise<User | null> {
-    return this.userModel.findOne({ email }).exec();
+    return await this.userModel.findOne({ email }).exec();
   }
 
   // Method to find a user by id
