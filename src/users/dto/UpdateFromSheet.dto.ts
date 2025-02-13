@@ -1,4 +1,4 @@
-import { IsString, IsDate, IsOptional, IsEnum } from 'class-validator';
+import { IsString, IsDate, IsOptional, IsEnum, IsBoolean } from 'class-validator';
 import { UserGender } from '../schema/User.schema';
 
 export class UpdateUserFromSheetDto {
@@ -13,6 +13,14 @@ export class UpdateUserFromSheetDto {
   @IsDate()
   @IsOptional()
   dateOfBirth?: Date;
+
+  @IsBoolean()
+  @IsOptional()
+  verified?: boolean;
+
+  @IsString()
+  @IsOptional()
+  picture?: string;
 
   @IsOptional()
   @IsEnum(UserGender)

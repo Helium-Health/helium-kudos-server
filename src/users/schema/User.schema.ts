@@ -37,8 +37,8 @@ export class User {
   @Prop({ type: Boolean, default: false })
   verified: boolean;
 
-  @Prop({ type: String, required: true, select: false })
-  refreshToken: string;
+  @Prop({ type: String, required: false, select: false })
+  refreshToken?: string;
 
   @Prop({ type: Date })
   joinDate: Date;
