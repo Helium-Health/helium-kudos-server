@@ -18,16 +18,18 @@ import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
 import { MilestoneType } from './schema/Milestone.schema';
 
-@UseGuards(JwtAuthGuard, AdminGuard)
+@UseGuards(JwtAuthGuard)
 @Controller('milestone')
 export class MilestoneController {
   constructor(private readonly milestoneService: MilestoneService) {}
 
+  @UseGuards(AdminGuard)
   @Post()
   create(@Body() createMilestoneDto: CreateMilestoneDto) {
     return this.milestoneService.create(createMilestoneDto);
   }
 
+  @UseGuards(AdminGuard)
   @Get()
   findAll() {
     return this.milestoneService.findAll();
@@ -55,6 +57,7 @@ export class MilestoneController {
     );
   }
 
+  @UseGuards(AdminGuard)
   @Patch(':id')
   update(
     @Param('id') milestoneId: string,
