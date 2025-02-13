@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsPositive,
 } from 'class-validator';
+import { Milestone, MilestoneType } from '../schema/Milestone.schema';
 
 export class CreateMilestoneDto {
   @IsString()
@@ -18,6 +19,12 @@ export class CreateMilestoneDto {
   @IsPositive()
   coins?: number;
 
-  @IsEnum(['BIRTHDAY', 'WORK_ANNIVERSARY'])
-  type: string;
+  @IsEnum([
+    MilestoneType.BIRTHDAY,
+    MilestoneType.WORK_ANNIVERSARY,
+    MilestoneType.INTERNATIONAL_MENS_DAY,
+    MilestoneType.INTERNATIONAL_WOMENS_DAY,
+    MilestoneType.VALENTINE_DAY,
+  ])
+  type: MilestoneType;
 }
