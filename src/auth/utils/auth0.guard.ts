@@ -8,7 +8,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from '../auth.service';
 
 @Injectable()
-export class GoogleAuthGuard extends AuthGuard('google') {
+export class Auth0AuthGuard extends AuthGuard('auth0') {
   constructor(
     @Inject('AUTH_SERVICE') private readonly authService: AuthService,
   ) {
@@ -24,7 +24,7 @@ export class GoogleAuthGuard extends AuthGuard('google') {
     }
 
     try {
-      const user = await this.authService.validateUser(token);
+      const user = await this.authService.validateAuth0User(token);
       request.user = user;
       return true;
     } catch {

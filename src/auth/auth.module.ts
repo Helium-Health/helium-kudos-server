@@ -4,10 +4,12 @@ import { AuthService } from './auth.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from 'src/users/schema/User.schema';
 import { UsersModule } from 'src/users/users.module';
-import { GoogleAuthGuard } from './utils/Guards';
+import { GoogleAuthGuard } from './utils/google.guard';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './utils/jwt.strategy';
 import { PassportModule } from '@nestjs/passport';
+import { Auth0Strategy } from './utils/auth0.strategy';
+import { Auth0AuthGuard } from './utils/auth0.guard';
 
 @Module({
   imports: [
@@ -37,6 +39,11 @@ import { PassportModule } from '@nestjs/passport';
     {
       provide: 'AUTH_SERVICE',
       useClass: AuthService,
+    },
+    Auth0Strategy,
+    {
+      provide: 'AUTH_GUARD',
+      useClass: Auth0AuthGuard,
     },
   ],
   controllers: [AuthController],

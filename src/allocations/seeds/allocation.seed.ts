@@ -18,9 +18,9 @@ export class AllocationSeeder {
       'development',
     );
     const cadence = environment === 'production' ? '0 0 1 * *' : '0 0 * * *'; // Monthly for prod, daily for non-prod
-
+    const allocationAmount = environment === 'production' ? 300 : 5;
     const allocations: CreateAllocationDto[] = [
-      { allocationAmount: 300, cadence },
+      { allocationAmount: allocationAmount, cadence },
     ];
 
     for (const allocationDto of allocations) {
