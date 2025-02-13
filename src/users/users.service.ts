@@ -303,6 +303,28 @@ export class UsersService {
 
     const [result] = await this.userModel.aggregate(pipeline);
 
+    // TODO: Remove this after Valentine's Day
+    // Add Valentine's Day dummy celebration - REMOVE AFTER VALENTINE'S DAY
+    const valentinesCelebration = {
+      _id: new Types.ObjectId(),
+      name: "Valentine's Day",
+      picture:
+        'https://res.cloudinary.com/djhh1vzda/image/upload/t_Profile/v1739485023/helium-red_engmr5.png',
+      celebrations: {
+        celebrationType: MilestoneType.VALENTINE_DAY,
+        date: new Date(new Date().getFullYear(), 1, 14), // February 14th
+      },
+    };
+
+    if (!month || month === 2) {
+      if (!celebrationType || celebrationType === MilestoneType.VALENTINE_DAY) {
+        console.log("Adding Valentine's Day celebration");
+        result.data.unshift(valentinesCelebration);
+        result.count[0].totalCelebrations += 1;
+      }
+    }
+    // END DUMMY DATA
+
     const celebrations = result?.data || [];
     const totalCount = result?.count[0]?.totalCelebrations || 0;
     const totalPages = Math.ceil(totalCount / limit);
