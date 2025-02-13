@@ -9,8 +9,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { GoogleAuthGuard } from './utils/Guards';
+import { GoogleAuthGuard } from './utils/google.guard';
 import { Types } from 'mongoose';
+import { Auth0AuthGuard } from './utils/auth0.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -23,6 +24,13 @@ export class AuthController {
   async googleLogin(@Request() req) {
     const user = req.user;
 
+    return { user };
+  }
+
+  @Post('/login/auth0')
+  @UseGuards(Auth0AuthGuard)
+  async auth0Login(@Request() req) {
+    const user = req.user;
     return { user };
   }
 
