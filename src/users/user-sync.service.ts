@@ -40,14 +40,12 @@ export class UserSyncService {
         nationality,
       ] = row;
 
+      console.log('Processing row:', row);
+
       await this.usersService.updateByEmail(email, {
         team,
-        joinDate:
-          workAnniversary && !isNaN(new Date(workAnniversary).getTime())
-            ? new Date(workAnniversary)
-            : undefined,
-        dateOfBirth:
-          dob && !isNaN(new Date(dob).getTime()) ? new Date(dob) : undefined,
+        joinDate: this.parseDate(workAnniversary),
+        dateOfBirth: this.parseDate(dob),
         gender:
           gender &&
           [UserGender.Female, UserGender.Male].includes(gender.toLowerCase())
@@ -56,5 +54,19 @@ export class UserSyncService {
         nationality,
       });
     }
+  }
+
+  parseDate(dateString: string | undefined): Date | undefined {
+    if (!dateString) return undefined;
+    if (isNaN(new Date(dateString).getTime())) return undefined;
+
+    const currentYear = new Date().getFullYear();
+    const [month, day] = dateString.split(' ');
+
+    const date = new Date(
+      Date.UTC(currentYear, new Date(`${month} 1`).getMonth(), parseInt(day)),
+    );
+
+    return date;
   }
 }
