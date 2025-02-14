@@ -303,6 +303,10 @@ export class UsersService {
 
     const [result] = await this.userModel.aggregate(pipeline);
 
+    const celebrations = result?.data || [];
+    const totalCount = result?.count[0]?.totalCelebrations || 0;
+    const totalPages = Math.ceil(totalCount / limit);
+
     // TODO: Remove this after Valentine's Day
     // Add Valentine's Day dummy celebration - REMOVE AFTER VALENTINE'S DAY
     const valentinesCelebration = {
@@ -319,15 +323,11 @@ export class UsersService {
     if (!month || month === 2) {
       if (!celebrationType || celebrationType === MilestoneType.VALENTINE_DAY) {
         console.log("Adding Valentine's Day celebration");
-        result.data.unshift(valentinesCelebration);
-        result.count[0].totalCelebrations += 1;
+        console.log(result.data);
+        celebrations.unshift(valentinesCelebration);
       }
     }
     // END DUMMY DATA
-
-    const celebrations = result?.data || [];
-    const totalCount = result?.count[0]?.totalCelebrations || 0;
-    const totalPages = Math.ceil(totalCount / limit);
 
     return {
       data: celebrations,
