@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -14,6 +15,8 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class AllocationsService implements OnModuleInit {
+  private readonly CUTOFF_DATE = new Date('2025-02-15');
+
   constructor(
     @InjectModel(Allocation.name)
     private readonly allocationModel: Model<Allocation>,
@@ -25,6 +28,30 @@ export class AllocationsService implements OnModuleInit {
 
   async onModuleInit() {
     await this.loadAllocations();
+  }
+
+  // TODO: Remove this method after February 15th, 2025
+  async allocateCoinsToAllUsers(amount: number): Promise<void> {
+    const currentDate = new Date();
+
+    if (currentDate > this.CUTOFF_DATE) {
+      throw new ForbiddenException(
+        'Bulk allocation is no longer available after February 15th, 2025',
+      );
+    }
+
+    const session = await this.allocationModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      await this.walletService.allocateCoinsToAll(amount);
+      await session.commitTransaction();
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 
   private async loadAllocations() {
