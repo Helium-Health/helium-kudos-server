@@ -12,7 +12,6 @@ import { OAuth2Client } from 'google-auth-library';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { UserInfoClient } from 'auth0';
-import { PROD_AUTH0_DOMAIN, STAGING_AUTH0_DOMAIN } from './utils/auth0.strategy';
 
 @Injectable()
 export class AuthService {
@@ -28,8 +27,15 @@ export class AuthService {
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
     );
+    // this.auth0UserInfo = new UserInfoClient({
+    //   domain:
+    //     process.env.NODE_ENV === 'production'
+    //       ? PROD_AUTH0_DOMAIN
+    //       : STAGING_AUTH0_DOMAIN,
+    // });
+
     this.auth0UserInfo = new UserInfoClient({
-      domain: process.env.NODE_ENV === 'production' ? PROD_AUTH0_DOMAIN : STAGING_AUTH0_DOMAIN,
+      domain: process.env.AUTH0_DOMAIN,
     });
   }
 
@@ -47,9 +53,7 @@ export class AuthService {
 
       const payload = googleAuth.getPayload();
 
-      const userExists = await this.userModel.findOne({
-        email: payload.email,
-      });
+      const userExists = await this.userService.findByEmail(payload.email);
 
       if (userExists) {
         if (userExists.verified) {
@@ -103,9 +107,9 @@ export class AuthService {
       let userDetails = null;
       let refreshToken = null;
 
-      const userExists = await this.userModel.findOne({
-        email: userInfo.data.email,
-      });
+      const userExists = await this.userService.findByEmail(
+        userInfo.data.email,
+      );
 
       if (userExists) {
         if (userExists.verified) {

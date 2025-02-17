@@ -82,7 +82,7 @@ export class UsersService {
 
   // Method to find a user by email
   async findByEmail(email: string): Promise<User | null> {
-    return await this.userModel.findOne({ email }).exec();
+    return await this.userModel.findOne({ email: email.toLowerCase() }).exec();
   }
 
   // Method to find a user by id
@@ -306,28 +306,6 @@ export class UsersService {
     const celebrations = result?.data || [];
     const totalCount = result?.count[0]?.totalCelebrations || 0;
     const totalPages = Math.ceil(totalCount / limit);
-
-    // TODO: Remove this after Valentine's Day
-    // Add Valentine's Day dummy celebration - REMOVE AFTER VALENTINE'S DAY
-    const valentinesCelebration = {
-      _id: new Types.ObjectId(),
-      name: "Valentine's Day",
-      picture:
-        'https://res.cloudinary.com/djhh1vzda/image/upload/t_Profile/v1739485023/helium-red_engmr5.png',
-      celebrations: {
-        celebrationType: MilestoneType.VALENTINE_DAY,
-        date: new Date(new Date().getFullYear(), 1, 14), // February 14th
-      },
-    };
-
-    if (!month || month === 2) {
-      if (!celebrationType || celebrationType === MilestoneType.VALENTINE_DAY) {
-        console.log("Adding Valentine's Day celebration");
-        console.log(result.data);
-        celebrations.unshift(valentinesCelebration);
-      }
-    }
-    // END DUMMY DATA
 
     return {
       data: celebrations,
