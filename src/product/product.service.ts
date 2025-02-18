@@ -40,12 +40,7 @@ export class ProductService {
     return product.save();
   }
 
-
-  async findAll(
-    page: number = 1,
-    limit: number = 10,
-    categoryFilter?: string,
-  ) {
+  async findAll(page: number = 1, limit: number = 10, categoryFilter?: string) {
     let query: any = {};
 
     if (categoryFilter) {
@@ -53,7 +48,9 @@ export class ProductService {
         name: { $regex: new RegExp(categoryFilter, 'i') },
       });
       if (categories.length > 0) {
-        const categoryIds = categories.map((category) => new Types.ObjectId(category._id));
+        const categoryIds = categories.map(
+          (category) => new Types.ObjectId(category._id),
+        );
         query.categories = { $in: categoryIds };
       } else {
         return {
