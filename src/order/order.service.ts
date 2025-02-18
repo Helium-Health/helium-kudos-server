@@ -138,7 +138,7 @@ export class OrderService {
     recent: 'ASCENDING_ORDER' | 'DESCENDING_ORDER' = 'DESCENDING_ORDER',
     search?: string,
   ) {
-    const filter: Record<string, any>  = {};
+    const filter: Record<string, any> = {};
 
     if (userId) filter.userId = userId;
 
@@ -211,27 +211,41 @@ export class OrderService {
     orderId: Types.ObjectId,
     expectedDeliveryDate: string,
   ): Promise<any> {
+    const session = await this.orderModel.startSession();
+    session.startTransaction();
     const order = await this.findById(orderId);
-    if (!order) {
-      throw new BadRequestException('Order not found');
-    }
-
-    if (order.status !== OrderStatus.NEW) {
-      throw new BadRequestException(
-        'Only new orders can be marked as in progress',
-      );
-    }
-
     try {
+      if (!order) {
+        throw new BadRequestException('Order not found');
+      }
+
+      if (order.status !== OrderStatus.NEW) {
+        throw new BadRequestException(
+          'Only new orders can be marked as in progress',
+        );
+      }
+
       order.status = OrderStatus.IN_PROGRESS;
       order.expectedDeliveryDate = new Date(expectedDeliveryDate);
-      await order.save();
+      await order.save({ session });
 
+      for (const item of order.items) {
+        await this.productService.deductStock(
+          item.productId,
+          item.variants,
+          item.quantity,
+          session,
+        );
+      }
+      await session.commitTransaction();
+      session.endSession();
       return {
         message: 'Order status updated to in progress successfully',
         order,
       };
     } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
       console.error('Error updating order status to in progress:', error);
       throw new BadRequestException(
         'Failed to update order status to in progress',
