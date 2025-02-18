@@ -162,6 +162,7 @@ export class UsersService {
     userId: string,
     page: number = 1,
     limit: number = 10,
+    active: string,
   ): Promise<{
     users: User[];
     meta: {
@@ -180,6 +181,10 @@ export class UsersService {
       query.$and = words.map((word) => ({
         name: { $regex: `.*${word}.*`, $options: 'i' },
       }));
+    }
+
+    if (active) {
+      query.active = active === 'true';
     }
 
     const totalCount = await this.userModel.countDocuments(query).exec();
@@ -316,5 +321,21 @@ export class UsersService {
         totalPages,
       },
     };
+  }
+
+  async deactivateUser(userId: Types.ObjectId): Promise<User> {
+    return this.userModel.findByIdAndUpdate(
+      userId,
+      { active: false, refreshToken: null },
+      { new: true },
+    );
+  }
+
+  async activateUser(userId: Types.ObjectId): Promise<User> {
+    return this.userModel.findByIdAndUpdate(
+      userId,
+      { active: true },
+      { new: true },
+    );
   }
 }

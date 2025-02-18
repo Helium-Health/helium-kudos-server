@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Request,
   UseGuards,
@@ -20,6 +21,7 @@ import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 import { User } from './schema/User.schema';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
 import { UserSyncService } from './user-sync.service';
+import { Types } from 'mongoose';
 
 @Controller('users')
 export class UsersController {
@@ -46,10 +48,11 @@ export class UsersController {
     @Query('name') name: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
+    @Query('active') active: string,
     @Request() req,
   ) {
     const userId = req.user?.userId;
-    return this.usersService.findUsers(name, userId, page, limit);
+    return this.usersService.findUsers(name, userId, page, limit, active);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -84,5 +87,17 @@ export class UsersController {
   @Delete(':id')
   async delete(@Param('id') id: string) {
     return this.usersService.deleteUser(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put('deactivate/:userId')
+  async deactivateUser(@Param('userId') userId: string) {
+    return await this.usersService.deactivateUser(new Types.ObjectId(userId));
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put('activate/:userId')
+  async activateUser(@Param('userId') userId: string) {
+    return await this.usersService.activateUser(new Types.ObjectId(userId));
   }
 }

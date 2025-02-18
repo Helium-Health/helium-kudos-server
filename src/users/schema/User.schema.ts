@@ -54,6 +54,9 @@ export class User {
 
   @Prop()
   nationality: string;
+
+  @Prop({type: Boolean, default: true})
+  active: boolean;
 }
 
 // Create schema using the class

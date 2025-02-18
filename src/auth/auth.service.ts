@@ -45,7 +45,7 @@ export class AuthService {
     try {
       let userDetails = null;
       let refreshToken = null;
-      
+
       const googleAuth = await this.oauthClient.verifyIdToken({
         idToken: token,
         audience: process.env.GOOGLE_CLIENT_ID,
@@ -112,6 +112,12 @@ export class AuthService {
       );
 
       if (userExists) {
+        if (!userExists.active) {
+          throw new UnauthorizedException(
+            'Your account has been deactivated. Contact Admin.',
+          );
+        }
+
         if (userExists.verified) {
           console.log('Verified user exists. Getting...');
           userDetails = userExists;
