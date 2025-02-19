@@ -138,13 +138,12 @@ export class OrderService {
     recent: 'ASCENDING_ORDER' | 'DESCENDING_ORDER' = 'DESCENDING_ORDER',
     search?: string,
   ) {
-    const filter: Record<string, any>  = {};
+    const filter: Record<string, any> = {};
 
     if (userId) filter.userId = userId;
-
     if (status) filter.status = status;
-    const sortDirection = recent === 'ASCENDING_ORDER' ? 1 : -1;
 
+    const sortDirection = recent === 'ASCENDING_ORDER' ? 1 : -1;
     const skip = (page - 1) * limit;
 
     // Add search conditions if search parameter exists
@@ -171,10 +170,52 @@ export class OrderService {
             preserveNullAndEmptyArrays: true,
           },
         },
+        {
+          $unwind: {
+            path: '$items',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $addFields: {
+            'items.productId': { $toObjectId: '$items.productId' },
+          },
+        },
+        {
+          $lookup: {
+            from: 'products',
+            localField: 'items.productId',
+            foreignField: '_id',
+            as: 'product',
+          },
+        },
+        {
+          $unwind: {
+            path: '$product',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $addFields: {
+            'items.itemImage': { $arrayElemAt: ['$product.images', 0] }, // Extract first image
+          },
+        },
         { $match: filter },
         { $sort: { createdAt: sortDirection } },
         { $skip: skip },
         { $limit: limit },
+        {
+          $group: {
+            _id: '$_id',
+            userId: { $first: '$userId' },
+            user: { $first: '$user' },
+            status: { $first: '$status' },
+            totalAmount: { $first: '$totalAmount' },
+            expectedDeliveryDate: { $first: '$expectedDeliveryDate' },
+            createdAt: { $first: '$createdAt' },
+            items: { $push: '$items' },
+          },
+        },
         {
           $project: {
             _id: 1,
@@ -211,27 +252,41 @@ export class OrderService {
     orderId: Types.ObjectId,
     expectedDeliveryDate: string,
   ): Promise<any> {
+    const session = await this.orderModel.startSession();
+    session.startTransaction();
     const order = await this.findById(orderId);
-    if (!order) {
-      throw new BadRequestException('Order not found');
-    }
-
-    if (order.status !== OrderStatus.NEW) {
-      throw new BadRequestException(
-        'Only new orders can be marked as in progress',
-      );
-    }
-
     try {
+      if (!order) {
+        throw new BadRequestException('Order not found');
+      }
+
+      if (order.status !== OrderStatus.NEW) {
+        throw new BadRequestException(
+          'Only new orders can be marked as in progress',
+        );
+      }
+
       order.status = OrderStatus.IN_PROGRESS;
       order.expectedDeliveryDate = new Date(expectedDeliveryDate);
-      await order.save();
+      await order.save({ session });
 
+      for (const item of order.items) {
+        await this.productService.deductStock(
+          item.productId,
+          item.variants,
+          item.quantity,
+          session,
+        );
+      }
+      await session.commitTransaction();
+      session.endSession();
       return {
         message: 'Order status updated to in progress successfully',
         order,
       };
     } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
       console.error('Error updating order status to in progress:', error);
       throw new BadRequestException(
         'Failed to update order status to in progress',

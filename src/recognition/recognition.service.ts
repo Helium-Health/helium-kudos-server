@@ -152,7 +152,10 @@ export class RecognitionService {
         giphyUrl,
       });
 
-      await this.notifyReceiversViaSlack(new Types.ObjectId(senderId), receivers);
+      await this.notifyReceiversViaSlack(
+        new Types.ObjectId(senderId),
+        receivers,
+      );
 
       return newRecognition;
     } catch (error) {
@@ -173,21 +176,29 @@ export class RecognitionService {
     receivers: CreateRecognitionDto['receivers'],
   ) {
     const sender = await this.usersService.findById(senderId);
-    const clientUrl = process.env.NODE_ENV === 'production' 
-    ? PRODUCTION_CLIENT
-    : STAGING_CLIENT;
-    
+    const clientUrl =
+      process.env.NODE_ENV === 'production'
+        ? PRODUCTION_CLIENT
+        : STAGING_CLIENT;
+
     for (const receiver of receivers) {
-      const receiverUser = await this.usersService.findById(new Types.ObjectId(receiver.receiverId));
+      const receiverUser = await this.usersService.findById(
+        new Types.ObjectId(receiver.receiverId),
+      );
       if (receiverUser?.email) {
-        const slackUserId = await this.slackService.getUserIdByEmail(receiverUser.email);
+        const slackUserId = await this.slackService.getUserIdByEmail(
+          receiverUser.email,
+        );
         if (slackUserId) {
           const notificationMessage = `🌟 Hey ${receiverUser.name}!\n\n ${sender.name} just recognized your awesome work!\n\nCheck it out here: ${clientUrl}`;
-          await this.slackService.sendDirectMessage(slackUserId, notificationMessage);
+          await this.slackService.sendDirectMessage(
+            slackUserId,
+            notificationMessage,
+          );
         }
       }
     }
-  }  
+  }
 
   async editRecognition(
     recognitionId: Types.ObjectId,
@@ -235,9 +246,9 @@ export class RecognitionService {
     try {
       const newRecognition = new this.recognitionModel({
         message,
-        coinAmount,
         isAuto: true,
         milestoneType,
+        receivers: [{ receiverId: new Types.ObjectId(receiverId), coinAmount }],
       });
       await newRecognition.save({ session });
 
@@ -264,6 +275,7 @@ export class RecognitionService {
           {
             receiverId: new Types.ObjectId(receiverId),
             amount: coinAmount,
+
             entityId: newRecognition._id,
             entityType: EntityType.RECOGNITION,
           },
