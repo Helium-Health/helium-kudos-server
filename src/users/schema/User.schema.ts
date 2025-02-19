@@ -15,7 +15,13 @@ export enum UserGender {
 
 @Schema({ timestamps: true }) // Automatically adds createdAt and updatedAt fields
 export class User {
-  @Prop({ type: String, required: true, unique: true })
+  @Prop({
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true,
+  })
   email: string;
 
   @Prop({ type: String, required: true })
