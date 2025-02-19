@@ -141,10 +141,9 @@ export class OrderService {
     const filter: Record<string, any> = {};
 
     if (userId) filter.userId = userId;
-
     if (status) filter.status = status;
-    const sortDirection = recent === 'ASCENDING_ORDER' ? 1 : -1;
 
+    const sortDirection = recent === 'ASCENDING_ORDER' ? 1 : -1;
     const skip = (page - 1) * limit;
 
     // Add search conditions if search parameter exists
@@ -171,10 +170,52 @@ export class OrderService {
             preserveNullAndEmptyArrays: true,
           },
         },
+        {
+          $unwind: {
+            path: '$items',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $addFields: {
+            'items.productId': { $toObjectId: '$items.productId' },
+          },
+        },
+        {
+          $lookup: {
+            from: 'products',
+            localField: 'items.productId',
+            foreignField: '_id',
+            as: 'product',
+          },
+        },
+        {
+          $unwind: {
+            path: '$product',
+            preserveNullAndEmptyArrays: true,
+          },
+        },
+        {
+          $addFields: {
+            'items.itemImage': { $arrayElemAt: ['$product.images', 0] }, // Extract first image
+          },
+        },
         { $match: filter },
         { $sort: { createdAt: sortDirection } },
         { $skip: skip },
         { $limit: limit },
+        {
+          $group: {
+            _id: '$_id',
+            userId: { $first: '$userId' },
+            user: { $first: '$user' },
+            status: { $first: '$status' },
+            totalAmount: { $first: '$totalAmount' },
+            expectedDeliveryDate: { $first: '$expectedDeliveryDate' },
+            createdAt: { $first: '$createdAt' },
+            items: { $push: '$items' },
+          },
+        },
         {
           $project: {
             _id: 1,
