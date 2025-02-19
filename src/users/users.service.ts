@@ -327,6 +327,10 @@ export class UsersService {
   }
 
   async deactivateUser(userId: Types.ObjectId): Promise<User> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
     return this.userModel.findByIdAndUpdate(
       userId,
       { active: false, refreshToken: null },
@@ -335,6 +339,10 @@ export class UsersService {
   }
 
   async activateUser(userId: Types.ObjectId): Promise<User> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
     return this.userModel.findByIdAndUpdate(
       userId,
       { active: true },
