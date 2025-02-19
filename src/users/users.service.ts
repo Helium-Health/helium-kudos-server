@@ -21,6 +21,11 @@ export class UsersService {
     @Inject('AUTH_SERVICE') private authService,
   ) {}
 
+  //TODO: Remove this method after DB migration
+  async onModuleInit() {
+    await this.updateExistingUsers(this.userModel);
+  }
+
   async runTransactionWithRetry(session, operation) {
     for (let i = 0; i < 5; i++) {
       try {
@@ -162,7 +167,7 @@ export class UsersService {
     userId: string,
     page: number = 1,
     limit: number = 10,
-    active: string,
+    active: boolean,
   ): Promise<{
     users: User[];
     meta: {
@@ -178,13 +183,11 @@ export class UsersService {
 
     if (name) {
       const words = name.trim().split(/\s+/);
-      query.$and = words.map((word) => ({
-        name: { $regex: `.*${word}.*`, $options: 'i' },
-      }));
+      query.name = { $all: words.map((word) => new RegExp(word, 'i')) };
     }
 
     if (active) {
-      query.active = active === 'true';
+      query.active = active;
     }
 
     const totalCount = await this.userModel.countDocuments(query).exec();
@@ -337,5 +340,14 @@ export class UsersService {
       { active: true },
       { new: true },
     );
+  }
+
+  //TODO: Remove this method after DB migration
+  async updateExistingUsers(userModel: Model<User>) {
+    await userModel.updateMany(
+      { active: { $exists: false } },
+      { $set: { active: true } },
+    );
+    console.log('Existing users updated with default active value');
   }
 }

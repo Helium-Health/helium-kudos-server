@@ -2,6 +2,7 @@ import {
   forwardRef,
   Inject,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -15,6 +16,7 @@ import { UserInfoClient } from 'auth0';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private oauthClient: OAuth2Client;
   private auth0UserInfo: UserInfoClient;
 
@@ -55,13 +57,21 @@ export class AuthService {
 
       const userExists = await this.userService.findByEmail(payload.email);
 
+      if (!userExists?.active) {
+        throw new UnauthorizedException(
+          'Your account is currently inactive. Contact Administrator for assistance.',
+        );
+      }
+
       if (userExists) {
         if (userExists.verified) {
-          console.log('Verified user exists. Getting...');
+          this.logger.log('Verified user exists. Getting...');
           userDetails = userExists;
           refreshToken = await this.generateAndStoreRefreshToken(userDetails);
         } else {
-          console.log('Unverified user exists. Updating with Google data...');
+          this.logger.log(
+            'Unverified user exists. Updating with Google data...',
+          );
 
           const updatedUser = await this.userService.updateByEmail(
             payload.email,
@@ -74,7 +84,7 @@ export class AuthService {
           refreshToken = await this.generateAndStoreRefreshToken(updatedUser);
         }
       } else {
-        console.log('User not found. Creating...');
+        this.logger.log('User not found. Creating...');
         const { newUser, newUserRefreshToken } =
           await this.userService.createUser({
             email: payload.email,
@@ -94,7 +104,7 @@ export class AuthService {
         refreshToken: refreshToken,
       };
     } catch (e) {
-      console.log('Error in validateUser', e);
+      this.logger.log('Error in validateUser', e);
       throw new Error('Error in validateUser');
     }
   }
@@ -111,19 +121,21 @@ export class AuthService {
         userInfo.data.email,
       );
 
-      if (userExists) {
-        if (!userExists.active) {
-          throw new UnauthorizedException(
-            'Your account has been deactivated. Contact Admin.',
-          );
-        }
+      if (!userExists?.active) {
+        throw new UnauthorizedException(
+          'Your account is currently inactive. Contact Administrator for assistance.',
+        );
+      }
 
+      if (userExists) {
         if (userExists.verified) {
-          console.log('Verified user exists. Getting...');
+          this.logger.log('Verified user exists. Getting...');
           userDetails = userExists;
           refreshToken = await this.generateAndStoreRefreshToken(userDetails);
         } else {
-          console.log('Unverified user exists. Updating with Auth0 data...');
+          this.logger.log(
+            'Unverified user exists. Updating with Auth0 data...',
+          );
 
           const updatedUser = await this.userService.updateByEmail(
             userInfo.data.email,
@@ -136,7 +148,7 @@ export class AuthService {
           refreshToken = await this.generateAndStoreRefreshToken(updatedUser);
         }
       } else {
-        console.log('User not found. Creating...');
+        this.logger.log('User not found. Creating...');
         const { newUser, newUserRefreshToken } =
           await this.userService.createUser({
             email: userInfo.data.email,
@@ -156,7 +168,7 @@ export class AuthService {
         refreshToken: refreshToken,
       };
     } catch (e) {
-      console.log('Error in validateAuth0User', e);
+      this.logger.log('Error in validateAuth0User', e);
       throw new Error('Error in validateAuth0User');
     }
   }

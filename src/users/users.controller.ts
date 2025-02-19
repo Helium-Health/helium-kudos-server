@@ -48,7 +48,7 @@ export class UsersController {
     @Query('name') name: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
-    @Query('active') active: string,
+    @Query('active') active: boolean,
     @Request() req,
   ) {
     const userId = req.user?.userId;
