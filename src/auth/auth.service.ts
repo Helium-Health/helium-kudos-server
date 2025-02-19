@@ -57,12 +57,6 @@ export class AuthService {
 
       const userExists = await this.userService.findByEmail(payload.email);
 
-      if (!userExists?.active) {
-        throw new UnauthorizedException(
-          'Your account is currently inactive. Contact Administrator for assistance.',
-        );
-      }
-
       if (userExists) {
         if (userExists.verified) {
           this.logger.log('Verified user exists. Getting...');
@@ -97,7 +91,11 @@ export class AuthService {
       }
 
       const jwtToken = this.generateJwtToken(userDetails);
-
+      if (!userDetails.active) {
+        throw new UnauthorizedException(
+          'Your account is currently inactive. Contact Administrator for assistance.',
+        );
+      }
       return {
         user: userDetails,
         accessToken: jwtToken,
@@ -120,12 +118,6 @@ export class AuthService {
       const userExists = await this.userService.findByEmail(
         userInfo.data.email,
       );
-
-      if (!userExists?.active) {
-        throw new UnauthorizedException(
-          'Your account is currently inactive. Contact Administrator for assistance.',
-        );
-      }
 
       if (userExists) {
         if (userExists.verified) {
@@ -161,7 +153,11 @@ export class AuthService {
       }
 
       const jwtToken = this.generateJwtToken(userDetails);
-
+      if (!userDetails.active) {
+        throw new UnauthorizedException(
+          'Your account is currently inactive. Contact Administrator for assistance.',
+        );
+      }
       return {
         user: userDetails,
         accessToken: jwtToken,
