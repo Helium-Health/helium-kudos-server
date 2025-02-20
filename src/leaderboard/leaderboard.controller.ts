@@ -1,4 +1,12 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  DefaultValuePipe,
+  Get,
+  Param,
+  ParseIntPipe,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { LeaderboardService } from './leaderboard.service';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
@@ -34,25 +42,22 @@ export class LeaderboardController {
     return this.leaderboardService.getUncreditedUsers();
   }
 
-  @UseGuards(AdminGuard)
-  @Get('earned-coins')
-  async getUsersWithEarnedCoins(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
+  @UseGuards(JwtAuthGuard)
+  @Get('most-recognized')
+  async getTopRecognitionReceivers(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
   ) {
-    return this.leaderboardService.getPaginatedUsersWithEarnedCoins(
-      page,
-      limit,
-    );
+    return this.leaderboardService.getTopRecognitionReceivers(page, limit);
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('recognition-receivers')
-  async getTopRecognitionReceivers(
-    @Query('page') page: number = 1,
-    @Query('limit') limit: number = 10,
+  @Get('most-active')
+  async getTopRecognitionSenders(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
   ) {
-    return this.leaderboardService.getTopRecognitionReceivers(page, limit);
+    return this.leaderboardService.getTopRecognitionSenders(page, limit);
   }
 
   @UseGuards(JwtAuthGuard)
