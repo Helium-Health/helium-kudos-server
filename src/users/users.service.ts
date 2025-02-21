@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { ClientSession, Model, Types } from 'mongoose';
 import { User, UserDocument, UserGender } from 'src/users/schema/User.schema';
 import { CreateUserDto, UpdateUserDto } from './dto/User.dto';
 import { WalletService } from 'src/wallet/wallet.service';
@@ -62,15 +62,10 @@ export class UsersService {
         await this.walletService.createWallet(newUser._id, session);
 
         // Step 3: Generate and hash the refresh token
-        const newUserRefreshToken =
-          await this.authService.generateAndStoreRefreshToken(newUser);
-        const hashedRefreshToken = await argon2.hash(newUserRefreshToken);
-
-        // Step 4: Update the user with the hashed refresh token
-        await this.userModel.updateOne(
-          { _id: newUser._id },
-          { $set: { refreshToken: hashedRefreshToken } },
-          { session },
+        const newUserRefreshToken = await this.generateAndStoreRefreshToken(
+          newUser._id,
+          newUser,
+          session,
         );
 
         await session.commitTransaction();
@@ -83,6 +78,24 @@ export class UsersService {
     } finally {
       session.endSession();
     }
+  }
+
+  private async generateAndStoreRefreshToken(
+    id: Types.ObjectId,
+    user: User,
+    session: ClientSession,
+  ) {
+    const refreshToken =
+      await this.authService.generateAndStoreRefreshToken(user);
+    const hashedRefreshToken = await argon2.hash(refreshToken);
+
+    await this.userModel.updateOne(
+      { _id: id },
+      { $set: { refreshToken: hashedRefreshToken } },
+      { session },
+    );
+
+    return refreshToken;
   }
 
   // Method to find a user by email
@@ -332,24 +345,15 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    if (!active) {
-      return this.userModel.findByIdAndUpdate(
-        userId,
-        { active: false, refreshToken: null },
-        { new: true },
-      );
-    } else {
-      return this.userModel.findByIdAndUpdate(
-        userId,
-        { active: true },
-        { new: true },
-      );
-    }
+    return this.userModel.findByIdAndUpdate(
+      userId,
+      { active, ...(!active && { refreshToken: null }) },
+      { new: true },
+    );
   }
 
-
   //TODO: Remove this method after DB migration
-  async updateExistingUsers(userModel: Model<User>) {
+  private async updateExistingUsers(userModel: Model<User>) {
     await userModel.updateMany(
       { active: { $exists: false } },
       { $set: { active: true } },
