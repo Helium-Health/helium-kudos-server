@@ -138,96 +138,101 @@ export class OrderService {
     recent: 'ASCENDING_ORDER' | 'DESCENDING_ORDER' = 'DESCENDING_ORDER',
     search?: string,
   ) {
-    const filter: Record<string, any> = {};
-
-    if (userId) filter.userId = userId;
-    if (status) filter.status = status;
-
     const sortDirection = recent === 'ASCENDING_ORDER' ? 1 : -1;
     const skip = (page - 1) * limit;
 
-    if (search) {
-      filter.$or = [
-        { 'user.name': { $regex: search, $options: 'i' } },
-        { 'items.name': { $regex: search, $options: 'i' } },
-      ];
-    }
+    const results = await this.orderModel.aggregate([
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
 
-    const [orders, totalCount] = await Promise.all([
-      this.orderModel.aggregate([
-        { $match: filter },
-
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'userId',
-            foreignField: '_id',
-            as: 'user',
+      {
+        $addFields: {
+          userId: {
+            _id: '$user._id',
+            name: '$user.name',
+            picture: '$user.picture',
           },
         },
-        { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
-        { $unwind: { path: '$items', preserveNullAndEmptyArrays: true } },
+      },
 
-        {
-          $addFields: {
-            'items.productId': { $toObjectId: '$items.productId' },
-          },
+      { $unwind: { path: '$items', preserveNullAndEmptyArrays: true } },
+
+      {
+        $addFields: {
+          'items.productId': { $toObjectId: '$items.productId' },
         },
-        {
-          $lookup: {
-            from: 'products',
-            localField: 'items.productId',
-            foreignField: '_id',
-            as: 'product',
-          },
+      },
+      {
+        $lookup: {
+          from: 'products',
+          localField: 'items.productId',
+          foreignField: '_id',
+          as: 'product',
         },
-        { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } },
-        {
-          $addFields: {
-            'items.itemImage': { $arrayElemAt: ['$product.images', 0] },
-          },
+      },
+      { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          'items.itemImage': { $arrayElemAt: ['$product.images', 0] },
         },
+      },
 
-        { $sort: { createdAt: sortDirection } },
-
-        {
-          $group: {
-            _id: '$_id',
-            userId: { $first: '$userId' },
-            user: { $first: '$user' },
-            status: { $first: '$status' },
-            totalAmount: { $first: '$totalAmount' },
-            expectedDeliveryDate: { $first: '$expectedDeliveryDate' },
-            createdAt: { $first: '$createdAt' },
-            items: { $push: '$items' },
-          },
+      {
+        $match: {
+          ...(userId ? { userId } : {}),
+          ...(status ? { status } : {}),
+          ...(search
+            ? {
+                $or: [
+                  { 'user.name': { $regex: search, $options: 'i' } },
+                  { 'items.name': { $regex: search, $options: 'i' } },
+                ],
+              }
+            : {}),
         },
+      },
 
-        { $sort: { createdAt: sortDirection } },
+      { $sort: { createdAt: sortDirection } },
 
-        { $skip: skip },
-        { $limit: limit },
-
-        {
-          $project: {
-            _id: 1,
-            userId: {
-              _id: '$user._id',
-              name: '$user.name',
-              picture: '$user.picture',
-            },
-            status: 1,
-            items: 1,
-            totalAmount: 1,
-            expectedDeliveryDate: 1,
-            createdAt: 1,
-          },
+      {
+        $group: {
+          _id: '$_id',
+          userId: { $first: '$userId' },
+          status: { $first: '$status' },
+          totalAmount: { $first: '$totalAmount' },
+          expectedDeliveryDate: { $first: '$expectedDeliveryDate' },
+          createdAt: { $first: '$createdAt' },
+          items: { $push: '$items' },
         },
-      ]),
-      this.orderModel.countDocuments(filter).exec(),
+      },
+
+      { $sort: { createdAt: sortDirection } },
+
+      {
+        $facet: {
+          metadata: [{ $count: 'total' }],
+          data: [{ $skip: skip }, { $limit: limit }],
+        },
+      },
+
+      {
+        $project: {
+          total: { $arrayElemAt: ['$metadata.total', 0] },
+          orders: '$data',
+        },
+      },
     ]);
 
+    const totalCount = results[0]?.total || 0;
     const totalPages = Math.ceil(totalCount / limit);
+    const orders = results[0]?.orders || [];
 
     return {
       orders,
@@ -235,6 +240,7 @@ export class OrderService {
       totalPages,
     };
   }
+  
 
   async findById(orderId: Types.ObjectId): Promise<OrderDocument | null> {
     return this.orderModel.findById(orderId);
