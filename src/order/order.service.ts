@@ -136,27 +136,27 @@ export class OrderService {
     page: number = 1,
     limit: number = 10,
     recent: 'ASCENDING_ORDER' | 'DESCENDING_ORDER' = 'DESCENDING_ORDER',
-    search?: string
+    search?: string,
   ) {
     const filter: Record<string, any> = {};
-  
+
     if (userId) filter.userId = userId;
     if (status) filter.status = status;
-  
+
     const sortDirection = recent === 'ASCENDING_ORDER' ? 1 : -1;
     const skip = (page - 1) * limit;
-  
+
     if (search) {
       filter.$or = [
         { 'user.name': { $regex: search, $options: 'i' } },
         { 'items.name': { $regex: search, $options: 'i' } },
       ];
     }
-  
+
     const [orders, totalCount] = await Promise.all([
       this.orderModel.aggregate([
-        { $match: filter }, 
-  
+        { $match: filter },
+
         {
           $lookup: {
             from: 'users',
@@ -167,7 +167,7 @@ export class OrderService {
         },
         { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
         { $unwind: { path: '$items', preserveNullAndEmptyArrays: true } },
-  
+
         {
           $addFields: {
             'items.productId': { $toObjectId: '$items.productId' },
@@ -187,9 +187,9 @@ export class OrderService {
             'items.itemImage': { $arrayElemAt: ['$product.images', 0] },
           },
         },
-  
+
         { $sort: { createdAt: sortDirection } },
-  
+
         {
           $group: {
             _id: '$_id',
@@ -204,10 +204,10 @@ export class OrderService {
         },
 
         { $sort: { createdAt: sortDirection } },
-  
+
         { $skip: skip },
         { $limit: limit },
-  
+
         {
           $project: {
             _id: 1,
@@ -226,16 +226,15 @@ export class OrderService {
       ]),
       this.orderModel.countDocuments(filter).exec(),
     ]);
-  
+
     const totalPages = Math.ceil(totalCount / limit);
-  
+
     return {
       orders,
       total: totalCount,
       totalPages,
     };
   }
-  
 
   async findById(orderId: Types.ObjectId): Promise<OrderDocument | null> {
     return this.orderModel.findById(orderId);
@@ -318,6 +317,15 @@ export class OrderService {
         session,
       );
 
+      for (const item of order.items) {
+        await this.productService.returnStock(
+          item.productId,
+          item.variants,
+          item.quantity,
+          session,
+        );
+      }
+
       order.status = OrderStatus.REJECTED;
       await order.save({ session });
       await session.commitTransaction();
@@ -392,14 +400,6 @@ export class OrderService {
         session,
       );
 
-      for (const item of order.items) {
-        await this.productService.returnStock(
-          item.productId,
-          item.variants,
-          item.quantity,
-          session,
-        );
-      }
       await this.transactionService.recordCreditTransaction(
         {
           receiverId: order.userId,
