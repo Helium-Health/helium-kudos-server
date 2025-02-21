@@ -136,26 +136,27 @@ export class OrderService {
     page: number = 1,
     limit: number = 10,
     recent: 'ASCENDING_ORDER' | 'DESCENDING_ORDER' = 'DESCENDING_ORDER',
-    search?: string,
+    search?: string
   ) {
     const filter: Record<string, any> = {};
-
+  
     if (userId) filter.userId = userId;
     if (status) filter.status = status;
-
+  
     const sortDirection = recent === 'ASCENDING_ORDER' ? 1 : -1;
     const skip = (page - 1) * limit;
-
-    // Add search conditions if search parameter exists
+  
     if (search) {
       filter.$or = [
         { 'user.name': { $regex: search, $options: 'i' } },
         { 'items.name': { $regex: search, $options: 'i' } },
       ];
     }
-
+  
     const [orders, totalCount] = await Promise.all([
       this.orderModel.aggregate([
+        { $match: filter }, 
+  
         {
           $lookup: {
             from: 'users',
@@ -164,18 +165,9 @@ export class OrderService {
             as: 'user',
           },
         },
-        {
-          $unwind: {
-            path: '$user',
-            preserveNullAndEmptyArrays: true,
-          },
-        },
-        {
-          $unwind: {
-            path: '$items',
-            preserveNullAndEmptyArrays: true,
-          },
-        },
+        { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+        { $unwind: { path: '$items', preserveNullAndEmptyArrays: true } },
+  
         {
           $addFields: {
             'items.productId': { $toObjectId: '$items.productId' },
@@ -189,21 +181,15 @@ export class OrderService {
             as: 'product',
           },
         },
-        {
-          $unwind: {
-            path: '$product',
-            preserveNullAndEmptyArrays: true,
-          },
-        },
+        { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } },
         {
           $addFields: {
-            'items.itemImage': { $arrayElemAt: ['$product.images', 0] }, // Extract first image
+            'items.itemImage': { $arrayElemAt: ['$product.images', 0] },
           },
         },
-        { $match: filter },
+  
         { $sort: { createdAt: sortDirection } },
-        { $skip: skip },
-        { $limit: limit },
+  
         {
           $group: {
             _id: '$_id',
@@ -216,6 +202,12 @@ export class OrderService {
             items: { $push: '$items' },
           },
         },
+
+        { $sort: { createdAt: sortDirection } },
+  
+        { $skip: skip },
+        { $limit: limit },
+  
         {
           $project: {
             _id: 1,
@@ -234,15 +226,16 @@ export class OrderService {
       ]),
       this.orderModel.countDocuments(filter).exec(),
     ]);
-
+  
     const totalPages = Math.ceil(totalCount / limit);
-
+  
     return {
       orders,
       total: totalCount,
       totalPages,
     };
   }
+  
 
   async findById(orderId: Types.ObjectId): Promise<OrderDocument | null> {
     return this.orderModel.findById(orderId);
