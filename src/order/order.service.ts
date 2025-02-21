@@ -317,6 +317,15 @@ export class OrderService {
         session,
       );
 
+      for (const item of order.items) {
+        await this.productService.returnStock(
+          item.productId,
+          item.variants,
+          item.quantity,
+          session,
+        );
+      }
+
       order.status = OrderStatus.REJECTED;
       await order.save({ session });
       await session.commitTransaction();
