@@ -240,6 +240,7 @@ export class OrderService {
       totalPages,
     };
   }
+  
 
   async findById(orderId: Types.ObjectId): Promise<OrderDocument | null> {
     return this.orderModel.findById(orderId);
@@ -321,6 +322,15 @@ export class OrderService {
         },
         session,
       );
+
+      for (const item of order.items) {
+        await this.productService.returnStock(
+          item.productId,
+          item.variants,
+          item.quantity,
+          session,
+        );
+      }
 
       order.status = OrderStatus.REJECTED;
       await order.save({ session });
