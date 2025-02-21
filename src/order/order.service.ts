@@ -184,7 +184,6 @@ export class OrderService {
         },
       },
 
-      // Apply filters dynamically
       {
         $match: {
           ...(userId ? { userId } : {}),
@@ -216,11 +215,10 @@ export class OrderService {
 
       { $sort: { createdAt: sortDirection } },
 
-      // Use `$facet` to calculate total count and paginated data in one go
       {
         $facet: {
-          metadata: [{ $count: 'total' }], // Count of all matching documents
-          data: [{ $skip: skip }, { $limit: limit }], // Paginated data
+          metadata: [{ $count: 'total' }],
+          data: [{ $skip: skip }, { $limit: limit }],
         },
       },
 
@@ -232,7 +230,6 @@ export class OrderService {
       },
     ]);
 
-    // Extract result
     const totalCount = results[0]?.total || 0;
     const totalPages = Math.ceil(totalCount / limit);
     const orders = results[0]?.orders || [];
