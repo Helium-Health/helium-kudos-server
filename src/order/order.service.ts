@@ -392,6 +392,14 @@ export class OrderService {
         session,
       );
 
+      for (const item of order.items) {
+        await this.productService.returnStock(
+          item.productId,
+          item.variants,
+          item.quantity,
+          session,
+        );
+      }
       await this.transactionService.recordCreditTransaction(
         {
           receiverId: order.userId,
