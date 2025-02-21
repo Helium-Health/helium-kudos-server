@@ -14,7 +14,8 @@ export class MilestoneCronService {
     private readonly milestoneService: MilestoneService,
   ) {}
 
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  @Cron(CronExpression.EVERY_MINUTE)
+  // @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async handleBirthdayRecognitions() {
     const birthdayMilestone = await this.milestoneService.findByType(
       MilestoneType.BIRTHDAY,
@@ -36,7 +37,8 @@ export class MilestoneCronService {
     }
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  @Cron(CronExpression.EVERY_MINUTE)
+  // @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async handleWorkAnniversaryRecognitions() {
     const anniversaryMilestone = await this.milestoneService.findByType(
       MilestoneType.WORK_ANNIVERSARY,
@@ -56,8 +58,8 @@ export class MilestoneCronService {
       });
     }
   }
-
-  @Cron('0 0 19 11 *') // Midnight on November 19 (International Men's Day)
+  @Cron(CronExpression.EVERY_MINUTE)
+  // @Cron('0 0 19 11 *') // Midnight on November 19 (International Men's Day)
   async handleMensDayRecognitions() {
     const mensDayMilestone = await this.milestoneService.findByType(
       MilestoneType.INTERNATIONAL_MENS_DAY,
@@ -74,7 +76,8 @@ export class MilestoneCronService {
     }
   }
 
-  @Cron('0 0 8 3 *') // Midnight on March 8 (International Women's Day)
+  @Cron(CronExpression.EVERY_MINUTE)
+  // @Cron('0 0 8 3 *') // Midnight on March 8 (International Women's Day)
   async handleWomensDayRecognitions() {
     const womensDayMilestone = await this.milestoneService.findByType(
       MilestoneType.INTERNATIONAL_WOMENS_DAY,
