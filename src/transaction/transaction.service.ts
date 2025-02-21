@@ -242,4 +242,28 @@ export class TransactionService {
       message: 'Success',
     };
   }
+  async getUserCoinSpent(userId: Types.ObjectId): Promise<number> {
+    const debitTransactions = await this.transactionModel.find({
+      userId: new Types.ObjectId(userId),
+      type: TransactionType.DEBIT,
+      entityType: EntityType.RECOGNITION,
+      status: transactionStatus.SUCCESS,
+    });
+
+    let validDebits = 0;
+    for (const transaction of debitTransactions) {
+      const reversedTransaction = await this.transactionModel.exists({
+        userId: new Types.ObjectId(userId),
+        entityId: transaction.entityId,
+        claimId: transaction.claimId,
+        status: transactionStatus.REVERSED,
+      });
+
+      if (!reversedTransaction) {
+        validDebits += transaction.amount;
+      }
+    }
+
+    return validDebits;
+  }
 }
