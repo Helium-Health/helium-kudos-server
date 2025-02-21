@@ -326,29 +326,27 @@ export class UsersService {
     };
   }
 
-  async deactivateUser(userId: Types.ObjectId): Promise<User> {
+  async activateUser(userId: Types.ObjectId, active: boolean): Promise<User> {
     const user = await this.userModel.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    return this.userModel.findByIdAndUpdate(
-      userId,
-      { active: false, refreshToken: null },
-      { new: true },
-    );
+
+    if (!active) {
+      return this.userModel.findByIdAndUpdate(
+        userId,
+        { active: false, refreshToken: null },
+        { new: true },
+      );
+    } else {
+      return this.userModel.findByIdAndUpdate(
+        userId,
+        { active: true },
+        { new: true },
+      );
+    }
   }
 
-  async activateUser(userId: Types.ObjectId): Promise<User> {
-    const user = await this.userModel.findById(userId);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-    return this.userModel.findByIdAndUpdate(
-      userId,
-      { active: true },
-      { new: true },
-    );
-  }
 
   //TODO: Remove this method after DB migration
   async updateExistingUsers(userModel: Model<User>) {

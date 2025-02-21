@@ -90,14 +90,15 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Put('deactivate/:userId')
-  async deactivateUser(@Param('userId') userId: string) {
-    return await this.usersService.deactivateUser(new Types.ObjectId(userId));
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Put('activate/:userId')
-  async activateUser(@Param('userId') userId: string) {
-    return await this.usersService.activateUser(new Types.ObjectId(userId));
+  @UseGuards(AdminGuard)
+  @Put('activate/')
+  async activateUser(
+    @Query('userId') userId: string,
+    @Query('active') active: boolean,
+  ) {
+    return await this.usersService.activateUser(
+      new Types.ObjectId(userId),
+      active,
+    );
   }
 }
