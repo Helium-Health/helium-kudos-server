@@ -191,8 +191,8 @@ export class OrderService {
 
       {
         $match: {
-          ...(userId ? { userId } : {}), 
-          ...(status ? { status } : {}),  
+          ...(userId ? { userId } : {}),
+          ...(status ? { status } : {}),
           ...(search
             ? {
                 $or: [
@@ -202,8 +202,8 @@ export class OrderService {
               }
             : {}),
         },
-      }
-      
+      },
+
       { $sort: { createdAt: sortDirection } },
 
       {
