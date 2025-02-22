@@ -190,18 +190,14 @@ export class OrderService {
       },
 
       {
-        $match: {
-          ...(userId ? { userId } : {}),
-          ...(status ? { status } : {}),
-          ...(search
-            ? {
-                $or: [
-                  { 'user.name': { $regex: search, $options: 'i' } },
-                  { 'items.name': { $regex: search, $options: 'i' } },
-                ],
-              }
-            : {}),
-        },
+        $match: search
+          ? {
+              $or: [
+                { 'user.name': { $regex: search, $options: 'i' } },
+                { 'items.name': { $regex: search, $options: 'i' } },
+              ],
+            }
+          : {},
       },
 
       { $sort: { createdAt: sortDirection } },
