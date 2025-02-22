@@ -141,7 +141,12 @@ export class OrderService {
     const sortDirection = recent === 'ASCENDING_ORDER' ? 1 : -1;
     const skip = (page - 1) * limit;
 
+    const matchFilter: Record<string, any> = {};
+    if (userId) matchFilter.userId = userId;
+    if (status) matchFilter.status = status;
+
     const results = await this.orderModel.aggregate([
+      { $match: matchFilter },
       {
         $lookup: {
           from: 'users',
@@ -186,8 +191,8 @@ export class OrderService {
 
       {
         $match: {
-          ...(userId ? { userId } : {}),
-          ...(status ? { status } : {}),
+          ...(userId ? { userId } : {}), 
+          ...(status ? { status } : {}),  
           ...(search
             ? {
                 $or: [
@@ -197,8 +202,8 @@ export class OrderService {
               }
             : {}),
         },
-      },
-
+      }
+      
       { $sort: { createdAt: sortDirection } },
 
       {
@@ -240,7 +245,6 @@ export class OrderService {
       totalPages,
     };
   }
-  
 
   async findById(orderId: Types.ObjectId): Promise<OrderDocument | null> {
     return this.orderModel.findById(orderId);
