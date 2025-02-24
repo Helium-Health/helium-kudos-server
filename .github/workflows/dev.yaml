@@ -84,7 +84,7 @@ jobs:
 
       - name: ArgoCD Sync App
         env:
-          APP_NAME: helium-kudos-server-staging
+          APP_NAME: helium-kudos-server-dev
         run: |
           argocd app actions run $APP_NAME restart --kind Deployment --resource-name helium-kudos-server-dev --all
           
