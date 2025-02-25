@@ -242,7 +242,7 @@ export class TransactionService {
       message: 'Success',
     };
   }
-  async getUserCoinSpent(userId: Types.ObjectId): Promise<number> {
+  async getUserCoinSpentonRecognition(userId: Types.ObjectId): Promise<number> {
     const creditTransactions = await this.transactionModel.find({
       relatedUserId: new Types.ObjectId(userId),
       entityType: EntityType.RECOGNITION,
@@ -256,5 +256,21 @@ export class TransactionService {
       (total, transaction) => total + transaction.amount,
       0,
     );
+  }
+
+  async getUserCoinSpentonOrders(userId: Types.ObjectId): Promise<number> {
+    db.transactions.aggregate([
+      {
+        $match: { userId: '67a0eeac9cab99d1221c8d22', status: 'success' },
+      },
+      {
+        $group: {
+          _id: '$userId',
+          netAmount: {
+            $sum: '$amount',
+          },
+        },
+      },
+    ]);
   }
 }
