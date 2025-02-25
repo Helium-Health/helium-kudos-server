@@ -40,12 +40,7 @@ export class ProductService {
     return product.save();
   }
 
-
-  async findAll(
-    page: number = 1,
-    limit: number = 10,
-    categoryFilter?: string,
-  ) {
+  async findAll(page: number = 1, limit: number = 10, categoryFilter?: string) {
     let query: any = {};
 
     if (categoryFilter) {
@@ -53,7 +48,9 @@ export class ProductService {
         name: { $regex: new RegExp(categoryFilter, 'i') },
       });
       if (categories.length > 0) {
-        const categoryIds = categories.map((category) => new Types.ObjectId(category._id));
+        const categoryIds = categories.map(
+          (category) => new Types.ObjectId(category._id),
+        );
         query.categories = { $in: categoryIds };
       } else {
         return {
@@ -209,5 +206,39 @@ export class ProductService {
     }
 
     await product.save({ session });
+  }
+
+  async returnStock(
+    productId: Types.ObjectId,
+    variants: any[] | null,
+    quantity: number,
+    session: ClientSession,
+  ): Promise<Product> {
+    const product = await this.productModel.findById(productId);
+    if (!product) {
+      throw new BadRequestException('Product not found');
+    }
+
+    if (variants && variants.length > 0) {
+      for (const variant of variants) {
+        const variantMatch = product.variants.find(
+          (v) =>
+            v.variantType === variant.variantType && v.value === variant.value,
+        );
+        if (!variantMatch) {
+          throw new BadRequestException(
+            `Variant ${variant.variantType}: ${variant.value} not found`,
+          );
+        }
+
+        variantMatch.stock += quantity; 
+      }
+    } else {
+      product.stock += quantity; 
+    }
+
+    await product.save({ session });
+
+    return product;
   }
 }

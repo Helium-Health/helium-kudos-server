@@ -138,63 +138,102 @@ export class OrderService {
     recent: 'ASCENDING_ORDER' | 'DESCENDING_ORDER' = 'DESCENDING_ORDER',
     search?: string,
   ) {
-    const filter: Record<string, any>  = {};
-
-    if (userId) filter.userId = userId;
-
-    if (status) filter.status = status;
     const sortDirection = recent === 'ASCENDING_ORDER' ? 1 : -1;
-
     const skip = (page - 1) * limit;
 
-    // Add search conditions if search parameter exists
-    if (search) {
-      filter.$or = [
-        { 'user.name': { $regex: search, $options: 'i' } },
-        { 'items.name': { $regex: search, $options: 'i' } },
-      ];
-    }
+    const matchFilter: Record<string, any> = {};
+    if (userId) matchFilter.userId = userId;
+    if (status) matchFilter.status = status;
 
-    const [orders, totalCount] = await Promise.all([
-      this.orderModel.aggregate([
-        {
-          $lookup: {
-            from: 'users',
-            localField: 'userId',
-            foreignField: '_id',
-            as: 'user',
+    const results = await this.orderModel.aggregate([
+      { $match: matchFilter },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+
+      {
+        $addFields: {
+          userId: {
+            _id: '$user._id',
+            name: '$user.name',
+            picture: '$user.picture',
           },
         },
-        {
-          $unwind: {
-            path: '$user',
-            preserveNullAndEmptyArrays: true,
-          },
+      },
+
+      { $unwind: { path: '$items', preserveNullAndEmptyArrays: true } },
+
+      {
+        $addFields: {
+          'items.productId': { $toObjectId: '$items.productId' },
         },
-        { $match: filter },
-        { $sort: { createdAt: sortDirection } },
-        { $skip: skip },
-        { $limit: limit },
-        {
-          $project: {
-            _id: 1,
-            userId: {
-              _id: '$user._id',
-              name: '$user.name',
-              picture: '$user.picture',
-            },
-            status: 1,
-            items: 1,
-            totalAmount: 1,
-            expectedDeliveryDate: 1,
-            createdAt: 1,
-          },
+      },
+      {
+        $lookup: {
+          from: 'products',
+          localField: 'items.productId',
+          foreignField: '_id',
+          as: 'product',
         },
-      ]),
-      this.orderModel.countDocuments(filter).exec(),
+      },
+      { $unwind: { path: '$product', preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          'items.itemImage': { $arrayElemAt: ['$product.images', 0] },
+        },
+      },
+
+      {
+        $match: search
+          ? {
+              $or: [
+                { 'user.name': { $regex: search, $options: 'i' } },
+                { 'items.name': { $regex: search, $options: 'i' } },
+              ],
+            }
+          : {},
+      },
+
+      { $sort: { createdAt: sortDirection } },
+
+      {
+        $group: {
+          _id: '$_id',
+          userId: { $first: '$userId' },
+          status: { $first: '$status' },
+          totalAmount: { $first: '$totalAmount' },
+          expectedDeliveryDate: { $first: '$expectedDeliveryDate' },
+          createdAt: { $first: '$createdAt' },
+          items: { $push: '$items' },
+        },
+      },
+
+      { $sort: { createdAt: sortDirection } },
+
+      {
+        $facet: {
+          metadata: [{ $count: 'total' }],
+          data: [{ $skip: skip }, { $limit: limit }],
+        },
+      },
+
+      {
+        $project: {
+          total: { $arrayElemAt: ['$metadata.total', 0] },
+          orders: '$data',
+        },
+      },
     ]);
 
+    const totalCount = results[0]?.total || 0;
     const totalPages = Math.ceil(totalCount / limit);
+    const orders = results[0]?.orders || [];
 
     return {
       orders,
@@ -211,27 +250,41 @@ export class OrderService {
     orderId: Types.ObjectId,
     expectedDeliveryDate: string,
   ): Promise<any> {
+    const session = await this.orderModel.startSession();
+    session.startTransaction();
     const order = await this.findById(orderId);
-    if (!order) {
-      throw new BadRequestException('Order not found');
-    }
-
-    if (order.status !== OrderStatus.NEW) {
-      throw new BadRequestException(
-        'Only new orders can be marked as in progress',
-      );
-    }
-
     try {
+      if (!order) {
+        throw new BadRequestException('Order not found');
+      }
+
+      if (order.status !== OrderStatus.NEW) {
+        throw new BadRequestException(
+          'Only new orders can be marked as in progress',
+        );
+      }
+
       order.status = OrderStatus.IN_PROGRESS;
       order.expectedDeliveryDate = new Date(expectedDeliveryDate);
-      await order.save();
+      await order.save({ session });
 
+      for (const item of order.items) {
+        await this.productService.deductStock(
+          item.productId,
+          item.variants,
+          item.quantity,
+          session,
+        );
+      }
+      await session.commitTransaction();
+      session.endSession();
       return {
         message: 'Order status updated to in progress successfully',
         order,
       };
     } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
       console.error('Error updating order status to in progress:', error);
       throw new BadRequestException(
         'Failed to update order status to in progress',
@@ -269,6 +322,15 @@ export class OrderService {
         },
         session,
       );
+
+      for (const item of order.items) {
+        await this.productService.returnStock(
+          item.productId,
+          item.variants,
+          item.quantity,
+          session,
+        );
+      }
 
       order.status = OrderStatus.REJECTED;
       await order.save({ session });

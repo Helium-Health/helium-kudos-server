@@ -58,6 +58,8 @@ export class TransactionService {
     const creditTransaction = new this.transactionModel({
       userId: transaction.receiverId,
       amount: transaction.amount,
+      claimId: transaction.entityId,
+      status: transactionStatus.SUCCESS,
       type: TransactionType.CREDIT,
       entityType: transaction.entityType,
       entityId: transaction.entityId,
@@ -239,5 +241,20 @@ export class TransactionService {
       status: 200,
       message: 'Success',
     };
+  }
+  async getUserCoinSpent(userId: Types.ObjectId): Promise<number> {
+    const creditTransactions = await this.transactionModel.find({
+      relatedUserId: new Types.ObjectId(userId),
+      entityType: EntityType.RECOGNITION,
+      status: transactionStatus.SUCCESS,
+      type: TransactionType.CREDIT,
+    });
+
+    console.log('Credit Transactions Found:', creditTransactions);
+
+    return creditTransactions.reduce(
+      (total, transaction) => total + transaction.amount,
+      0,
+    );
   }
 }
