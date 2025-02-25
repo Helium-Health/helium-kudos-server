@@ -259,18 +259,18 @@ export class TransactionService {
   }
 
   async getUserCoinSpentonOrders(userId: Types.ObjectId): Promise<number> {
-    db.transactions.aggregate([
+    const result = await this.transactionModel.aggregate([
       {
-        $match: { userId: '67a0eeac9cab99d1221c8d22', status: 'success' },
+        $match: { userId: userId, status: 'success' },
       },
       {
         $group: {
           _id: '$userId',
-          netAmount: {
-            $sum: '$amount',
-          },
+          netAmount: { $sum: '$amount' },
         },
       },
     ]);
+  
+    return result.length > 0 ? Math.abs(result[0].netAmount) : 0;
   }
 }
