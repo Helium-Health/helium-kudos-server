@@ -8,23 +8,26 @@ import {
   IsNotEmpty,
   ValidateIf,
   IsMongoId,
+  Min,
 } from 'class-validator';
 import { Types } from 'mongoose';
-export class ProductVariantDto {
-  @IsString()
-  @IsNotEmpty()
-  variantType: string;
+// export class ProductVariantDto {
+//   @IsString()
+//   @IsNotEmpty()
+//   variantType: string;
 
-  @IsString()
-  @IsNotEmpty()
-  value: string;
+//   @IsString()
+//   @IsNotEmpty()
+//   value: string;
 
-  @IsNumber()
-  price: number;
+//   @IsNumber()
+//   @Min(0, { message: 'Price cannot be negative' })
+//   price: number;
 
-  @IsNumber()
-  stock: number;
-}
+//   @IsNumber()
+//   @Min(1, { message: 'Stock must be greater than 0' })
+//   stock: number;
+// }
 
 export class CreateProductDto {
   @IsString()
@@ -45,14 +48,19 @@ export class CreateProductDto {
   @IsOptional()
   categories?: Types.ObjectId[];
 
-  @ValidateIf((product) => !product.basePrice)
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ProductVariantDto)
-  variants?: ProductVariantDto[];
+  // @ValidateIf((product) => !product.basePrice)
+  // @IsArray()
+  // @ValidateNested({ each: true })
+  // @Type(() => ProductVariantDto)
+  // variants?: ProductVariantDto[];
 
-  @ValidateIf((product) => !product.variants || product.variants.length === 0)
+  // @ValidateIf((product) => !product.variants || product.variants.length === 0)
   @IsNumber()
   @IsNotEmpty()
+  @Min(0, { message: 'Price cannot be negative' })
   basePrice: number;
+
+  @IsNumber()
+  @Min(1, { message: 'Stock must be greater than 0' })
+  stock: number;
 }

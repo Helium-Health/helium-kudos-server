@@ -204,7 +204,7 @@ export class UsersService {
 
   async updateByEmail(email: string, updateData: UpdateUserFromSheetDto) {
     return this.userModel.findOneAndUpdate(
-      { email },
+      { email: email.toLowerCase() },
       { $set: updateData },
       { new: true },
     );
