@@ -34,6 +34,7 @@ import { PRODUCTION_CLIENT, STAGING_CLIENT } from 'src/constants';
 
 @Injectable()
 export class RecognitionService {
+  private readonly logger = new Logger(RecognitionService.name);
   constructor(
     @Inject(forwardRef(() => ClaimService))
     private readonly claimService: ClaimService,
@@ -47,9 +48,40 @@ export class RecognitionService {
     private readonly transactionService: TransactionService,
   ) {}
 
+  //Remove after deploy to prod
   async onModuleInit() {
+    this.logger.log('Starting duplicate user cleanup process...');
+
     const emailMapping = await this.usersService.findDuplicateUsers();
-    await this.updateRecognitions(emailMapping);
+    if (emailMapping.size === 0) {
+      this.logger.log('No duplicate users found. Skipping update.');
+      return;
+    }
+
+    const session = await this.recognitionModel.startSession();
+    session.startTransaction();
+
+    try {
+      this.logger.log('Updating recognitions...');
+      await this.updateRecognitions(emailMapping, session);
+
+      this.logger.log('Updating user recognitions...');
+      await this.userRecognitionService.updateUserRecognitions(
+        emailMapping,
+        session,
+      );
+
+      await session.commitTransaction();
+      this.logger.log('Duplicate user cleanup completed successfully!');
+    } catch (error) {
+      await session.abortTransaction();
+      this.logger.error(
+        'Error during duplicate user cleanup, rolling back changes.',
+        error.stack,
+      );
+    } finally {
+      session.endSession();
+    }
   }
 
   async createRecognition(
@@ -1061,20 +1093,55 @@ export class RecognitionService {
   }
 
   //delete after merge to prod
-  async updateRecognitions(emailMapping: Map<string, string>) {
-    for (const [oldUserId, newUserId] of emailMapping.entries()) {
-      await this.recognitionModel.updateMany(
-        { senderId: oldUserId },
-        { $set: { senderId: newUserId } },
-      );
 
-      await this.recognitionModel.updateMany(
-        { receivers: oldUserId },
-        {
-          $pull: { receivers: oldUserId },
-          $push: { receivers: newUserId },
-        },
-      );
+  async updateRecognitions(
+    emailMapping: Map<string, string>,
+    session: ClientSession,
+  ) {
+    this.logger.log(
+      `Starting recognition update for ${emailMapping.size} duplicate users`,
+    );
+
+    for (const [newUserId, oldUserId] of emailMapping.entries()) {
+      // Swap oldUserId and newUserId
+      const oldIdObj = new Types.ObjectId(oldUserId);
+      const newIdObj = new Types.ObjectId(newUserId);
+
+      this.logger.log(`Processing user: ${oldUserId} → ${newUserId}`);
+
+      try {
+        // 1️⃣ Update senderId
+        const senderUpdateResult = await this.recognitionModel.updateMany(
+          { senderId: oldIdObj },
+          { $set: { senderId: newIdObj } },
+        );
+
+        this.logger.log(
+          `Updated ${senderUpdateResult.modifiedCount} recognitions where senderId=${oldUserId}`,
+        );
+
+        // 2️⃣ Update receiverId inside the receivers array
+        const receiverUpdateResult = await this.recognitionModel.updateMany(
+          { 'receivers.receiverId': oldIdObj }, // Find documents where receiverId matches oldUserId
+          { $set: { 'receivers.$[elem].receiverId': newIdObj } }, // Update the matched receiverId
+          { arrayFilters: [{ 'elem.receiverId': oldIdObj }] },
+        );
+
+        this.logger.log(
+          `Updated ${receiverUpdateResult.modifiedCount} recognitions where receivers contained ${oldUserId}`,
+        );
+
+       
+
+        this.logger.log(`Recognition update process completed successfully`);
+      } catch (error) {
+        this.logger.error(
+          `Error updating recognitions for user ${oldUserId} → ${newUserId}`,
+          error.stack,
+        );
+      }
     }
+
+    this.logger.log(`Recognition update process completed`);
   }
 }
