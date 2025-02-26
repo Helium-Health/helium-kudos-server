@@ -541,6 +541,7 @@ export class RecognitionService {
         $group: {
           _id: '$receivers.receiverId',
           recognitionCount: { $sum: 1 },
+          totalCoinEarned: { $sum: '$receivers.coinAmount' },
         },
       },
       { $sort: { recognitionCount: -1 } },
@@ -556,15 +557,71 @@ export class RecognitionService {
       {
         $project: {
           _id: 0,
-          receiverId: '$_id',
           recognitionCount: 1,
+          totalCoinEarned: 1,
           user: {
-            _id: '$user._id',
+            userId: '$_id',
             email: '$user.email',
             name: '$user.name',
-            role: '$user.role',
             picture: '$user.picture',
-            verified: '$user.verified',
+          },
+        },
+      },
+      {
+        $facet: {
+          metadata: [{ $count: 'totalCount' }],
+          data: [{ $skip: skip }, { $limit: limit }],
+        },
+      },
+    ]);
+
+    const metadata = result[0]?.metadata[0] || { totalCount: 0 };
+    const data = result[0]?.data || [];
+    const totalCount = metadata.totalCount;
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return {
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages,
+      },
+      data,
+    };
+  }
+
+  async getTopRecognitionSenders(page: number, limit: number) {
+    const skip = (page - 1) * limit;
+
+    const result = await this.recognitionModel.aggregate([
+      {
+        $group: {
+          _id: '$senderId',
+          postCount: { $sum: 1 },
+          totalCoinSent: { $sum: { $sum: '$receivers.coinAmount' } },
+        },
+      },
+      { $sort: { postCount: -1 } }, 
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: '$user' },
+      {
+        $project: {
+          _id: 0,
+          postCount: 1,
+          totalCoinSent: 1,
+          user: {
+            userId: '$_id',
+            email: '$user.email',
+            name: '$user.name',
+            picture: '$user.picture',
           },
         },
       },

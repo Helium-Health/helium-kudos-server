@@ -1,7 +1,9 @@
 import {
   forwardRef,
+  HttpException,
   Inject,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -15,6 +17,7 @@ import { UserInfoClient } from 'auth0';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private oauthClient: OAuth2Client;
   private auth0UserInfo: UserInfoClient;
 
@@ -43,9 +46,9 @@ export class AuthService {
     token: string,
   ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
     try {
+      this.logger.log('Validating Google user...');
       let userDetails = null;
-      let refreshToken = null;
-      
+
       const googleAuth = await this.oauthClient.verifyIdToken({
         idToken: token,
         audience: process.env.GOOGLE_CLIENT_ID,
@@ -55,47 +58,46 @@ export class AuthService {
 
       const userExists = await this.userService.findByEmail(payload.email);
 
-      if (userExists) {
-        if (userExists.verified) {
-          console.log('Verified user exists. Getting...');
-          userDetails = userExists;
-          refreshToken = await this.generateAndStoreRefreshToken(userDetails);
-        } else {
-          console.log('Unverified user exists. Updating with Google data...');
+      if (!userExists) {
+        this.logger.log('User not found. Creating...');
+        const { newUser } = await this.userService.createUser({
+          email: payload.email,
+          name: payload.name,
+          picture: payload.picture,
+          verified: payload?.email_verified || true,
+        });
+        userDetails = newUser;
+      } else {
+        this.logger.log('User Exist ...');
+        if (!userExists.active) {
+          this.logger.log('User Exist, but not active');
+          throw new UnauthorizedException(
+            'Your account is currently inactive. Contact Administrator for assistance.',
+          );
+        }
 
+        if (!userExists.verified) {
+          this.logger.log(
+            'Unverified user exists. Updating with Google data...',
+          );
           const updatedUser = await this.userService.updateByEmail(
             payload.email,
             {
               picture: payload.picture,
-              verified: payload.email_verified || false,
+              verified: payload.email_verified || true,
             },
           );
-          userDetails = updatedUser;
-          refreshToken = await this.generateAndStoreRefreshToken(updatedUser);
         }
-      } else {
-        console.log('User not found. Creating...');
-        const { newUser, newUserRefreshToken } =
-          await this.userService.createUser({
-            email: payload.email,
-            name: payload.name,
-            picture: payload.picture,
-            verified: payload.email_verified || false,
-          });
-        userDetails = newUser;
-        refreshToken = newUserRefreshToken;
       }
-
-      const jwtToken = this.generateJwtToken(userDetails);
-
-      return {
-        user: userDetails,
-        accessToken: jwtToken,
-        refreshToken: refreshToken,
-      };
+      const user = userExists || userDetails;
+      const refreshToken = await this.generateAndStoreRefreshToken(user);
+      const accessToken = this.generateJwtToken(user);
+      return { user, refreshToken, accessToken };
     } catch (e) {
-      console.log('Error in validateUser', e);
-      throw new Error('Error in validateUser');
+      throw new HttpException(
+        'Error in validating google user: ' + e.message,
+        400,
+      );
     }
   }
 
@@ -103,55 +105,54 @@ export class AuthService {
     token: string,
   ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
     try {
+      this.logger.log('Validating Auth0 user...');
       const userInfo = await this.auth0UserInfo.getUserInfo(token);
       let userDetails = null;
-      let refreshToken = null;
 
       const userExists = await this.userService.findByEmail(
         userInfo.data.email,
       );
 
-      if (userExists) {
-        if (userExists.verified) {
-          console.log('Verified user exists. Getting...');
-          userDetails = userExists;
-          refreshToken = await this.generateAndStoreRefreshToken(userDetails);
-        } else {
-          console.log('Unverified user exists. Updating with Auth0 data...');
+      if (!userExists) {
+        this.logger.log('User not found. Creating...');
+        const { newUser } = await this.userService.createUser({
+          email: userInfo.data.email,
+          name: userInfo.data.name,
+          picture: userInfo.data.picture,
+          verified: userInfo.data?.email_verified || true,
+        });
+        userDetails = newUser;
+      } else {
+        this.logger.log('User Exist ...');
+        if (!userExists.active) {
+          this.logger.log('User Exist but not active ...');
+          throw new UnauthorizedException(
+            'Your account is currently inactive. Contact Administrator for assistance.',
+          );
+        }
 
+        if (!userExists.verified) {
+          this.logger.log(
+            'Unverified user exists. Updating with Auth0 data...',
+          );
           const updatedUser = await this.userService.updateByEmail(
             userInfo.data.email,
             {
               picture: userInfo.data.picture,
-              verified: true,
+              verified: userInfo.data.email_verified || true,
             },
           );
-          userDetails = updatedUser;
-          refreshToken = await this.generateAndStoreRefreshToken(updatedUser);
         }
-      } else {
-        console.log('User not found. Creating...');
-        const { newUser, newUserRefreshToken } =
-          await this.userService.createUser({
-            email: userInfo.data.email,
-            name: userInfo.data.name,
-            picture: userInfo.data.picture,
-            verified: true,
-          });
-        userDetails = newUser;
-        refreshToken = newUserRefreshToken;
       }
-
-      const jwtToken = this.generateJwtToken(userDetails);
-
-      return {
-        user: userDetails,
-        accessToken: jwtToken,
-        refreshToken: refreshToken,
-      };
+      const user = userExists || userDetails;
+      const refreshToken = await this.generateAndStoreRefreshToken(user);
+      const accessToken = this.generateJwtToken(user);
+      return { user, refreshToken, accessToken };
     } catch (e) {
-      console.log('Error in validateAuth0User', e);
-      throw new Error('Error in validateAuth0User');
+      throw new HttpException(
+        'Error in validating google user: ' + e.message,
+        400,
+      );
     }
   }
 
@@ -203,8 +204,10 @@ export class AuthService {
 
       return { newAccessToken, newRefreshToken };
     } catch (e) {
-      console.error('Error in refreshAccessToken:', e.message);
-      throw new UnauthorizedException('Could not refresh access token');
+      throw new UnauthorizedException(
+        'Could not refresh access token',
+        e.message,
+      );
     }
   }
 
