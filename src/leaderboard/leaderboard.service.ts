@@ -16,16 +16,14 @@ export class LeaderboardService {
   async getUncreditedUsers() {
     return this.transactionService.findUncreditedUsers();
   }
-  async getPaginatedUsersWithEarnedCoins(page: number, limit: number) {
-    return this.transactionService.getPaginatedUsersWithEarnedCoins(
-      page,
-      limit,
-    );
-  }
+
   async getTopRecognitionReceivers(page: number, limit: number) {
     return this.recognitionService.getTopRecognitionReceivers(page, limit);
   }
 
+  async getTopRecognitionSenders(page: number, limit: number) {
+    return this.recognitionService.getTopRecognitionSenders(page, limit);
+  }
   async getQuarterParticipants(
     page: number,
     limit: number,
