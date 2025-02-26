@@ -317,4 +317,28 @@ export class UsersService {
       },
     };
   }
+
+  //Delete after merge to prod
+  async findDuplicateUsers() {
+    const users = await this.userModel.find().lean();
+
+    const emailMapping = new Map<string, string>(); // { capitalEmailUserID -> lowercaseEmailUserID }
+    const existingEmails = new Map<string, string>(); // { normalizedEmail -> userID }
+
+    users.forEach((user) => {
+      const normalizedEmail = user.email.toLowerCase();
+
+      if (existingEmails.has(normalizedEmail)) {
+        // Found a duplicate, store mapping
+        emailMapping.set(
+          user._id.toString(),
+          existingEmails.get(normalizedEmail),
+        );
+      } else {
+        existingEmails.set(normalizedEmail, user._id.toString());
+      }
+    });
+
+    return emailMapping;
+  }
 }

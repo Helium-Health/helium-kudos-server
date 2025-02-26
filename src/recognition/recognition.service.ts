@@ -47,6 +47,11 @@ export class RecognitionService {
     private readonly transactionService: TransactionService,
   ) {}
 
+  async onModuleInit() {
+    const emailMapping = await this.usersService.findDuplicateUsers();
+    await this.updateRecognitions(emailMapping);
+  }
+
   async createRecognition(
     senderId: string,
     { receivers, message, companyValues = [], giphyUrl }: CreateRecognitionDto,
@@ -1052,6 +1057,24 @@ export class RecognitionService {
       throw error;
     } finally {
       session.endSession();
+    }
+  }
+
+  //delete after merge to prod
+  async updateRecognitions(emailMapping: Map<string, string>) {
+    for (const [oldUserId, newUserId] of emailMapping.entries()) {
+      await this.recognitionModel.updateMany(
+        { senderId: oldUserId },
+        { $set: { senderId: newUserId } },
+      );
+
+      await this.recognitionModel.updateMany(
+        { receivers: oldUserId },
+        {
+          $pull: { receivers: oldUserId },
+          $push: { receivers: newUserId },
+        },
+      );
     }
   }
 }
