@@ -71,8 +71,22 @@ export class RecognitionService {
         session,
       );
 
+      // **Disable old accounts (email with caps)**
+      this.logger.log('Disabling duplicate accounts...');
+      for (const [newUserId, oldUserId] of emailMapping.entries()) {
+        this.logger.log(
+          `Disabling old account: ${oldUserId}, keeping: ${newUserId}`,
+        );
+        await this.usersService.activateUser(
+          new Types.ObjectId(oldUserId),
+          false,
+        );
+      }
+
       await session.commitTransaction();
-      this.logger.log('Recognition and User Recognition Update completed successfully!');
+      this.logger.log(
+        'Recognition and User Recognition Update completed successfully!',
+      );
     } catch (error) {
       await session.abortTransaction();
       this.logger.error(
@@ -639,7 +653,7 @@ export class RecognitionService {
           totalCoinSent: { $sum: { $sum: '$receivers.coinAmount' } },
         },
       },
-      { $sort: { postCount: -1 } }, 
+      { $sort: { postCount: -1 } },
       {
         $lookup: {
           from: 'users',
@@ -1187,8 +1201,6 @@ export class RecognitionService {
         this.logger.log(
           `Updated ${receiverUpdateResult.modifiedCount} recognitions where receivers contained ${oldUserId}`,
         );
-
-       
 
         this.logger.log(`Recognition update process completed successfully`);
       } catch (error) {
