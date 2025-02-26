@@ -97,9 +97,10 @@ export class WalletService {
 
   async getUserBalances(userId: string) {
     const wallet = await this.findWalletByUserId(new Types.ObjectId(userId));
-    const totalCoinSpent = await this.transactionService.getUserCoinSpent(
-      new Types.ObjectId(userId),
-    );
+    const totalCoinSpent =
+      await this.transactionService.getUserCoinSpentonOrders(
+        new Types.ObjectId(userId),
+      );
     return {
       earnedBalance: wallet.earnedBalance,
       availableToGive: wallet.giveableBalance,
