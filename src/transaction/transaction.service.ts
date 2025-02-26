@@ -153,4 +153,108 @@ export class TransactionService {
       status: transactionStatus.SUCCESS,
     });
   }
+
+  async getPaginatedUsersWithEarnedCoins(page: number, limit: number) {
+    const skip = (page - 1) * limit;
+
+    const totalCount = await this.transactionModel
+      .aggregate([
+        {
+          $match: {
+            entityType: EntityType.RECOGNITION,
+            type: TransactionType.CREDIT,
+            status: transactionStatus.SUCCESS,
+          },
+        },
+        {
+          $group: {
+            _id: '$userId',
+          },
+        },
+        {
+          $count: 'uniqueUsers',
+        },
+      ])
+      .then((result) => result[0]?.uniqueUsers ?? 0);
+
+    const totalPages = Math.ceil(totalCount / limit);
+
+    const data = await this.transactionModel.aggregate([
+      {
+        $match: {
+          entityType: EntityType.RECOGNITION,
+          type: TransactionType.CREDIT,
+          status: transactionStatus.SUCCESS,
+        },
+      },
+      {
+        $group: {
+          _id: '$userId',
+          totalEarnedCoins: { $sum: '$amount' },
+          totalTransactions: { $sum: 1 },
+          transactions: {
+            $push: {
+              entityId: '$entityId',
+              coin: '$amount',
+            },
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: '$user' },
+      { $sort: { totalEarnedCoins: -1 } },
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $project: {
+          _id: 1,
+          totalEarnedCoins: 1,
+          totalTransactions: 1,
+          transactions: 1,
+          user: {
+            _id: '$user._id',
+            email: '$user.email',
+            name: '$user.name',
+            role: '$user.role',
+            picture: '$user.picture',
+            verified: '$user.verified',
+          },
+        },
+      },
+    ]);
+
+    return {
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages,
+      },
+      data,
+      status: 200,
+      message: 'Success',
+    };
+  }
+  async getUserCoinSpent(userId: Types.ObjectId): Promise<number> {
+    const creditTransactions = await this.transactionModel.find({
+      relatedUserId: new Types.ObjectId(userId),
+      entityType: EntityType.RECOGNITION,
+      status: transactionStatus.SUCCESS,
+      type: TransactionType.CREDIT,
+    });
+
+    console.log('Credit Transactions Found:', creditTransactions);
+
+    return creditTransactions.reduce(
+      (total, transaction) => total + transaction.amount,
+      0,
+    );
+  }
 }

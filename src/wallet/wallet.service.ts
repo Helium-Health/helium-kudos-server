@@ -7,12 +7,14 @@ import {
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Model, ClientSession, Types, Connection } from 'mongoose';
 import { Wallet, WalletDocument } from './schema/Wallet.schema';
+import { TransactionService } from 'src/transaction/transaction.service';
 
 @Injectable()
 export class WalletService {
   constructor(
     @InjectModel(Wallet.name) private readonly walletModel: Model<Wallet>,
     @InjectConnection() private readonly connection: Connection,
+    private readonly transactionService: TransactionService,
   ) {}
   private readonly logger = new Logger(WalletService.name);
 
@@ -95,12 +97,16 @@ export class WalletService {
 
   async getUserBalances(userId: string) {
     const wallet = await this.findWalletByUserId(new Types.ObjectId(userId));
-
+    const totalCoinSpent = await this.transactionService.getUserCoinSpent(
+      new Types.ObjectId(userId),
+    );
     return {
       earnedBalance: wallet.earnedBalance,
       availableToGive: wallet.giveableBalance,
+      totalcoinSpent: totalCoinSpent,
     };
   }
+
   async getEarnedCoinBalance(userId: string) {
     const wallet = await this.findWalletByUserId(new Types.ObjectId(userId));
 
