@@ -72,7 +72,7 @@ export class RecognitionService {
       );
 
       await session.commitTransaction();
-      this.logger.log('Duplicate user cleanup completed successfully!');
+      this.logger.log('Recognition and User Recognition Update completed successfully!');
     } catch (error) {
       await session.abortTransaction();
       this.logger.error(
