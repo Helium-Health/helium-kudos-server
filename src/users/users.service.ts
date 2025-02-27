@@ -238,6 +238,12 @@ export class UsersService {
     celebrationType?: MilestoneType,
   ): Promise<any> {
     const today = new Date();
+    const todayISOString = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+    ).toISOString();
+
     const skip = (page - 1) * limit;
 
     const pipeline: any[] = [
@@ -267,7 +273,17 @@ export class UsersService {
             $concatArrays: [
               {
                 $cond: {
-                  if: { $gte: ['$nextBirthday', today] },
+                  if: {
+                    $gte: [
+                      {
+                        $dateToString: {
+                          format: '%Y-%m-%d',
+                          date: '$nextBirthday',
+                        },
+                      },
+                      todayISOString,
+                    ],
+                  },
                   then: [
                     {
                       celebrationType: MilestoneType.BIRTHDAY,
@@ -279,7 +295,17 @@ export class UsersService {
               },
               {
                 $cond: {
-                  if: { $gte: ['$nextAnniversary', today] },
+                  if: {
+                    $gte: [
+                      {
+                        $dateToString: {
+                          format: '%Y-%m-%d',
+                          date: '$nextAnniversary',
+                        },
+                      },
+                      todayISOString,
+                    ],
+                  },
                   then: [
                     {
                       celebrationType: MilestoneType.WORK_ANNIVERSARY,
@@ -300,7 +326,10 @@ export class UsersService {
       pipeline.push({
         $match: {
           $expr: {
-            $eq: [{ $month: '$celebrations.date' }, month],
+            $or: [
+              { $eq: [{ $month: '$celebrations.date' }, month] }, 
+              { $eq: [{ $month: '$celebrations.date' }, (month % 12) + 1] }, 
+            ],
           },
         },
       });
