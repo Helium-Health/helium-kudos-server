@@ -532,10 +532,25 @@ export class RecognitionService {
     );
   }
 
-  async getTopRecognitionReceivers(page: number, limit: number) {
+  async getTopRecognitionReceivers(
+    page: number,
+    limit: number,
+    startDate?: Date,
+    endDate?: Date,
+  ) {
     const skip = (page - 1) * limit;
+    const matchStage: any = {};
+
+    if (startDate || endDate) {
+      matchStage.createdAt = {};
+      if (startDate) matchStage.createdAt.$gte = new Date(startDate);
+      if (endDate) matchStage.createdAt.$lte = new Date(endDate);
+    }
+    const testQuery = await this.recognitionModel.find(matchStage).limit(5);
+    console.log('Test Query Result:', testQuery);
 
     const result = await this.recognitionModel.aggregate([
+      ...(Object.keys(matchStage).length ? [{ $match: matchStage }] : []),
       { $unwind: '$receivers' },
       {
         $group: {
@@ -579,7 +594,7 @@ export class RecognitionService {
     const data = result[0]?.data || [];
     const totalCount = metadata.totalCount;
     const totalPages = Math.ceil(totalCount / limit);
-
+    console.log('Aggregation Result:', JSON.stringify(result, null, 2));
     return {
       meta: {
         totalCount,
@@ -602,7 +617,7 @@ export class RecognitionService {
           totalCoinSent: { $sum: { $sum: '$receivers.coinAmount' } },
         },
       },
-      { $sort: { postCount: -1 } }, 
+      { $sort: { postCount: -1 } },
       {
         $lookup: {
           from: 'users',
