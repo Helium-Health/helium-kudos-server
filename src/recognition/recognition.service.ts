@@ -229,79 +229,6 @@ export class RecognitionService {
     return recognition;
   }
 
-  // async createAutoRecognition({
-  //   receiverId,
-  //   message,
-  //   coinAmount = 0,
-  //   milestoneType,
-  // }: {
-  //   receiverId: Types.ObjectId[];
-  //   message: string;
-  //   coinAmount?: number;
-  //   milestoneType: MilestoneType;
-  // }) {
-  //   const session = await this.recognitionModel.db.startSession();
-  //   session.startTransaction();
-
-  //   try {
-  //     const newRecognition = new this.recognitionModel({
-  //       message,
-  //       isAuto: true,
-  //       milestoneType,
-  //       receivers: receiverId,
-  //     });
-  //     await newRecognition.save({ session });
-
-  //     for (const eachReceiverId of receiverId) {
-
-  //       // Create single UserRecognition entry
-  //       await this.userRecognitionService.create(
-  //         {
-  //           userId: eachReceiverId,
-  //           recognitionId: newRecognition._id,
-  //           role: UserRecognitionRole.RECEIVER,
-  //         },
-  //         session,
-  //       );
-
-  //       if (coinAmount > 0) {
-  //         // Update receiver's coin bank
-  //         await this.walletService.incrementEarnedBalance(
-  //           new Types.ObjectId(eachReceiverId),
-  //           coinAmount,
-  //           session,
-  //         );
-
-  //         // Record the transaction
-  //         await this.transactionService.recordAutoTransaction(
-  //           {
-  //             receiverId: new Types.ObjectId(eachReceiverId),
-  //             amount: coinAmount,
-
-  //             entityId: newRecognition._id,
-  //             entityType: EntityType.RECOGNITION,
-  //           },
-  //           session,
-  //         );
-  //       }
-  //     }
-  //     await session.commitTransaction();
-  //     this.recognitionGateway.notifyClients({
-  //       recognitionId: newRecognition._id,
-  //       message: `Recognition created: ${message}`,
-  //       recognitionType: EntityType.RECOGNITION,
-  //       receivers: receiverId,
-  //       amount: coinAmount,
-  //     });
-  //     return newRecognition;
-  //   } catch (error) {
-  //     await session.abortTransaction();
-  //     throw error;
-  //   } finally {
-  //     session.endSession();
-  //   }
-  // }
-
   async createAutoRecognition({
     receiverId,
     message,
@@ -322,13 +249,16 @@ export class RecognitionService {
         message,
         isAuto: true,
         milestoneType,
-        receivers: receiverId.map(({ receiverId }) => ({ receiverId, coinAmount })),
+        receivers: receiverId.map(({ receiverId }) => ({
+          receiverId,
+          coinAmount,
+        })),
       });
 
       await newRecognition.save({ session });
 
       // Prepare UserRecognition creation promises
-      const userRecognitionPromises = receiverId.map(({receiverId}) =>
+      const userRecognitionPromises = receiverId.map(({ receiverId }) =>
         this.userRecognitionService.create(
           {
             userId: receiverId,
@@ -344,13 +274,13 @@ export class RecognitionService {
       let transactionPromises: Promise<void>[] = [];
 
       if (coinAmount > 0) {
-        walletUpdatePromises = receiverId.map(({receiverId}) =>
+        walletUpdatePromises = receiverId.map(({ receiverId }) =>
           this.walletService
             .incrementEarnedBalance(receiverId, coinAmount, session)
             .then(() => {}),
         );
 
-        transactionPromises = receiverId.map(({receiverId}) =>
+        transactionPromises = receiverId.map(({ receiverId }) =>
           this.transactionService
             .recordAutoTransaction(
               {
