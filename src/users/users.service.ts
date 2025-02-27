@@ -223,6 +223,10 @@ export class UsersService {
     };
   }
 
+  async getAllUsers(): Promise<UserDocument[]> {
+    return await this.userModel.find({});
+  }
+  
   async updateByEmail(email: string, updateData: UpdateUserFromSheetDto) {
     return this.userModel.findOneAndUpdate(
       { email: email.toLowerCase() },
