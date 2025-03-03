@@ -17,12 +17,12 @@ export class LeaderboardService {
     return this.transactionService.findUncreditedUsers();
   }
 
-  async getTopRecognitionReceivers(page: number, limit: number) {
-    return this.recognitionService.getTopRecognitionReceivers(page, limit);
+  async getTopRecognitionReceivers(page: number, limit: number, startDate: Date, endDate: Date) {
+    return this.recognitionService.getTopRecognitionReceivers(page, limit, startDate, endDate);
   }
 
-  async getTopRecognitionSenders(page: number, limit: number) {
-    return this.recognitionService.getTopRecognitionSenders(page, limit);
+  async getTopRecognitionSenders(page: number, limit: number, startDate: Date, endDate: Date) {
+    return this.recognitionService.getTopRecognitionSenders(page, limit, startDate, endDate);
   }
   async getQuarterParticipants(
     page: number,

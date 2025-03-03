@@ -47,8 +47,17 @@ export class LeaderboardController {
   async getTopRecognitionReceivers(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
   ) {
-    return this.leaderboardService.getTopRecognitionReceivers(page, limit);
+    const parsedStartDate = startDate ? new Date(startDate) : null;
+    const parsedEndDate = endDate ? new Date(endDate) : null;
+    return this.leaderboardService.getTopRecognitionReceivers(
+      page,
+      limit,
+      parsedStartDate,
+      parsedEndDate,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -56,8 +65,17 @@ export class LeaderboardController {
   async getTopRecognitionSenders(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
   ) {
-    return this.leaderboardService.getTopRecognitionSenders(page, limit);
+    const parsedStartDate = startDate ? new Date(startDate) : null;
+    const parsedEndDate = endDate ? new Date(endDate) : null;
+    return this.leaderboardService.getTopRecognitionSenders(
+      page,
+      limit,
+      parsedStartDate,
+      parsedEndDate,
+    );
   }
 
   @UseGuards(JwtAuthGuard)

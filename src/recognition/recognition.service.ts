@@ -532,11 +532,27 @@ export class RecognitionService {
     );
   }
 
-  async getTopRecognitionReceivers(page: number, limit: number) {
+  async getTopRecognitionReceivers(
+    page: number,
+    limit: number,
+    startDate?: Date,
+    endDate?: Date,
+  ) {
     const skip = (page - 1) * limit;
+    const matchStage: any = {};
+
+    if (startDate && endDate) {
+      matchStage.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
+    }
 
     const result = await this.recognitionModel.aggregate([
+      ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+
       { $unwind: '$receivers' },
+
       {
         $group: {
           _id: '$receivers.receiverId',
@@ -544,7 +560,9 @@ export class RecognitionService {
           totalCoinEarned: { $sum: '$receivers.coinAmount' },
         },
       },
+
       { $sort: { recognitionCount: -1 } },
+
       {
         $lookup: {
           from: 'users',
@@ -554,6 +572,7 @@ export class RecognitionService {
         },
       },
       { $unwind: '$user' },
+
       {
         $project: {
           _id: 0,
@@ -567,6 +586,7 @@ export class RecognitionService {
           },
         },
       },
+
       {
         $facet: {
           metadata: [{ $count: 'totalCount' }],
@@ -591,10 +611,24 @@ export class RecognitionService {
     };
   }
 
-  async getTopRecognitionSenders(page: number, limit: number) {
+  async getTopRecognitionSenders(
+    page: number,
+    limit: number,
+    startDate?: Date,
+    endDate?: Date,
+  ) {
     const skip = (page - 1) * limit;
+    const matchStage: any = {};
 
+    if (startDate && endDate) {
+      matchStage.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
+    }
     const result = await this.recognitionModel.aggregate([
+      ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+
       {
         $group: {
           _id: '$senderId',
@@ -602,7 +636,9 @@ export class RecognitionService {
           totalCoinSent: { $sum: { $sum: '$receivers.coinAmount' } },
         },
       },
-      { $sort: { postCount: -1 } }, 
+
+      { $sort: { postCount: -1 } },
+
       {
         $lookup: {
           from: 'users',
@@ -612,6 +648,7 @@ export class RecognitionService {
         },
       },
       { $unwind: '$user' },
+      // Step 5: Restructure the output fields
       {
         $project: {
           _id: 0,
@@ -625,6 +662,7 @@ export class RecognitionService {
           },
         },
       },
+      // Step 6: Paginate results using $facet
       {
         $facet: {
           metadata: [{ $count: 'totalCount' }],
@@ -633,6 +671,7 @@ export class RecognitionService {
       },
     ]);
 
+    // Extract metadata
     const metadata = result[0]?.metadata[0] || { totalCount: 0 };
     const data = result[0]?.data || [];
     const totalCount = metadata.totalCount;
