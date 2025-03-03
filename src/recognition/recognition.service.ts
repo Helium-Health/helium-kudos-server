@@ -602,7 +602,7 @@ export class RecognitionService {
           totalCoinSent: { $sum: { $sum: '$receivers.coinAmount' } },
         },
       },
-      { $sort: { postCount: -1 } }, 
+      { $sort: { postCount: -1 } },
       {
         $lookup: {
           from: 'users',
@@ -646,6 +646,57 @@ export class RecognitionService {
         totalPages,
       },
       data,
+    };
+  }
+
+  async getCompanyValueAnalytics(startDate?: Date, endDate?: Date) {
+    const matchStage: any = {};
+
+    if (startDate) {
+      matchStage.createdAt = { $gte: new Date(startDate) };
+    }
+    if (endDate) {
+      matchStage.createdAt = {
+        ...matchStage.createdAt,
+        $lte: new Date(endDate),
+      };
+    }
+
+    const result = await this.recognitionModel.aggregate([
+      ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+      { $match: { companyValues: { $exists: true, $ne: [] } } },
+      { $unwind: '$companyValues' },
+      {
+        $group: {
+          _id: '$companyValues',
+          totalRecognitions: { $sum: 1 },
+          totalCoinsGiven: { $sum: { $sum: '$receivers.coinAmount' } },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          companyValue: '$_id',
+          totalRecognitions: 1,
+          totalCoinsGiven: 1,
+        },
+      },
+      { $sort: { totalRecognitions: -1 } },
+    ]);
+
+    return {
+      data: {
+        analytics: result,
+        timeFrame:
+          startDate || endDate
+            ? { startDate: startDate || null, endDate: endDate || null }
+            : 'All Time',
+      },
+      status: 200,
+      message:
+        result.length > 0
+          ? 'Success'
+          : 'No recognitions found for the given period.',
     };
   }
 
