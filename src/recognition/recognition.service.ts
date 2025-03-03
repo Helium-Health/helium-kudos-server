@@ -49,7 +49,13 @@ export class RecognitionService {
 
   async createRecognition(
     senderId: string,
-    { receivers, message, companyValues = [], giphyUrl }: CreateRecognitionDto,
+    {
+      receivers,
+      message,
+      companyValues = [],
+      giphyUrl,
+      media = [],
+    }: CreateRecognitionDto,
   ) {
     const invalidValues = companyValues.filter(
       (value) => !Object.values(CompanyValues).includes(value),
@@ -110,6 +116,10 @@ export class RecognitionService {
           coinAmount: r.coinAmount ?? 0,
         })),
         companyValues,
+        media: media.map((m) => ({
+          url: m.url,
+          type: m.type,
+        })),
       });
       await newRecognition.save({ session });
 
@@ -486,6 +496,7 @@ export class RecognitionService {
             isAuto: { $first: '$isAuto' },
             sender: { $first: '$sender' },
             giphyUrl: { $first: '$giphyUrl' },
+            media: { $first: '$media' },
             receivers: {
               $push: {
                 _id: '$receivers.receiverId',
