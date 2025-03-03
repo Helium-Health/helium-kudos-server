@@ -21,6 +21,13 @@ export class LeaderboardService {
     return this.recognitionService.getTopRecognitionReceivers(page, limit);
   }
 
+  async totalCoinAndRecognitionGiven(startDate: Date, endDate: Date) {
+    return this.recognitionService.getTotalCoinAndRecognition(
+      startDate,
+      endDate,
+    );
+  }
+
   async getTopRecognitionSenders(page: number, limit: number) {
     return this.recognitionService.getTopRecognitionSenders(page, limit);
   }

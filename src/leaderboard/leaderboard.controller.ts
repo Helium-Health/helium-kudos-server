@@ -84,4 +84,19 @@ export class LeaderboardController {
       targetYear,
     );
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('total-coin-and-recognition-given')
+  async totalCoinAndRecognitionGiven(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const parsedStartDate = startDate ? new Date(startDate) : undefined;
+    const parsedEndDate = endDate ? new Date(endDate) : new Date();
+
+    return await this.leaderboardService.totalCoinAndRecognitionGiven(
+      parsedStartDate,
+      parsedEndDate,
+    );
+  }
 }
