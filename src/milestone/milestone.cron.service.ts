@@ -99,7 +99,7 @@ export class MilestoneCronService {
     }
   }
 
-  @Cron('0 8 7 3 *') // Runs at 08:00 AM on March 7th
+  @Cron('0 8 5 3 *') // Runs at 08:00 AM on March 7th
   async handleEmployeeAppreciationDayRecognitions() {
     const employeeDayMilestone = await this.milestoneService.findByType(
       MilestoneType.INTERNATIONAL_EMPLOYEE_APPRECIATION_DAY,
