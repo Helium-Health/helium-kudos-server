@@ -10,6 +10,7 @@ import {
 import { LeaderboardService } from './leaderboard.service';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
+import { start } from 'repl';
 
 @Controller('leaderboard')
 export class LeaderboardController {
@@ -40,6 +41,20 @@ export class LeaderboardController {
   @Get('uncredited-users')
   async getUncreditedUsers() {
     return this.leaderboardService.getUncreditedUsers();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('company-values')
+  async getCompanyValueAnalytics(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const parseStartDate = startDate ? new Date(startDate) : undefined;
+    const parseEndDate = endDate ? new Date(endDate) : new Date();
+    return this.leaderboardService.getCompanyValueAnalytics(
+      parseStartDate,
+      parseEndDate,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
