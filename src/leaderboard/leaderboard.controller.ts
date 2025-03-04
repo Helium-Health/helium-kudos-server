@@ -47,11 +47,11 @@ export class LeaderboardController {
   async getTopRecognitionReceivers(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
+    @Query('startDate') startDate?: number,
+    @Query('endDate') endDate?: number,
   ) {
-    const parsedStartDate = startDate ? new Date(startDate) : null;
-    const parsedEndDate = endDate ? new Date(endDate) : new Date();
+    const parsedStartDate = startDate ? new Date(Number(startDate)) : undefined;
+    const parsedEndDate = endDate ? new Date(Number(endDate)) : new Date();
     return this.leaderboardService.getTopRecognitionReceivers(
       page,
       limit,
@@ -65,11 +65,11 @@ export class LeaderboardController {
   async getTopRecognitionSenders(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
+    @Query('startDate') startDate?: number,
+    @Query('endDate') endDate?: number,
   ) {
-    const parsedStartDate = startDate ? new Date(startDate) : null;
-    const parsedEndDate = endDate ? new Date(endDate) : new Date();
+    const parsedStartDate = startDate ? new Date(Number(startDate)) : undefined;
+    const parsedEndDate = endDate ? new Date(Number(endDate)) : new Date();
     return this.leaderboardService.getTopRecognitionSenders(
       page,
       limit,
