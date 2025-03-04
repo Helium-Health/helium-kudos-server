@@ -49,7 +49,13 @@ export class RecognitionService {
 
   async createRecognition(
     senderId: string,
-    { receivers, message, companyValues = [], giphyUrl }: CreateRecognitionDto,
+    {
+      receivers,
+      message,
+      companyValues = [],
+      giphyUrl,
+      media = [],
+    }: CreateRecognitionDto,
   ) {
     const invalidValues = companyValues.filter(
       (value) => !Object.values(CompanyValues).includes(value),
@@ -110,6 +116,10 @@ export class RecognitionService {
           coinAmount: r.coinAmount ?? 0,
         })),
         companyValues,
+        media: media.map((m) => ({
+          url: m.url,
+          type: m.type,
+        })),
       });
       await newRecognition.save({ session });
 
@@ -235,7 +245,7 @@ export class RecognitionService {
     coinAmount = 0,
     milestoneType,
   }: {
-    receiverId: string;
+    receiverId: { receiverId: Types.ObjectId }[];
     message: string;
     coinAmount?: number;
     milestoneType: MilestoneType;
@@ -244,46 +254,66 @@ export class RecognitionService {
     session.startTransaction();
 
     try {
+      // Create the new recognition entry
       const newRecognition = new this.recognitionModel({
         message,
         isAuto: true,
         milestoneType,
-        receivers: [{ receiverId: new Types.ObjectId(receiverId), coinAmount }],
+        receivers: receiverId.map(({ receiverId }) => ({
+          receiverId,
+          coinAmount,
+        })),
       });
+
       await newRecognition.save({ session });
 
-      // Create single UserRecognition entry
-      await this.userRecognitionService.create(
-        {
-          userId: new Types.ObjectId(receiverId),
-          recognitionId: newRecognition._id,
-          role: UserRecognitionRole.RECEIVER,
-        },
-        session,
-      );
-
-      if (coinAmount > 0) {
-        // Update receiver's coin bank
-        await this.walletService.incrementEarnedBalance(
-          new Types.ObjectId(receiverId),
-          coinAmount,
-          session,
-        );
-
-        // Record the transaction
-        await this.transactionService.recordAutoTransaction(
+      // Prepare UserRecognition creation promises
+      const userRecognitionPromises = receiverId.map(({ receiverId }) =>
+        this.userRecognitionService.create(
           {
-            receiverId: new Types.ObjectId(receiverId),
-            amount: coinAmount,
-
-            entityId: newRecognition._id,
-            entityType: EntityType.RECOGNITION,
+            userId: receiverId,
+            recognitionId: newRecognition._id,
+            role: UserRecognitionRole.RECEIVER,
           },
           session,
+        ),
+      );
+
+      // Prepare wallet updates & transactions if coinAmount > 0
+      let walletUpdatePromises: Promise<void>[] = [];
+      let transactionPromises: Promise<void>[] = [];
+
+      if (coinAmount > 0) {
+        walletUpdatePromises = receiverId.map(({ receiverId }) =>
+          this.walletService
+            .incrementEarnedBalance(receiverId, coinAmount, session)
+            .then(() => {}),
+        );
+
+        transactionPromises = receiverId.map(({ receiverId }) =>
+          this.transactionService
+            .recordAutoTransaction(
+              {
+                receiverId: receiverId,
+                amount: coinAmount,
+                entityId: newRecognition._id,
+                entityType: EntityType.RECOGNITION,
+              },
+              session,
+            )
+            .then(() => {}),
         );
       }
 
+      await Promise.all([
+        ...userRecognitionPromises,
+        ...walletUpdatePromises,
+        ...transactionPromises,
+      ]);
+
       await session.commitTransaction();
+
+      // Notify clients
       this.recognitionGateway.notifyClients({
         recognitionId: newRecognition._id,
         message: `Recognition created: ${message}`,
@@ -291,6 +321,7 @@ export class RecognitionService {
         receivers: receiverId,
         amount: coinAmount,
       });
+
       return newRecognition;
     } catch (error) {
       await session.abortTransaction();
@@ -465,6 +496,7 @@ export class RecognitionService {
             isAuto: { $first: '$isAuto' },
             sender: { $first: '$sender' },
             giphyUrl: { $first: '$giphyUrl' },
+            media: { $first: '$media' },
             receivers: {
               $push: {
                 _id: '$receivers.receiverId',
@@ -532,11 +564,27 @@ export class RecognitionService {
     );
   }
 
-  async getTopRecognitionReceivers(page: number, limit: number) {
+  async getTopRecognitionReceivers(
+    page: number,
+    limit: number,
+    startDate?: Date,
+    endDate?: Date,
+  ) {
     const skip = (page - 1) * limit;
+    const matchStage: any = {};
+
+    if (startDate && endDate) {
+      matchStage.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
+    }
 
     const result = await this.recognitionModel.aggregate([
+      ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+
       { $unwind: '$receivers' },
+
       {
         $group: {
           _id: '$receivers.receiverId',
@@ -544,7 +592,9 @@ export class RecognitionService {
           totalCoinEarned: { $sum: '$receivers.coinAmount' },
         },
       },
+
       { $sort: { recognitionCount: -1 } },
+
       {
         $lookup: {
           from: 'users',
@@ -554,6 +604,7 @@ export class RecognitionService {
         },
       },
       { $unwind: '$user' },
+
       {
         $project: {
           _id: 0,
@@ -567,6 +618,7 @@ export class RecognitionService {
           },
         },
       },
+
       {
         $facet: {
           metadata: [{ $count: 'totalCount' }],
@@ -581,20 +633,34 @@ export class RecognitionService {
     const totalPages = Math.ceil(totalCount / limit);
 
     return {
+      data,
       meta: {
         totalCount,
         page,
         limit,
         totalPages,
       },
-      data,
     };
   }
 
-  async getTopRecognitionSenders(page: number, limit: number) {
+  async getTopRecognitionSenders(
+    page: number,
+    limit: number,
+    startDate?: Date,
+    endDate?: Date,
+  ) {
     const skip = (page - 1) * limit;
+    const matchStage: any = {};
 
+    if (startDate && endDate) {
+      matchStage.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
+    }
     const result = await this.recognitionModel.aggregate([
+      ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+
       {
         $group: {
           _id: '$senderId',
@@ -602,6 +668,7 @@ export class RecognitionService {
           totalCoinSent: { $sum: { $sum: '$receivers.coinAmount' } },
         },
       },
+
       { $sort: { postCount: -1 } },
       {
         $lookup: {
@@ -612,6 +679,7 @@ export class RecognitionService {
         },
       },
       { $unwind: '$user' },
+
       {
         $project: {
           _id: 0,
@@ -625,6 +693,7 @@ export class RecognitionService {
           },
         },
       },
+
       {
         $facet: {
           metadata: [{ $count: 'totalCount' }],
@@ -639,13 +708,64 @@ export class RecognitionService {
     const totalPages = Math.ceil(totalCount / limit);
 
     return {
+      data,
       meta: {
         totalCount,
         page,
         limit,
         totalPages,
       },
-      data,
+    };
+  }
+
+  async getCompanyValueAnalytics(startDate?: Date, endDate?: Date) {
+    const matchStage: any = {};
+
+    if (startDate) {
+      matchStage.createdAt = { $gte: new Date(startDate) };
+    }
+    if (endDate) {
+      matchStage.createdAt = {
+        ...matchStage.createdAt,
+        $lte: new Date(endDate),
+      };
+    }
+
+    const result = await this.recognitionModel.aggregate([
+      ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+      { $match: { companyValues: { $exists: true, $ne: [] } } },
+      { $unwind: '$companyValues' },
+      {
+        $group: {
+          _id: '$companyValues',
+          totalRecognitions: { $sum: 1 },
+          totalCoinsGiven: { $sum: { $sum: '$receivers.coinAmount' } },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          companyValue: '$_id',
+          totalRecognitions: 1,
+          totalCoinsGiven: 1,
+        },
+      },
+      { $sort: { totalRecognitions: -1 } },
+    ]);
+
+    return {
+      data: {
+        analytics: result,
+        timeFrame:
+          startDate || endDate
+            ? { startDate: startDate || null, endDate: endDate || null }
+            : 'All Time',
+      },
+      status: 200,
+      message:
+        result.length > 0
+          ? 'Success'
+          : 'No recognitions found for the given period.',
     };
   }
 
