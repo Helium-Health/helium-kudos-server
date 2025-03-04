@@ -16,12 +16,8 @@ export class MilestoneSeedService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    const existingMilestones = await this.milestoneModel
-      .find({}, 'type')
-      .lean();
-    const existingTypes = new Set(
-      existingMilestones.map((milestone) => milestone.type),
-    );
+    await this.milestoneModel.deleteMany({});
+    this.logger.log('Deleted all existing milestones');
 
     const defaultMilestones = [
       {
@@ -44,7 +40,7 @@ export class MilestoneSeedService implements OnModuleInit {
         type: MilestoneType.INTERNATIONAL_MENS_DAY,
         title: "International Men's Day",
         message:
-          "Happy International Men's Day, {name}! 🎉 Thank you for your strength, kindness, and contributions.",
+          "Happy International Men's Day, 🎉 Thank you for your strength, kindness, and contributions.",
         coins: 5,
         isActive: true,
       },
@@ -52,29 +48,29 @@ export class MilestoneSeedService implements OnModuleInit {
         type: MilestoneType.INTERNATIONAL_WOMENS_DAY,
         title: "International Women's Day",
         message:
-          "Happy International Women's Day, {name}! 🌟 Thank you for your strength, resilience, and invaluable contributions.",
+          "Happy International Women's Day, 🌟 Thank you for your strength, resilience, and invaluable contributions.",
         coins: 5,
         isActive: true,
       },
       {
         type: MilestoneType.VALENTINE_DAY,
-        title: "Happy Women's Day",
+        title: "Happy Valentine's Day",
         message:
           "Happy Valentine's Day Team! 💖 Thank you for your love, support, and dedication.",
         coins: 5,
         isActive: true,
       },
+      {
+        type: MilestoneType.INTERNATIONAL_EMPLOYEE_APPRECIATION_DAY,
+        title: 'International Employee Day',
+        message:
+          'Happy International Employee Day! 🎉 We appreciate your hard work, dedication, and contributions!',
+        coins: 5,
+        isActive: true,
+      },
     ];
 
-    const newMilestones = defaultMilestones.filter(
-      (milestone) => !existingTypes.has(milestone.type),
-    );
-
-    if (newMilestones.length > 0) {
-      await this.milestoneModel.insertMany(newMilestones);
-      this.logger.log('Added ${missingMilestones.length} new milestones');
-    } else {
-      this.logger.log('No new milestones to add');
-    }
+    await this.milestoneModel.insertMany(defaultMilestones);
+    this.logger.log(`Inserted ${defaultMilestones.length} default milestones`);
   }
 }

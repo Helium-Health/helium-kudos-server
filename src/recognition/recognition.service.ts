@@ -49,7 +49,13 @@ export class RecognitionService {
 
   async createRecognition(
     senderId: string,
-    { receivers, message, companyValues = [], giphyUrl }: CreateRecognitionDto,
+    {
+      receivers,
+      message,
+      companyValues = [],
+      giphyUrl,
+      media = [],
+    }: CreateRecognitionDto,
   ) {
     const invalidValues = companyValues.filter(
       (value) => !Object.values(CompanyValues).includes(value),
@@ -110,6 +116,10 @@ export class RecognitionService {
           coinAmount: r.coinAmount ?? 0,
         })),
         companyValues,
+        media: media.map((m) => ({
+          url: m.url,
+          type: m.type,
+        })),
       });
       await newRecognition.save({ session });
 
@@ -235,7 +245,7 @@ export class RecognitionService {
     coinAmount = 0,
     milestoneType,
   }: {
-    receiverId: string;
+    receiverId: { receiverId: Types.ObjectId }[];
     message: string;
     coinAmount?: number;
     milestoneType: MilestoneType;
@@ -244,46 +254,66 @@ export class RecognitionService {
     session.startTransaction();
 
     try {
+      // Create the new recognition entry
       const newRecognition = new this.recognitionModel({
         message,
         isAuto: true,
         milestoneType,
-        receivers: [{ receiverId: new Types.ObjectId(receiverId), coinAmount }],
+        receivers: receiverId.map(({ receiverId }) => ({
+          receiverId,
+          coinAmount,
+        })),
       });
+
       await newRecognition.save({ session });
 
-      // Create single UserRecognition entry
-      await this.userRecognitionService.create(
-        {
-          userId: new Types.ObjectId(receiverId),
-          recognitionId: newRecognition._id,
-          role: UserRecognitionRole.RECEIVER,
-        },
-        session,
-      );
-
-      if (coinAmount > 0) {
-        // Update receiver's coin bank
-        await this.walletService.incrementEarnedBalance(
-          new Types.ObjectId(receiverId),
-          coinAmount,
-          session,
-        );
-
-        // Record the transaction
-        await this.transactionService.recordAutoTransaction(
+      // Prepare UserRecognition creation promises
+      const userRecognitionPromises = receiverId.map(({ receiverId }) =>
+        this.userRecognitionService.create(
           {
-            receiverId: new Types.ObjectId(receiverId),
-            amount: coinAmount,
-
-            entityId: newRecognition._id,
-            entityType: EntityType.RECOGNITION,
+            userId: receiverId,
+            recognitionId: newRecognition._id,
+            role: UserRecognitionRole.RECEIVER,
           },
           session,
+        ),
+      );
+
+      // Prepare wallet updates & transactions if coinAmount > 0
+      let walletUpdatePromises: Promise<void>[] = [];
+      let transactionPromises: Promise<void>[] = [];
+
+      if (coinAmount > 0) {
+        walletUpdatePromises = receiverId.map(({ receiverId }) =>
+          this.walletService
+            .incrementEarnedBalance(receiverId, coinAmount, session)
+            .then(() => {}),
+        );
+
+        transactionPromises = receiverId.map(({ receiverId }) =>
+          this.transactionService
+            .recordAutoTransaction(
+              {
+                receiverId: receiverId,
+                amount: coinAmount,
+                entityId: newRecognition._id,
+                entityType: EntityType.RECOGNITION,
+              },
+              session,
+            )
+            .then(() => {}),
         );
       }
 
+      await Promise.all([
+        ...userRecognitionPromises,
+        ...walletUpdatePromises,
+        ...transactionPromises,
+      ]);
+
       await session.commitTransaction();
+
+      // Notify clients
       this.recognitionGateway.notifyClients({
         recognitionId: newRecognition._id,
         message: `Recognition created: ${message}`,
@@ -291,6 +321,7 @@ export class RecognitionService {
         receivers: receiverId,
         amount: coinAmount,
       });
+
       return newRecognition;
     } catch (error) {
       await session.abortTransaction();
@@ -465,6 +496,7 @@ export class RecognitionService {
             isAuto: { $first: '$isAuto' },
             sender: { $first: '$sender' },
             giphyUrl: { $first: '$giphyUrl' },
+            media: { $first: '$media' },
             receivers: {
               $push: {
                 _id: '$receivers.receiverId',
@@ -638,7 +670,6 @@ export class RecognitionService {
       },
 
       { $sort: { postCount: -1 } },
-
       {
         $lookup: {
           from: 'users',
@@ -648,7 +679,7 @@ export class RecognitionService {
         },
       },
       { $unwind: '$user' },
-      // Step 5: Restructure the output fields
+
       {
         $project: {
           _id: 0,
@@ -662,7 +693,7 @@ export class RecognitionService {
           },
         },
       },
-      // Step 6: Paginate results using $facet
+
       {
         $facet: {
           metadata: [{ $count: 'totalCount' }],
@@ -671,7 +702,6 @@ export class RecognitionService {
       },
     ]);
 
-    // Extract metadata
     const metadata = result[0]?.metadata[0] || { totalCount: 0 };
     const data = result[0]?.data || [];
     const totalCount = metadata.totalCount;

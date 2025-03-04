@@ -5,6 +5,7 @@ import { RecognitionService } from '../recognition/recognition.service';
 import { MilestoneService } from './milestone.service';
 import { MilestoneType } from './schema/Milestone.schema';
 import { UserGender } from 'src/users/schema/User.schema';
+import { Types } from 'mongoose';
 
 @Injectable()
 export class MilestoneCronService {
@@ -28,7 +29,7 @@ export class MilestoneCronService {
     for (const user of users) {
       console.log('i was called', user.name);
       await this.recognitionService.createAutoRecognition({
-        receiverId: user._id.toString(),
+        receiverId: [{ receiverId: user._id as Types.ObjectId }],
         message: birthdayMilestone.message.replace('{name}', user.name),
         coinAmount: birthdayMilestone.coins,
         milestoneType: MilestoneType.BIRTHDAY,
@@ -49,7 +50,7 @@ export class MilestoneCronService {
 
     for (const user of users) {
       await this.recognitionService.createAutoRecognition({
-        receiverId: user._id.toString(),
+        receiverId: [{ receiverId: user._id as Types.ObjectId }],
         message: anniversaryMilestone.message.replace('{name}', user.name),
         coinAmount: anniversaryMilestone.coins,
         milestoneType: MilestoneType.WORK_ANNIVERSARY,
@@ -63,11 +64,14 @@ export class MilestoneCronService {
       MilestoneType.INTERNATIONAL_MENS_DAY,
     );
     const users = await this.usersService.findUsersByGender(UserGender.Male);
+    const receivers = users.map((user) => ({
+      receiverId: user._id as Types.ObjectId,
+    }));
 
-    for (const user of users) {
+    if (receivers.length > 0) {
       await this.recognitionService.createAutoRecognition({
-        receiverId: user._id.toString(),
-        message: mensDayMilestone.message.replace('{name}', user.name),
+        receiverId: receivers,
+        message: mensDayMilestone.message,
         coinAmount: mensDayMilestone.coins,
         milestoneType: MilestoneType.INTERNATIONAL_MENS_DAY,
       });
@@ -79,14 +83,39 @@ export class MilestoneCronService {
     const womensDayMilestone = await this.milestoneService.findByType(
       MilestoneType.INTERNATIONAL_WOMENS_DAY,
     );
-    const users = await this.usersService.findUsersByGender(UserGender.Female);
 
-    for (const user of users) {
+    const users = await this.usersService.findUsersByGender(UserGender.Female);
+    const receivers = users.map((user) => ({
+      receiverId: user._id as Types.ObjectId,
+    }));
+
+    if (receivers.length > 0) {
       await this.recognitionService.createAutoRecognition({
-        receiverId: user._id.toString(),
-        message: womensDayMilestone.message.replace('{name}', user.name),
+        receiverId: receivers,
+        message: womensDayMilestone.message,
         coinAmount: womensDayMilestone.coins,
         milestoneType: MilestoneType.INTERNATIONAL_WOMENS_DAY,
+      });
+    }
+  }
+
+  @Cron('0 8 7 3 *') // Runs at 08:00 AM on March 7th
+  async handleEmployeeAppreciationDayRecognitions() {
+    const employeeDayMilestone = await this.milestoneService.findByType(
+      MilestoneType.INTERNATIONAL_EMPLOYEE_APPRECIATION_DAY,
+    );
+
+    const users = await this.usersService.getAllUsers();
+    const receivers = users.map((user) => ({
+      receiverId: user._id as Types.ObjectId,
+    }));
+
+    if (receivers.length > 0) {
+      await this.recognitionService.createAutoRecognition({
+        receiverId: receivers,
+        message: employeeDayMilestone.message,
+        coinAmount: employeeDayMilestone.coins,
+        milestoneType: MilestoneType.INTERNATIONAL_EMPLOYEE_APPRECIATION_DAY,
       });
     }
   }
