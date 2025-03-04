@@ -51,7 +51,7 @@ export class LeaderboardController {
     @Query('endDate') endDate?: string,
   ) {
     const parsedStartDate = startDate ? new Date(startDate) : null;
-    const parsedEndDate = endDate ? new Date(endDate) : null;
+    const parsedEndDate = endDate ? new Date(endDate) : new Date();
     return this.leaderboardService.getTopRecognitionReceivers(
       page,
       limit,
@@ -69,7 +69,7 @@ export class LeaderboardController {
     @Query('endDate') endDate?: string,
   ) {
     const parsedStartDate = startDate ? new Date(startDate) : null;
-    const parsedEndDate = endDate ? new Date(endDate) : null;
+    const parsedEndDate = endDate ? new Date(endDate) : new Date();
     return this.leaderboardService.getTopRecognitionSenders(
       page,
       limit,

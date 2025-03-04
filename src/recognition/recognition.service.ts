@@ -633,13 +633,13 @@ export class RecognitionService {
     const totalPages = Math.ceil(totalCount / limit);
 
     return {
+      data,
       meta: {
         totalCount,
         page,
         limit,
         totalPages,
       },
-      data,
     };
   }
 
@@ -708,13 +708,13 @@ export class RecognitionService {
     const totalPages = Math.ceil(totalCount / limit);
 
     return {
+      data,
       meta: {
         totalCount,
         page,
         limit,
         totalPages,
       },
-      data,
     };
   }
 
