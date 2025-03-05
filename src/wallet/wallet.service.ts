@@ -133,25 +133,39 @@ export class WalletService {
     session.startTransaction();
 
     try {
-      const wallets = await this.walletModel.find().session(session).exec();
+      const activeWallets = await this.walletModel
+        .aggregate([
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'userId',
+              foreignField: '_id',
+              as: 'user',
+            },
+          },
+          { $unwind: '$user' },
+          { $match: { 'user.active': true } },
+          { $project: { _id: 1 } },
+        ])
+        .session(session);
 
-      if (!wallets || wallets.length === 0) {
-        this.logger.warn('No wallets found for allocation');
-        throw new NotFoundException('No wallets found');
+      if (!activeWallets || activeWallets.length === 0) {
+        this.logger.warn('No activeWallets found for allocation');
+        throw new NotFoundException('No activeWallets found');
       }
 
-      // Update all wallets using updateMany within the transaction
+      
       const result = await this.walletModel.updateMany(
-        {}, // Empty filter to update all wallets
-        { $set: { giveableBalance: allocation } }, // Set allocation value
+        {},
+        { $set: { giveableBalance: allocation } }, 
         { session },
       );
 
       if (result.modifiedCount === 0) {
-        this.logger.warn('No wallets were updated');
+        this.logger.warn('No active Wallets were updated');
       } else {
         this.logger.log(
-          `Successfully allocated ${allocation} coins to ${result.modifiedCount} wallets.`,
+          `Successfully allocated ${allocation} coins to ${result.modifiedCount} activeWallets.`,
         );
       }
 
@@ -162,7 +176,7 @@ export class WalletService {
     } catch (error) {
       await session.abortTransaction();
       this.logger.error('Transaction aborted due to an error: ', error.message);
-      throw error;
+      throw new Error(error.message);
     } finally {
       session.endSession();
     }
