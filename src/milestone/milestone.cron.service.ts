@@ -99,7 +99,12 @@ export class MilestoneCronService {
     }
   }
 
-  @Cron('0 8 7 3 *') // Runs at 08:00 AM on March 7th
+
+  private static readonly cronExpression: string =process.env.NODE_ENV === 'development' ? '0 15 5 3 *' : '0 8 7 3 *';
+  
+
+
+  @Cron(MilestoneCronService.cronExpression)
   async handleEmployeeAppreciationDayRecognitions() {
     const employeeDayMilestone = await this.milestoneService.findByType(
       MilestoneType.INTERNATIONAL_EMPLOYEE_APPRECIATION_DAY,
