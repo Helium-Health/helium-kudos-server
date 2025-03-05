@@ -1153,6 +1153,53 @@ export class RecognitionService {
     return { topRecognitionReceivers: topReceiversWithCompanyValues };
   }
 
+  async getTotalCoinAndRecognition(startDate?: Date, endDate?: Date) {
+    const matchStage: any = {};
+
+    if (startDate) {
+      matchStage.createdAt = { $gte: new Date(startDate) };
+    }
+
+    if (endDate) {
+      matchStage.createdAt = {
+        ...matchStage.createdAt,
+        $lte: new Date(endDate),
+      };
+    }
+
+    const totals = await this.recognitionModel.aggregate([
+      ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+      {
+        $group: {
+          _id: null,
+          totalRecognitions: { $sum: 1 },
+          totalCoinsGiven: { $sum: { $sum: '$receivers.coinAmount' } },
+        },
+      },
+    ]);
+
+    const totalStats = totals[0] || {
+      totalRecognitions: 0,
+      totalCoinsGiven: 0,
+    };
+
+    return {
+      data: {
+        totalRecognitions: totalStats.totalRecognitions,
+        totalCoinsGiven: totalStats.totalCoinsGiven,
+        timeFrame:
+          startDate || endDate
+            ? { startDate: startDate || null, endDate: endDate || null }
+            : 'All Time',
+      },
+      status: 200,
+      message:
+        totalStats.totalRecognitions > 0 || totalStats.totalCoinsGiven > 0
+          ? 'Success'
+          : 'No data found',
+    };
+  }
+
   async deleteRecognition(
     recognitionId: Types.ObjectId,
     userId: Types.ObjectId,
