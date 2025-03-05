@@ -42,6 +42,11 @@ export class UsersController {
     return await this.userSyncService.createInitialUsers();
   }
 
+  @Post('sync-users-with-sheet')
+  async syncUsersWithGoogleSheet() {
+    return await this.userSyncService.syncUsersWithGoogleSheet();
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get()
   async searchUsers(

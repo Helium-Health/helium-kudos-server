@@ -10,6 +10,7 @@ import {
 import { LeaderboardService } from './leaderboard.service';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
+import { start } from 'repl';
 
 @Controller('leaderboard')
 export class LeaderboardController {
@@ -43,12 +44,35 @@ export class LeaderboardController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('company-values')
+  async getCompanyValueAnalytics(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    const parseStartDate = startDate ? new Date(startDate) : undefined;
+    const parseEndDate = endDate ? new Date(endDate) : new Date();
+    return this.leaderboardService.getCompanyValueAnalytics(
+      parseStartDate,
+      parseEndDate,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('most-recognized')
   async getTopRecognitionReceivers(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('startDate') startDate?: number,
+    @Query('endDate') endDate?: number,
   ) {
-    return this.leaderboardService.getTopRecognitionReceivers(page, limit);
+    const parsedStartDate = startDate ? new Date(Number(startDate)) : undefined;
+    const parsedEndDate = endDate ? new Date(Number(endDate)) : new Date();
+    return this.leaderboardService.getTopRecognitionReceivers(
+      page,
+      limit,
+      parsedStartDate,
+      parsedEndDate,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -56,8 +80,17 @@ export class LeaderboardController {
   async getTopRecognitionSenders(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('startDate') startDate?: number,
+    @Query('endDate') endDate?: number,
   ) {
-    return this.leaderboardService.getTopRecognitionSenders(page, limit);
+    const parsedStartDate = startDate ? new Date(Number(startDate)) : undefined;
+    const parsedEndDate = endDate ? new Date(Number(endDate)) : new Date();
+    return this.leaderboardService.getTopRecognitionSenders(
+      page,
+      limit,
+      parsedStartDate,
+      parsedEndDate,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -82,6 +115,21 @@ export class LeaderboardController {
     const targetYear = year || new Date().getFullYear();
     return this.leaderboardService.getYearlyStatisticsWithMonthlyDetails(
       targetYear,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('total-coin-and-recognition')
+  async totalCoinAndRecognitionGiven(
+    @Query('startDate') startDate?: number,
+    @Query('endDate') endDate?: number,
+  ) {
+    const parsedStartDate = startDate ? new Date(Number(startDate)) : undefined;
+    const parsedEndDate = endDate ? new Date(Number(endDate)) : new Date();
+
+    return await this.leaderboardService.totalCoinAndRecognitionGiven(
+      parsedStartDate,
+      parsedEndDate,
     );
   }
 }

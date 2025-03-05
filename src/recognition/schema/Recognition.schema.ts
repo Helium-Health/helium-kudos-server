@@ -41,6 +41,17 @@ export class Recognition {
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Reaction' }] })
   reactions: Types.ObjectId[];
+
+  @Prop({
+    type: [
+      {
+        url: { type: String, required: true }, 
+        type: { type: String, enum: ['image', 'video'], required: true },
+      },
+    ],
+    default: [],
+  })
+  media: { url: string; type: 'image' | 'video' }[];
 }
 
 export const RecognitionSchema = SchemaFactory.createForClass(Recognition);

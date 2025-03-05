@@ -246,7 +246,7 @@ export class TransactionService {
   async getUserCoinSpentonOrders(userId: Types.ObjectId): Promise<number> {
     const result = await this.transactionModel.aggregate([
       {
-        $match: { userId: userId, status: 'success' },
+        $match: { entityType: 'order', userId: userId, status: 'success' },
       },
       {
         $group: {
