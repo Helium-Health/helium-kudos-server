@@ -100,7 +100,7 @@ export class MilestoneCronService {
   }
 
 
-  private static readonly cronExpression: string =process.env.NODE_ENV === 'development' ? '0 8 5 3 *' : '0 8 7 3 *';
+  private static readonly cronExpression: string =process.env.NODE_ENV === 'development' ? '0 15 5 3 *' : '0 8 7 3 *';
   
 
 
