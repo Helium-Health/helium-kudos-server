@@ -111,8 +111,7 @@ export class AllocationsService implements OnModuleInit {
     return this.allocationModel.findOne().exec();
   }
 
-  // @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   handleCron() {
     const now = new Date();
     this.logger.log(`Cron job running at ${now.toISOString()}`);
