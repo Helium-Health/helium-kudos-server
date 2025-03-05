@@ -119,14 +119,13 @@ export class LeaderboardController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('total-coin-and-recognition-given')
+  @Get('total-coin-and-recognition')
   async totalCoinAndRecognitionGiven(
     @Query('startDate') startDate?: number,
     @Query('endDate') endDate?: number,
   ) {
     const parsedStartDate = startDate ? new Date(Number(startDate)) : undefined;
     const parsedEndDate = endDate ? new Date(Number(endDate)) : new Date();
-    
 
     return await this.leaderboardService.totalCoinAndRecognitionGiven(
       parsedStartDate,

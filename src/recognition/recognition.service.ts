@@ -1193,7 +1193,10 @@ export class RecognitionService {
             : 'All Time',
       },
       status: 200,
-      message: totalStats.totalRecognitions > 0 ? 'Success' : 'No data found',
+      message:
+        totalStats.totalRecognitions > 0 || totalStats.totalCoinsGiven > 0
+          ? 'Success'
+          : 'No data found',
     };
   }
 
