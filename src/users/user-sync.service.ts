@@ -138,12 +138,16 @@ export class UserSyncService {
     if (!dateString) return undefined;
 
     if (typeof dateString === 'number') {
-      // Convert raw numeric date to a JavaScript date
       const convertedDate = new Date((dateString - 25569) * 86400000);
       return convertedDate;
     }
 
-    const parsedDate = new Date(dateString);
-    return isNaN(parsedDate.getTime()) ? undefined : parsedDate;
+    if (isNaN(new Date(dateString).getTime())) return undefined;
+    const currentYear = new Date().getFullYear();
+    const [month, day] = dateString.split(' ');
+    const date = new Date(
+      Date.UTC(currentYear, new Date(`${month} 1`).getMonth(), parseInt(day)),
+    );
+    return date;
   }
 }
