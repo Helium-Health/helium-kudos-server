@@ -138,8 +138,10 @@ export class UserSyncService {
     if (!dateString) return undefined;
 
     if (typeof dateString === 'number') {
-      const convertedDate = new Date((dateString - 25569) * 86400000);
-      return convertedDate;
+      const EXCEL_EPOCH_OFFSET = 25569;
+      const MILLISECONDS_PER_DAY = 86400000;
+
+      return new Date((dateString - EXCEL_EPOCH_OFFSET) * MILLISECONDS_PER_DAY);
     }
 
     if (isNaN(new Date(dateString).getTime())) return undefined;
