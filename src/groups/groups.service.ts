@@ -56,6 +56,6 @@ export class GroupsService {
       throw new NotFoundException(`Group with name "${groupName}" not found`);
     }
 
-    return group.members.map(member => member.toString()); // Ensure string array
+    return group.members.map(member => member.toString()); 
   }
 }
