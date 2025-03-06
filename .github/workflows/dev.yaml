@@ -1,9 +1,9 @@
-name: Deploy to Staging Environment
+name: Deploy to Dev Environment
 
 on:
   push:
     branches:
-      - staging
+      - dev
 env:
   REGISTRY: docker.io
   IMAGE_NAME: ${{ github.repository }}
@@ -48,8 +48,8 @@ jobs:
 
       - name: Build and push  Docker image
         run: |
-          docker build -t 1med/helium-kudos-server-staging .
-          docker push 1med/helium-kudos-server-staging
+          docker build -t 1med/helium-kudos-server-dev .
+          docker push 1med/helium-kudos-server-dev
    
       - name: Run Trivy Vulnerability Scan
         env:
@@ -84,7 +84,7 @@ jobs:
 
       - name: ArgoCD Sync App
         env:
-          APP_NAME: helium-kudos-server-staging
+          APP_NAME: helium-kudos-server-dev
         run: |
-          argocd app actions run $APP_NAME restart --kind Deployment --resource-name helium-kudos-server-staging --all
+          argocd app actions run $APP_NAME restart --kind Deployment --resource-name helium-kudos-server-dev --all
           

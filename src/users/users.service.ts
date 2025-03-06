@@ -5,13 +5,15 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { ClientSession, Model, Types } from 'mongoose';
 import { User, UserDocument, UserGender } from 'src/users/schema/User.schema';
 import { CreateUserDto, UpdateUserDto } from './dto/User.dto';
 import { WalletService } from 'src/wallet/wallet.service';
 import { UpdateUserFromSheetDto } from './dto/UpdateFromSheet.dto';
 import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
 import * as argon2 from 'argon2';
+import { fieldsToMerge, fieldsToRevert } from 'src/constants';
+import { WithId } from 'mongodb';
 
 @Injectable()
 export class UsersService {
@@ -20,6 +22,11 @@ export class UsersService {
     private walletService: WalletService,
     @Inject('AUTH_SERVICE') private authService,
   ) {}
+
+  //TODO: Remove this method after DB migration
+  async onModuleInit() {
+    await this.updateExistingUsers(this.userModel);
+  }
 
   async runTransactionWithRetry(session, operation) {
     for (let i = 0; i < 5; i++) {
@@ -57,15 +64,10 @@ export class UsersService {
         await this.walletService.createWallet(newUser._id, session);
 
         // Step 3: Generate and hash the refresh token
-        const newUserRefreshToken =
-          await this.authService.generateAndStoreRefreshToken(newUser);
-        const hashedRefreshToken = await argon2.hash(newUserRefreshToken);
-
-        // Step 4: Update the user with the hashed refresh token
-        await this.userModel.updateOne(
-          { _id: newUser._id },
-          { $set: { refreshToken: hashedRefreshToken } },
-          { session },
+        const newUserRefreshToken = await this.generateAndStoreRefreshToken(
+          newUser._id,
+          newUser,
+          session,
         );
 
         await session.commitTransaction();
@@ -80,9 +82,31 @@ export class UsersService {
     }
   }
 
+  private async generateAndStoreRefreshToken(
+    id: Types.ObjectId,
+    user: User,
+    session: ClientSession,
+  ) {
+    const refreshToken =
+      await this.authService.generateAndStoreRefreshToken(user);
+    const hashedRefreshToken = await argon2.hash(refreshToken);
+
+    await this.userModel.updateOne(
+      { _id: id },
+      { $set: { refreshToken: hashedRefreshToken } },
+      { session },
+    );
+
+    return refreshToken;
+  }
+
   // Method to find a user by email
   async findByEmail(email: string): Promise<User | null> {
-    return await this.userModel.findOne({ email: email.toLowerCase() }).exec();
+    return await this.userModel
+      .findOne({
+        email,
+      })
+      .exec();
   }
 
   // Method to find a user by id
@@ -162,6 +186,7 @@ export class UsersService {
     userId: string,
     page: number = 1,
     limit: number = 10,
+    active: boolean,
   ): Promise<{
     users: User[];
     meta: {
@@ -177,9 +202,11 @@ export class UsersService {
 
     if (name) {
       const words = name.trim().split(/\s+/);
-      query.$and = words.map((word) => ({
-        name: { $regex: `.*${word}.*`, $options: 'i' },
-      }));
+      query.name = { $all: words.map((word) => new RegExp(word, 'i')) };
+    }
+
+    if (active) {
+      query.active = active;
     }
 
     const totalCount = await this.userModel.countDocuments(query).exec();
@@ -202,9 +229,13 @@ export class UsersService {
     };
   }
 
+  async getAllUsers(): Promise<UserDocument[]> {
+    return await this.userModel.find({});
+  }
+  
   async updateByEmail(email: string, updateData: UpdateUserFromSheetDto) {
-    return this.userModel.findOneAndUpdate(
-      { email },
+    return await this.userModel.findOneAndUpdate(
+      { email, active: true }, // Only update active users
       { $set: updateData },
       { new: true },
     );
@@ -217,6 +248,12 @@ export class UsersService {
     celebrationType?: MilestoneType,
   ): Promise<any> {
     const today = new Date();
+    const todayISOString = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+    ).toISOString();
+
     const skip = (page - 1) * limit;
 
     const pipeline: any[] = [
@@ -246,7 +283,17 @@ export class UsersService {
             $concatArrays: [
               {
                 $cond: {
-                  if: { $gte: ['$nextBirthday', today] },
+                  if: {
+                    $gte: [
+                      {
+                        $dateToString: {
+                          format: '%Y-%m-%d',
+                          date: '$nextBirthday',
+                        },
+                      },
+                      todayISOString,
+                    ],
+                  },
                   then: [
                     {
                       celebrationType: MilestoneType.BIRTHDAY,
@@ -258,7 +305,17 @@ export class UsersService {
               },
               {
                 $cond: {
-                  if: { $gte: ['$nextAnniversary', today] },
+                  if: {
+                    $gte: [
+                      {
+                        $dateToString: {
+                          format: '%Y-%m-%d',
+                          date: '$nextAnniversary',
+                        },
+                      },
+                      todayISOString,
+                    ],
+                  },
                   then: [
                     {
                       celebrationType: MilestoneType.WORK_ANNIVERSARY,
@@ -279,7 +336,10 @@ export class UsersService {
       pipeline.push({
         $match: {
           $expr: {
-            $eq: [{ $month: '$celebrations.date' }, month],
+            $or: [
+              { $eq: [{ $month: '$celebrations.date' }, month] }, 
+              { $eq: [{ $month: '$celebrations.date' }, (month % 12) + 1] }, 
+            ],
           },
         },
       });
@@ -316,5 +376,233 @@ export class UsersService {
         totalPages,
       },
     };
+  }
+
+  async activateUser(userId: Types.ObjectId, active: boolean): Promise<User> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return this.userModel.findByIdAndUpdate(
+      userId,
+      { active, ...(!active && { refreshToken: null }) },
+      { new: true },
+    );
+  }
+
+  //TODO: Remove this method after DB migration
+  private async updateExistingUsers(userModel: Model<User>) {
+    await userModel.updateMany(
+      { active: { $exists: false } },
+      { $set: { active: true } },
+    );
+    console.log('Existing users updated with default active value');
+  }
+
+  async mergeDuplicateEmails() {
+    const session = await this.userModel.db.startSession();
+    session.startTransaction();
+
+    console.log('Migration Up starting...');
+    const updatedAccounts = [];
+
+    try {
+      // Using db.collection('users') directly would bypass Mongoose's schema middleware
+      // and allow us to maintain the exact email casing.
+      const db = this.userModel.db;
+
+      // Find all users
+      const users = await db
+        .collection('users')
+        .find({}, { session })
+        .toArray();
+
+      const emailGroups = users.reduce(
+        (acc, user) => {
+          const lowerEmail = user.email.toLowerCase();
+          if (!acc[lowerEmail]) {
+            acc[lowerEmail] = [];
+          }
+          acc[lowerEmail].push(user as WithId<User>);
+          return acc;
+        },
+        {} as Record<string, WithId<User>[]>,
+      );
+
+      for (const [email, duplicates] of Object.entries(emailGroups)) {
+        if (duplicates.length > 1) {
+          console.log(`Found duplicates for email: ${email}`);
+          // Find the verified user and unverified account
+          const verifiedUser = duplicates.find((user) => user.verified);
+          const unverifiedUser = duplicates.find((user) => !user.verified);
+
+          if (!verifiedUser || !unverifiedUser) {
+            continue; // if no verified/unverified user, skip
+          }
+
+          // Step 1: Save the original email (before modifying it to lowercase)
+          const originalEmail = verifiedUser.email;
+
+          // Step 2: Update the verified user email to lowercase
+          verifiedUser.email = verifiedUser.email.toLowerCase();
+          verifiedUser.originalEmail = originalEmail; // Save the original email
+
+          // Step 2: Merge fields from unverified user
+          fieldsToMerge.forEach((field) => {
+            if (unverifiedUser[field] && !verifiedUser[field]) {
+              verifiedUser[field] = unverifiedUser[field];
+            }
+          });
+
+          // Step 3: Deactivate unverified user and update email
+          const newEmail = `${unverifiedUser.email}_deactivated_${Date.now()}`;
+          await db.collection('users').updateOne(
+            { _id: unverifiedUser._id },
+            {
+              $set: {
+                email: newEmail,
+                originalEmail: unverifiedUser.email,
+                active: false,
+              },
+            },
+            { session },
+          );
+
+          await db
+            .collection('users')
+            .updateOne(
+              { _id: verifiedUser._id },
+              { $set: verifiedUser },
+              { session },
+            );
+
+          updatedAccounts.push({
+            verifiedUser: {
+              id: verifiedUser._id,
+              email: verifiedUser.email,
+              originalEmail: verifiedUser.originalEmail,
+              verified: verifiedUser.verified,
+            },
+            unverifiedUser: {
+              id: unverifiedUser._id,
+              email: newEmail,
+              originalEmail: unverifiedUser.email,
+              verified: unverifiedUser.verified,
+            },
+          });
+        }
+      }
+
+      await session.commitTransaction();
+    } catch (error) {
+      console.log('Error during transaction:', error);
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
+
+    // Log final state after transaction commits
+    console.log('Migration Up completed.', updatedAccounts);
+  }
+
+  async revertDuplicateEmailMerge() {
+    const session = await this.userModel.db.startSession();
+    session.startTransaction();
+
+    console.log('Migration Down starting...');
+    const updatedAccounts = [];
+
+    try {
+      // Using db.collection('users') directly would bypass Mongoose's schema middleware
+      // and allow us to maintain the exact email casing.
+      const db = this.userModel.db;
+
+      // Find all deactivated users
+      const deactivatedUsers = await db
+        .collection('users')
+        .find(
+          {
+            email: { $regex: '_deactivated_' },
+            active: false,
+          },
+          { session },
+        )
+        .toArray();
+
+      const unsetFields = fieldsToRevert.reduce((acc, field) => {
+        acc[field] = undefined; // or use undefined
+        return acc;
+      }, {});
+
+      // Iterate through the deactivated users and revert changes
+      for (const deactivatedAccount of deactivatedUsers) {
+        const originalEmail =
+          deactivatedAccount.email.split('_deactivated_')[0]; // Extract original email
+        const verifiedUser = await db.collection('users').findOne(
+          {
+            email: originalEmail.toLowerCase(),
+          },
+          { session },
+        );
+
+        if (!verifiedUser) {
+          continue; // If no corresponding verified user exists, skip
+        }
+
+        // Step 1: Restore the verified user's email to lowercase
+        await db.collection('users').updateOne(
+          { _id: verifiedUser._id },
+          {
+            $set: {
+              email: verifiedUser.originalEmail,
+            },
+            $unset: unsetFields,
+          },
+          { session },
+        );
+
+        console.log(`Reverted email for user with ID: ${verifiedUser.email}`);
+
+        // Step 2: Restore the original email and reactivate the account
+        await db.collection('users').updateOne(
+          { _id: deactivatedAccount._id },
+          {
+            $set: {
+              email: originalEmail,
+              active: true,
+            },
+            $unset: {
+              originalEmail: undefined,
+            },
+          },
+          { session }, // Include the session
+        );
+
+        updatedAccounts.push({
+          verifiedUser: {
+            id: verifiedUser._id,
+            email: verifiedUser.originalEmail,
+            verified: verifiedUser.verified,
+          },
+          unverifiedUser: {
+            id: deactivatedAccount._id,
+            email: originalEmail,
+            verified: deactivatedAccount.verified,
+          },
+        });
+      }
+
+      await session.commitTransaction();
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
+
+    // Log final state after transaction commits
+    console.log('Migration Down completed.', updatedAccounts);
   }
 }

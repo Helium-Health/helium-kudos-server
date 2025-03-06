@@ -134,17 +134,22 @@ export class UserSyncService {
     }
   }
 
-  parseDate(dateString: string | undefined): Date | undefined {
+  parseDate(dateString: string | number | undefined): Date | undefined {
     if (!dateString) return undefined;
-    if (isNaN(new Date(dateString).getTime())) return undefined;
 
+    if (typeof dateString === 'number') {
+      const EXCEL_EPOCH_OFFSET = 25569;
+      const MILLISECONDS_PER_DAY = 86400000;
+
+      return new Date((dateString - EXCEL_EPOCH_OFFSET) * MILLISECONDS_PER_DAY);
+    }
+
+    if (isNaN(new Date(dateString).getTime())) return undefined;
     const currentYear = new Date().getFullYear();
     const [month, day] = dateString.split(' ');
-
     const date = new Date(
       Date.UTC(currentYear, new Date(`${month} 1`).getMonth(), parseInt(day)),
     );
-
     return date;
   }
 }

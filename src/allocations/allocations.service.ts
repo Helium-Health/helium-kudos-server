@@ -198,14 +198,21 @@ export class AllocationsService implements OnModuleInit {
   }
 
   private async executeAllocation(id: string) {
-    const allocation = await this.allocationModel.findById(id).exec();
+    try {
+      const allocation = await this.allocationModel.findById(id).exec();
 
-    if (!allocation) {
-      throw new NotFoundException(`Allocation with ID ${id} not found`);
+      if (!allocation) {
+        throw new NotFoundException(`Allocation with ID ${id} not found`);
+      }
+
+      await this.walletService.allocateCoinsToAll(allocation.allocationAmount);
+      this.logger.log(`Coin allocation completed successfully for ID: ${id}`);
+    } catch (error) {
+      this.logger.error(
+        `Coin allocation failed for ID ${id}: ${error.message}`,
+      );
+      throw new Error(error.message);
     }
-
-    await this.walletService.allocateCoinsToAll(allocation.allocationAmount);
-    this.logger.log('Coin allocation completed successfully for ID: ' + id);
   }
 
   async findAllocationByCadence(

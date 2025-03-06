@@ -16,14 +16,44 @@ export class LeaderboardService {
   async getUncreditedUsers() {
     return this.transactionService.findUncreditedUsers();
   }
-  async getPaginatedUsersWithEarnedCoins(page: number, limit: number) {
-    return this.transactionService.getPaginatedUsersWithEarnedCoins(
+
+  async getTopRecognitionReceivers(
+    page: number,
+    limit: number,
+    startDate: Date,
+    endDate: Date,
+  ) {
+    return this.recognitionService.getTopRecognitionReceivers(
       page,
       limit,
+      startDate,
+      endDate,
     );
   }
-  async getTopRecognitionReceivers(page: number, limit: number) {
-    return this.recognitionService.getTopRecognitionReceivers(page, limit);
+
+  async totalCoinAndRecognitionGiven(startDate: Date, endDate: Date) {
+    return this.recognitionService.getTotalCoinAndRecognition(
+      startDate,
+      endDate,
+    );
+  }
+
+  async getTopRecognitionSenders(
+    page: number,
+    limit: number,
+    startDate: Date,
+    endDate: Date,
+  ) {
+    return this.recognitionService.getTopRecognitionSenders(
+      page,
+      limit,
+      startDate,
+      endDate,
+    );
+  }
+
+  async getCompanyValueAnalytics(startDate: Date, endDate: Date) {
+    return this.recognitionService.getCompanyValueAnalytics(startDate, endDate);
   }
 
   async getQuarterParticipants(

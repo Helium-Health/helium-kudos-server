@@ -26,6 +26,18 @@ class Receiver {
   coinAmount: number;
 }
 
+class MediaDto {
+  @IsNotEmpty()
+  @IsUrl()
+  url: string;
+
+  @IsNotEmpty()
+  @IsEnum(['image', 'video'], {
+    message: 'Media type must be either image or video',
+  })
+  type: 'image' | 'video';
+}
+
 export class CreateRecognitionDto {
   @IsNotEmpty()
   @IsString()
@@ -56,6 +68,13 @@ export class CreateRecognitionDto {
   })
   @IsUrl({}, { each: true })
   giphyUrl?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(3)
+  @ValidateNested({ each: true })
+  @Type(() => MediaDto)
+  media?: MediaDto[];
 }
 
 export class EditRecognitionDto {

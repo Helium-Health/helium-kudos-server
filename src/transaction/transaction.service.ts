@@ -242,19 +242,20 @@ export class TransactionService {
       message: 'Success',
     };
   }
-  async getUserCoinSpent(userId: Types.ObjectId): Promise<number> {
-    const creditTransactions = await this.transactionModel.find({
-      relatedUserId: new Types.ObjectId(userId),
-      entityType: EntityType.RECOGNITION,
-      status: transactionStatus.SUCCESS,
-      type: TransactionType.CREDIT,
-    });
 
-    console.log('Credit Transactions Found:', creditTransactions);
+  async getUserCoinSpentonOrders(userId: Types.ObjectId): Promise<number> {
+    const result = await this.transactionModel.aggregate([
+      {
+        $match: { entityType: 'order', userId: userId, status: 'success' },
+      },
+      {
+        $group: {
+          _id: '$userId',
+          netAmount: { $sum: '$amount' },
+        },
+      },
+    ]);
 
-    return creditTransactions.reduce(
-      (total, transaction) => total + transaction.amount,
-      0,
-    );
+    return result.length > 0 ? Math.abs(result[0].netAmount) : 0;
   }
 }
