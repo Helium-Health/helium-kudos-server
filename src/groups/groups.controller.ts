@@ -27,7 +27,7 @@ export class GroupsController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Post('members')
+  @Get(':members')
   async getMembers(@Body('groupIds') groupIds: string[]) {
     if (!groupIds || !Array.isArray(groupIds) || groupIds.length === 0) {
       throw new BadRequestException('At least one Group ID is required');
