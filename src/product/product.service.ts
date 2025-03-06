@@ -207,4 +207,38 @@ export class ProductService {
 
     await product.save({ session });
   }
+
+  async returnStock(
+    productId: Types.ObjectId,
+    variants: any[] | null,
+    quantity: number,
+    session: ClientSession,
+  ): Promise<Product> {
+    const product = await this.productModel.findById(productId);
+    if (!product) {
+      throw new BadRequestException('Product not found');
+    }
+
+    if (variants && variants.length > 0) {
+      for (const variant of variants) {
+        const variantMatch = product.variants.find(
+          (v) =>
+            v.variantType === variant.variantType && v.value === variant.value,
+        );
+        if (!variantMatch) {
+          throw new BadRequestException(
+            `Variant ${variant.variantType}: ${variant.value} not found`,
+          );
+        }
+
+        variantMatch.stock += quantity; 
+      }
+    } else {
+      product.stock += quantity; 
+    }
+
+    await product.save({ session });
+
+    return product;
+  }
 }

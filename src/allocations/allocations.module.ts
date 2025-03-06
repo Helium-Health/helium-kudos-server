@@ -7,9 +7,11 @@ import { WalletService } from 'src/wallet/wallet.service';
 import { Wallet, WalletSchema } from 'src/wallet/schema/Wallet.schema';
 import { AllocationSeeder } from './seeds/allocation.seed';
 import { ConfigModule } from '@nestjs/config';
+import { WalletModule } from 'src/wallet/wallet.module';
 
 @Module({
   imports: [
+    WalletModule,
     ConfigModule,
     MongooseModule.forFeature([
       {
@@ -20,6 +22,6 @@ import { ConfigModule } from '@nestjs/config';
     ]),
   ],
   controllers: [AllocationsController],
-  providers: [AllocationsService, WalletService, AllocationSeeder],
+  providers: [AllocationsService, AllocationSeeder],
 })
 export class AllocationsModule {}

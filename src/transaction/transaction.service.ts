@@ -242,4 +242,20 @@ export class TransactionService {
       message: 'Success',
     };
   }
+
+  async getUserCoinSpentonOrders(userId: Types.ObjectId): Promise<number> {
+    const result = await this.transactionModel.aggregate([
+      {
+        $match: { entityType: 'order', userId: userId, status: 'success' },
+      },
+      {
+        $group: {
+          _id: '$userId',
+          netAmount: { $sum: '$amount' },
+        },
+      },
+    ]);
+
+    return result.length > 0 ? Math.abs(result[0].netAmount) : 0;
+  }
 }
