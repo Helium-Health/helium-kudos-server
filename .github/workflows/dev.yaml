@@ -61,7 +61,7 @@ jobs:
       - name: Build and push Docker image
         run: |
           docker build -t onemed/helium-kudos-server-staging -t ghcr.io/helium-health/${{ env.REPO_LOWER }}-staging .
-          docker push onemed/helium-kudos-server-staging
+          # docker push onemed/helium-kudos-server-staging
           docker push ghcr.io/helium-health/${{ env.REPO_LOWER }}-staging
 
       - name: Run Trivy Vulnerability Scan
@@ -74,7 +74,7 @@ jobs:
             --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
             --scanners vuln \
             --output trivy-results-image.txt \
-            onemed/helium-kudos-server-dev:latest ghcr.io/helium-health/${{ env.REPO_LOWER }}-dev:latest
+            ghcr.io/helium-health/${{ env.REPO_LOWER }}-dev:latest
 
       - name: Upload Trivy scan results to artifacts
         uses: actions/upload-artifact@v4
