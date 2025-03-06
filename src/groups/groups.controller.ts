@@ -20,39 +20,48 @@ import { AdminGuard } from 'src/auth/guards/admin.guard';
 export class GroupsController {
   constructor(private readonly groupsService: GroupsService) {}
 
-  @UseGuards(JwtAuthGuard, AdminGuard)
+  @UseGuards(
+    JwtAuthGuard,
+    // AdminGuard
+  )
   @Post()
   create(@Body() createGroupDto: CreateGroupDto) {
     return this.groupsService.create(createGroupDto);
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('members')
+  async getMembers(@Query('groupId') groupId: string) {
+    if (!groupId) {
+      throw new BadRequestException('Group ID is required');
+    }
+    return this.groupsService.getGroupMembers(groupId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get(':name?')
-  async find(@Param('name') name?: string) {
+  async find(@Query('name') name?: string) {
     if (name) {
       return this.groupsService.findByName(name);
     }
     return this.groupsService.findAll();
   }
 
-  @UseGuards(JwtAuthGuard, AdminGuard)
+  @UseGuards(
+    JwtAuthGuard,
+    // AdminGuard
+  )
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateGroupDto: UpdateGroupDto) {
-    return this.groupsService.update(new Types.ObjectId(+id), updateGroupDto);
+    return this.groupsService.update(id, updateGroupDto);
   }
 
-  @UseGuards(JwtAuthGuard, AdminGuard)
+  @UseGuards(
+    JwtAuthGuard,
+    // AdminGuard
+  )
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.groupsService.remove(new Types.ObjectId(+id));
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get('members')
-  async getMembers(@Query('name') name: string) {
-    if (!name) {
-      throw new BadRequestException('Group name is required');
-    }
-    return this.groupsService.getGroupMembers(name);
+    return this.groupsService.remove(new Types.ObjectId(id));
   }
 }

@@ -1,16 +1,33 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateGroupDto, UpdateGroupDto } from './dto/group.dto';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { isValidObjectId, Model, Types } from 'mongoose';
 import { Group } from './schema/group.schema';
+import { User } from 'src/users/schema/User.schema';
+import { UsersService } from 'src/users/users.service';
 
 @Injectable()
 export class GroupsService {
   constructor(
+    private readonly usersService: UsersService,
     @InjectModel(Group.name) private readonly groupModel: Model<Group>,
   ) {}
-  create(createGroupDto: CreateGroupDto) {
-    return 'This action adds a new group';
+  async create(createGroupDto: CreateGroupDto) {
+    const existingGroup = await this.groupModel
+      .findOne({ name: createGroupDto.name })
+      .exec();
+    if (existingGroup) {
+      throw new ConflictException(
+        `A group with the name ${createGroupDto.name} already exists.`,
+      );
+    }
+
+    return await this.groupModel.create(createGroupDto);
   }
 
   findAll() {
@@ -23,14 +40,18 @@ export class GroupsService {
       .exec();
   }
 
-  async update(id: Types.ObjectId, updateGroupDto: UpdateGroupDto) {
-    const updatedGroup = await this.groupModel.findByIdAndUpdate(
-      id,
-      updateGroupDto,
-      {
+  async update(id: string, updateGroupDto: UpdateGroupDto) {
+    if (!isValidObjectId(id)) {
+      throw new BadRequestException(`Invalid ID format: ${id}`);
+    }
+    if (updateGroupDto.members && Array.isArray(updateGroupDto.members)) {
+      updateGroupDto.members = [...new Set(updateGroupDto.members)];
+    }
+    const updatedGroup = await this.groupModel
+      .findByIdAndUpdate(new Types.ObjectId(id), updateGroupDto, {
         new: true,
-      },
-    ).exec;
+      })
+      .exec();
 
     if (!updatedGroup) {
       throw new NotFoundException(`Group with ID ${id} not found`);
@@ -47,15 +68,23 @@ export class GroupsService {
     return { message: `Group with ID ${id} has been removed` };
   }
 
-  async getGroupMembers(groupName: string): Promise<string[]> {
-    const group = await this.groupModel
-      .findOne({ name: { $regex: new RegExp(groupName, 'i') } })
-      .exec();
-
-    if (!group) {
-      throw new NotFoundException(`Group with name "${groupName}" not found`);
+  async getGroupMembers(groupId: string): Promise<{ data: { users: User[] } }> {
+    if (!isValidObjectId(groupId)) {
+      throw new BadRequestException(`Invalid ID format: ${groupId}`);
     }
 
-    return group.members.map(member => member.toString()); 
+    const group = await this.groupModel.findById(groupId).exec();
+    if (!group) {
+      throw new NotFoundException(`Group with ID "${groupId}" not found`);
+    }
+    console.log('Group members:', group.members);
+
+    const members = await Promise.all(
+      group.members.map((memberId) =>
+        this.usersService.findById(new Types.ObjectId(memberId)),
+      ),
+    );
+
+    return { data: { users: members.filter((user) => user !== null) } };
   }
 }

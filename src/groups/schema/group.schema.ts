@@ -3,11 +3,11 @@ import { Document, Types } from 'mongoose';
 
 @Schema({ timestamps: true })
 export class Group extends Document {
-  @Prop({ required: true, trim: true })
+  @Prop({ required: true, trim: true, unique: true })
   name: string;
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'User' }], default: [] })
-  members: Types.ObjectId[];
+  @Prop({ type: [String], default: [] })
+  members: string[];
 }
 
 export const GroupSchema = SchemaFactory.createForClass(Group);
