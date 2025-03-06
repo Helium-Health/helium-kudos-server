@@ -45,12 +45,6 @@ module.exports = {
           verifiedUser.email = verifiedUser.email.toLowerCase();
           verifiedUser.originalEmail = originalEmail; // Save the original email
 
-          // this seems redendant can we merge it with the below?
-          // await db.collection('users').updateOne(
-          //   { _id: verifiedUser._id },
-          //   { $set: { email: verifiedUser.email } },
-          //   { session }  // Include the session in the operation
-          // );
 
           // Step 2: Merge fields from unverified user
           fieldsToMerge.forEach(field => {

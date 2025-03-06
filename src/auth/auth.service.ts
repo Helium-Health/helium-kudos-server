@@ -30,13 +30,6 @@ export class AuthService {
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
     );
-    // this.auth0UserInfo = new UserInfoClient({
-    //   domain:
-    //     process.env.NODE_ENV === 'production'
-    //       ? PROD_AUTH0_DOMAIN
-    //       : STAGING_AUTH0_DOMAIN,
-    // });
-
     this.auth0UserInfo = new UserInfoClient({
       domain: process.env.AUTH0_DOMAIN,
     });
