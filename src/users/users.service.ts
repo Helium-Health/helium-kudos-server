@@ -102,7 +102,8 @@ export class UsersService {
   async findByEmail(email: string): Promise<User | null> {
     return await this.userModel
       .findOne({
-        email,
+        email: email.toLowerCase(),
+        active: true, // Ensures only active users are returned
       })
       .exec();
   }
@@ -233,7 +234,7 @@ export class UsersService {
   
   async updateByEmail(email: string, updateData: UpdateUserFromSheetDto) {
     return await this.userModel.findOneAndUpdate(
-      { email, active: true }, // Only update active users
+      { email: email.toLowerCase(), active: true }, // Only update active users
       { $set: updateData },
       { new: true },
     );
