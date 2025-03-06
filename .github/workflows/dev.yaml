@@ -17,6 +17,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set lower-case repository name
+        run: echo "REPO_LOWER=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
@@ -57,9 +60,9 @@ jobs:
 
       - name: Build and push Docker image
         run: |
-          docker build -t onemed/helium-kudos-server-staging -t ghcr.io/helium-health/${{ toLower(github.repository) }}-staging .
+          docker build -t onemed/helium-kudos-server-staging -t ghcr.io/helium-health/${{ env.REPO_LOWER }}-staging .
           docker push onemed/helium-kudos-server-staging
-          docker push ghcr.io/helium-health/${{ toLower(github.repository) }}-staging
+          docker push ghcr.io/helium-health/${{ env.REPO_LOWER }}-staging
 
       - name: Run Trivy Vulnerability Scan
         env:
@@ -71,7 +74,7 @@ jobs:
             --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
             --scanners vuln \
             --output trivy-results-image.txt \
-            onemed/helium-kudos-server-dev:latest ghcr.io/helium-health/${{ toLower(github.repository) }}-dev:latest
+            onemed/helium-kudos-server-dev:latest ghcr.io/helium-health/${{ env.REPO_LOWER }}-dev:latest
 
       - name: Upload Trivy scan results to artifacts
         uses: actions/upload-artifact@v4
