@@ -80,7 +80,7 @@ export class AuthService {
           this.logger.log(
             'Unverified user exists. Updating with Google data...',
           );
-          await this.userService.updateByEmail(
+          const updatedUser = await this.userService.updateByEmail(
             payload.email,
             {
               picture: payload.picture,
@@ -115,17 +115,15 @@ export class AuthService {
 
       if (!userExists) {
         this.logger.log('User not found. Creating...');
-        // Temporarily prevent user account creation with support for User invitation
-        // const { newUser } = await this.userService.createUser({
-        //   email: userInfo.data.email,
-        //   name: userInfo.data.name,
-        //   picture: userInfo.data.picture,
-        //   verified: userInfo.data?.email_verified || true,
-        // });
-        // userDetails = newUser;
+        const { newUser } = await this.userService.createUser({
+          email: userInfo.data.email,
+          name: userInfo.data.name,
+          picture: userInfo.data.picture,
+          verified: userInfo.data?.email_verified || true,
+        });
+        userDetails = newUser;
       } else {
         this.logger.log('User Exist ...');
-    
         if (!userExists.active) {
           this.logger.log('User Exist but not active ...');
           throw new UnauthorizedException(
