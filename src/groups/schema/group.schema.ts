@@ -6,8 +6,8 @@ export class Group extends Document {
   @Prop({ required: true, trim: true, unique: true })
   name: string;
 
-  @Prop({ type: [String], default: [] })
-  members: string[];
+  @Prop({ type: [Types.ObjectId], ref: 'User', default: [] })
+  members: Types.ObjectId[];
 }
 
 export const GroupSchema = SchemaFactory.createForClass(Group);

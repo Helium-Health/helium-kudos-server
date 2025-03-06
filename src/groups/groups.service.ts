@@ -27,7 +27,9 @@ export class GroupsService {
       );
     }
 
-    return await this.groupModel.create(createGroupDto);
+    return await this.groupModel.create({
+      name: createGroupDto.name,
+      members: createGroupDto.members.map((memberId) => new Types.ObjectId(memberId)),});
   }
 
   findAll() {
@@ -45,8 +47,11 @@ export class GroupsService {
       throw new BadRequestException(`Invalid ID format: ${id}`);
     }
     if (updateGroupDto.members && Array.isArray(updateGroupDto.members)) {
-      updateGroupDto.members = [...new Set(updateGroupDto.members)];
+      updateGroupDto.members = [...new Set(updateGroupDto.members)].map(
+        (id) => new Types.ObjectId(id),
+      );
     }
+  
     const updatedGroup = await this.groupModel
       .findByIdAndUpdate(new Types.ObjectId(id), updateGroupDto, {
         new: true,

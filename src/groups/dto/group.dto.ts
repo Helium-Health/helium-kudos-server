@@ -1,4 +1,5 @@
 import { IsOptional, IsString, IsArray, IsMongoId } from 'class-validator';
+import { Types } from 'mongoose';
 
 export class CreateGroupDto {
   @IsString()
@@ -7,7 +8,7 @@ export class CreateGroupDto {
   @IsOptional()
   @IsArray()
   @IsMongoId({ each: true })
-  members?: string[];
+  members?: Types.ObjectId[];
 }
 
 export class UpdateGroupDto {
@@ -18,5 +19,5 @@ export class UpdateGroupDto {
   @IsOptional()
   @IsArray()
   @IsMongoId({ each: true })
-  members?: string[];
+  members?: Types.ObjectId[];
 }
