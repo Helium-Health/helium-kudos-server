@@ -68,23 +68,30 @@ export class GroupsService {
     return { message: `Group with ID ${id} has been removed` };
   }
 
-  async getGroupMembers(groupId: string): Promise<{ data: { users: User[] } }> {
-    if (!isValidObjectId(groupId)) {
-      throw new BadRequestException(`Invalid ID format: ${groupId}`);
+  async getGroupMembers(groupIds: string[]): Promise<{ users: User[] }> {
+    groupIds.forEach((groupId) => {
+      if (!isValidObjectId(groupId)) {
+        throw new BadRequestException(`Invalid ID format: ${groupId}`);
+      }
+    });
+
+    const groups = await this.groupModel
+      .find({ _id: { $in: groupIds } })
+      .exec();
+    if (groups.length === 0) {
+      throw new NotFoundException(`No groups found for the given IDs`);
     }
 
-    const group = await this.groupModel.findById(groupId).exec();
-    if (!group) {
-      throw new NotFoundException(`Group with ID "${groupId}" not found`);
-    }
-    console.log('Group members:', group.members);
+    const memberIds = [...new Set(groups.flatMap((group) => group.members))];
+
+    console.log('Unique Group Members:', memberIds);
 
     const members = await Promise.all(
-      group.members.map((memberId) =>
+      memberIds.map((memberId) =>
         this.usersService.findById(new Types.ObjectId(memberId)),
       ),
     );
 
-    return { data: { users: members.filter((user) => user !== null) } };
+    return { users: members.filter((user) => user !== null) };
   }
 }

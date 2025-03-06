@@ -30,12 +30,13 @@ export class GroupsController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('members')
-  async getMembers(@Query('groupId') groupId: string) {
-    if (!groupId) {
-      throw new BadRequestException('Group ID is required');
+  @Post('members')
+  async getMembers(@Body('groupIds') groupIds: string[]) {
+    if (!groupIds || !Array.isArray(groupIds) || groupIds.length === 0) {
+      throw new BadRequestException('At least one Group ID is required');
     }
-    return this.groupsService.getGroupMembers(groupId);
+
+    return this.groupsService.getGroupMembers(groupIds);
   }
 
   @UseGuards(JwtAuthGuard)
