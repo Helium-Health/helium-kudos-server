@@ -21,6 +21,13 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Login to GHCR
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Install Trivy
         run: |
          sudo apt-get update
@@ -46,10 +53,11 @@ jobs:
             --output "trivy-results-repo.txt" \
             https://github.com/Helium-Health/helium-kudos-server
 
-      - name: Build and push  Docker image
+      - name: Build and push Docker image
         run: |
-          docker build -t onemed/helium-kudos-server-staging .
+          docker build -t onemed/helium-kudos-server-staging -t ghcr.io/${{ github.repository }}-staging .
           docker push onemed/helium-kudos-server-staging
+          docker push ghcr.io/${{ github.repository }}-staging
    
       - name: Run Trivy Vulnerability Scan
         env:
@@ -61,8 +69,7 @@ jobs:
             --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
             --scanners vuln \
             --output trivy-results-image.txt \
-            onemed/helium-kudos-server-staging:latest
-
+            onemed/helium-kudos-server-staging:latest ghcr.io/${{ github.repository }}-staging:latest
 
       - name: Upload Trivy scan results to artifacts
         uses: actions/upload-artifact@v4
@@ -87,4 +94,4 @@ jobs:
           APP_NAME: helium-kudos-server-staging
         run: |
           argocd app actions run $APP_NAME restart --kind Deployment --resource-name helium-kudos-server-staging --all
-          
+
