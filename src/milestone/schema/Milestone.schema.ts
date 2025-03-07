@@ -32,6 +32,12 @@ export class Milestone {
     required: true,
   })
   type: MilestoneType;
+
+  @Prop({ type: Date })
+  milestoneDate?: Date;
+
+  @Prop({ type: Boolean, default: false })
+  isGeneric: boolean;
 }
 
 export const MilestoneSchema = SchemaFactory.createForClass(Milestone);
