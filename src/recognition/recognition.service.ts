@@ -171,10 +171,12 @@ export class RecognitionService {
         giphyUrl,
       });
 
-      await this.notifyReceiversViaSlack(
-        new Types.ObjectId(senderId),
-        receivers,
-      );
+      await this.notifyReceiversViaSlack({
+        receivers: receivers,
+        senderId: new Types.ObjectId(senderId),
+        isAuto: false,
+        message: message,
+      });
 
       return newRecognition;
     } catch (error) {
@@ -190,11 +192,21 @@ export class RecognitionService {
     }
   }
 
-  private async notifyReceiversViaSlack(
-    senderId: Types.ObjectId,
-    receivers: CreateRecognitionDto['receivers'],
-  ) {
-    const sender = await this.usersService.findById(senderId);
+  private async notifyReceiversViaSlack({
+    receivers,
+    senderId,
+    isAuto,
+    message,
+  }: {
+    receivers: CreateRecognitionDto['receivers'];
+    senderId?: Types.ObjectId;
+    isAuto?: boolean;
+    message?: string;
+  }) {
+    const sender = senderId
+      ? await this.usersService.findById(senderId)
+      : { name: 'Helium HR' };
+
     const clientUrl =
       process.env.NODE_ENV === 'production'
         ? PRODUCTION_CLIENT
@@ -209,7 +221,9 @@ export class RecognitionService {
           receiverUser.email,
         );
         if (slackUserId) {
-          const notificationMessage = `🌟 Hey ${receiverUser.name}!\n\n ${sender.name} just recognized your awesome work!\n\nCheck it out here: ${clientUrl}`;
+          const notificationMessage = isAuto
+            ? `${message} \n\nLogin to Helium Kudos to start shopping with you gifted coins: ${clientUrl}`
+            : `🌟 Hey ${receiverUser.name}!\n\n ${sender.name} just recognized your awesome work!\n\nCheck it out here: ${clientUrl}`;
           await this.slackService.sendDirectMessage(
             slackUserId,
             notificationMessage,
@@ -331,6 +345,16 @@ export class RecognitionService {
         recognitionType: EntityType.RECOGNITION,
         receivers: receiverId,
         amount: coinAmount,
+      });
+
+      await this.notifyReceiversViaSlack({
+        receivers: receiverId.map(({ receiverId }) => ({
+          receiverId: receiverId.toString(),
+          coinAmount,
+        })),
+        senderId: null,
+        isAuto: true,
+        message,
       });
 
       return newRecognition;
