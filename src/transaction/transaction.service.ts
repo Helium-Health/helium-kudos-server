@@ -7,7 +7,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, Types } from 'mongoose';
 import {
   EntityType,
-  transactionStatus,
+  TransactionStatus,
   Transaction,
   TransactionType,
   TransactionDocument,
@@ -33,7 +33,7 @@ export class TransactionService {
         entityType: transaction.entityType,
         entityId: transaction.entityId,
         relatedUserId: transaction.receiverId,
-        status: transactionStatus.SUCCESS,
+        status: TransactionStatus.SUCCESS,
         claimId: transaction.claimId,
       });
 
@@ -52,17 +52,18 @@ export class TransactionService {
       amount: number;
       entityId: Types.ObjectId;
       entityType: EntityType;
+      status: TransactionStatus;
+      type: TransactionType;
     },
     session: ClientSession,
   ) {
     const creditTransaction = new this.transactionModel({
       userId: transaction.receiverId,
       amount: transaction.amount,
-      claimId: transaction.entityId,
-      status: transactionStatus.SUCCESS,
-      type: TransactionType.CREDIT,
+      status: transaction.status,
       entityType: transaction.entityType,
       entityId: transaction.entityId,
+      type: transaction.type,
       isAuto: true,
     });
 
@@ -128,7 +129,7 @@ export class TransactionService {
         $match: {
           entityType: EntityType.RECOGNITION,
           $or: [
-            { status: { $ne: transactionStatus.SUCCESS } },
+            { status: { $ne: TransactionStatus.SUCCESS } },
             { relatedUserId: { $exists: false } },
           ],
         },
@@ -150,7 +151,7 @@ export class TransactionService {
     return this.transactionModel.countDocuments({
       entityType: EntityType.RECOGNITION,
       type: TransactionType.CREDIT,
-      status: transactionStatus.SUCCESS,
+      status: TransactionStatus.SUCCESS,
     });
   }
 
@@ -163,7 +164,7 @@ export class TransactionService {
           $match: {
             entityType: EntityType.RECOGNITION,
             type: TransactionType.CREDIT,
-            status: transactionStatus.SUCCESS,
+            status: TransactionStatus.SUCCESS,
           },
         },
         {
@@ -184,7 +185,7 @@ export class TransactionService {
         $match: {
           entityType: EntityType.RECOGNITION,
           type: TransactionType.CREDIT,
-          status: transactionStatus.SUCCESS,
+          status: TransactionStatus.SUCCESS,
         },
       },
       {
