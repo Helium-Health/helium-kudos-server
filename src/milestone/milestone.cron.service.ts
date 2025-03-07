@@ -101,8 +101,6 @@ export class MilestoneCronService {
 
 
   private static readonly cronExpression: string =process.env.NODE_ENV === 'development' ? '0 15 5 3 *' : '0 8 7 3 *';
-  
-
 
   @Cron(MilestoneCronService.cronExpression)
   async handleEmployeeAppreciationDayRecognitions() {
