@@ -201,6 +201,10 @@ export class RecognitionService {
         ? PRODUCTION_CLIENT
         : STAGING_CLIENT;
 
+    const formattedMessage = isAuto
+      ? `${message} \n\nYou have received coins to celebrate your day!\n\nLogin to Helium Kudos to start shopping: ${clientUrl}`
+      : `${message} \n\n✨: ${sender?.name} \n\n🔗 Check it out here: ${clientUrl}`;
+
     for (const receiver of receivers) {
       const receiverUser = await this.usersService.findById(
         new Types.ObjectId(receiver.receiverId),
@@ -210,12 +214,9 @@ export class RecognitionService {
           receiverUser.email,
         );
         if (slackUserId) {
-          const notificationMessage = isAuto
-            ? `${message} \n\n✨: Helium HR \n\n🔗 Check it out here: ${clientUrl}`
-            : `${message} \n\n✨: ${sender.name} \n\n🔗 Check it out here: ${clientUrl}`;
           await this.slackService.sendDirectMessage(
             slackUserId,
-            notificationMessage,
+            formattedMessage,
           );
         }
       }
