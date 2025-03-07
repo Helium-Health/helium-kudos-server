@@ -30,13 +30,6 @@ export class AuthService {
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
     );
-    // this.auth0UserInfo = new UserInfoClient({
-    //   domain:
-    //     process.env.NODE_ENV === 'production'
-    //       ? PROD_AUTH0_DOMAIN
-    //       : STAGING_AUTH0_DOMAIN,
-    // });
-
     this.auth0UserInfo = new UserInfoClient({
       domain: process.env.AUTH0_DOMAIN,
     });
@@ -125,7 +118,6 @@ export class AuthService {
         // userDetails = newUser;
       } else {
         this.logger.log('User Exist ...');
-    
         if (!userExists.active) {
           this.logger.log('User Exist but not active ...');
           throw new UnauthorizedException(
@@ -137,7 +129,7 @@ export class AuthService {
           this.logger.log(
             'Unverified user exists. Updating with Auth0 data...',
           );
-          const updatedUser = await this.userService.updateByEmail(
+          await this.userService.updateByEmail(
             userInfo.data.email,
             {
               picture: userInfo.data.picture,

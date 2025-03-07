@@ -17,11 +17,18 @@ import { UpdateMilestoneDto } from './dto/update-milestone.dto';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
 import { MilestoneType } from './schema/Milestone.schema';
+import { MilestoneCronService } from './milestone.cron.service';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Milestone')
+@ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('milestone')
 export class MilestoneController {
-  constructor(private readonly milestoneService: MilestoneService) {}
+  constructor(
+    private readonly milestoneService: MilestoneService,
+    private readonly milestoneCronService: MilestoneCronService,
+  ) {}
 
   @UseGuards(AdminGuard)
   @Post()
@@ -65,4 +72,42 @@ export class MilestoneController {
   ) {
     return this.milestoneService.update(milestoneId, updateMilestoneDto);
   }
+
+  // Trigger milestone recognition manually
+  // Hide endpoints in production
+  // @Post('trigger-birthday')
+  // async triggerBirthdayRecognitions() {
+  //   await this.milestoneCronService.handleBirthdayRecognitions();
+  //   return { message: 'Birthday recognitions triggered successfully' };
+  // }
+
+  // @Post('trigger-work-anniversary')
+  // async triggerWorkAnniversaryRecognitions() {
+  //   await this.milestoneCronService.handleWorkAnniversaryRecognitions();
+  //   return { message: 'Work anniversary recognitions triggered successfully' };
+  // }
+
+  // @Post('trigger-mens-day')
+  // async triggerMensDayRecognitions() {
+  //   await this.milestoneCronService.handleMensDayRecognitions();
+  //   return {
+  //     message: "International Men's Day recognitions triggered successfully",
+  //   };
+  // }
+
+  // @Post('trigger-womens-day')
+  // async triggerWomensDayRecognitions() {
+  //   await this.milestoneCronService.handleWomensDayRecognitions();
+  //   return {
+  //     message: "International Women's Day recognitions triggered successfully",
+  //   };
+  // }
+
+  // @Post('trigger-employee-appreciation')
+  // async triggerEmployeeAppreciationRecognitions() {
+  //   await this.milestoneCronService.handleEmployeeAppreciationDayRecognitions();
+  //   return {
+  //     message: 'Employee Appreciation Day recognitions triggered successfully',
+  //   };
+  // }
 }
