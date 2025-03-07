@@ -15,7 +15,8 @@ export class MilestoneCronService {
     private readonly milestoneService: MilestoneService,
   ) {}
 
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  // @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  @Cron(CronExpression.EVERY_MINUTE)
   async handleBirthdayRecognitions() {
     const birthdayMilestone = await this.milestoneService.findByType(
       MilestoneType.BIRTHDAY,
@@ -99,8 +100,8 @@ export class MilestoneCronService {
     }
   }
 
-
-  private static readonly cronExpression: string =process.env.NODE_ENV === 'development' ? '0 15 5 3 *' : '0 8 7 3 *';
+  private static readonly cronExpression: string =
+    process.env.NODE_ENV === 'development' ? '0 15 5 3 *' : '0 8 7 3 *';
 
   @Cron(MilestoneCronService.cronExpression)
   async handleEmployeeAppreciationDayRecognitions() {

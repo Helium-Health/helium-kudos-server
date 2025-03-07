@@ -162,11 +162,12 @@ export class RecognitionService {
         giphyUrl,
       });
 
-      await this.notifyReceiversViaSlack(
-        receivers,
-        new Types.ObjectId(senderId),
-        false,
-      );
+      await this.notifyReceiversViaSlack({
+        receivers: receivers,
+        senderId: new Types.ObjectId(senderId),
+        isAuto: false,
+        message: message,
+      });
 
       return newRecognition;
     } catch (error) {
@@ -182,11 +183,17 @@ export class RecognitionService {
     }
   }
 
-  private async notifyReceiversViaSlack(
-    receivers: CreateRecognitionDto['receivers'],
-    senderId?: Types.ObjectId,
-    isAuto?: Boolean,
-  ) {
+  private async notifyReceiversViaSlack({
+    receivers,
+    senderId,
+    isAuto,
+    message,
+  }: {
+    receivers: CreateRecognitionDto['receivers'];
+    senderId?: Types.ObjectId;
+    isAuto?: boolean;
+    message?: string;
+  }) {
     const sender = await this.usersService.findById(senderId);
 
     const clientUrl =
@@ -204,8 +211,8 @@ export class RecognitionService {
         );
         if (slackUserId) {
           const notificationMessage = isAuto
-            ? `🌟 Hey ${receiverUser.name}!\n\n You have received a recognition from Helium HR!\n\nCheck it out here: ${clientUrl}`
-            : `🌟 Hey ${receiverUser.name}!\n\n ${sender.name} just recognized your awesome work!\n\nCheck it out here: ${clientUrl}`;
+            ? `${message} \n\n✨: Helium HR \n\n🔗 Check it out here: ${clientUrl}`
+            : `${message} \n\n✨: ${sender.name} \n\n🔗 Check it out here: ${clientUrl}`;
           await this.slackService.sendDirectMessage(
             slackUserId,
             notificationMessage,
@@ -327,14 +334,15 @@ export class RecognitionService {
         amount: coinAmount,
       });
 
-      await this.notifyReceiversViaSlack(
-        receiverId.map(({ receiverId }) => ({
+      await this.notifyReceiversViaSlack({
+        receivers: receiverId.map(({ receiverId }) => ({
           receiverId: receiverId.toString(),
           coinAmount,
         })),
-        null,
-        true,
-      );
+        senderId: null,
+        isAuto: true,
+        message,
+      });
 
       return newRecognition;
     } catch (error) {
