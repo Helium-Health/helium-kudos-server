@@ -10,6 +10,8 @@ import { RecognitionSchema, Recognition } from './schema/Recognition.schema';
 import { ClaimModule } from 'src/claim/claim.module';
 import { RecognitionGateway } from './recognition.gateway';
 import { SlackModule } from 'src/slack/slack.module';
+import { CommentModule } from 'src/comment/comment.module';
+import { ReactionsModule } from 'src/reactions/reactions.module';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { SlackModule } from 'src/slack/slack.module';
     forwardRef(() => ClaimModule),
     UsersModule,
     SlackModule,
+    forwardRef(() => CommentModule),
+    forwardRef(() => ReactionsModule),
   ],
   controllers: [RecognitionController],
   providers: [RecognitionService, RecognitionGateway],

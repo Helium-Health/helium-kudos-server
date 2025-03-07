@@ -22,7 +22,10 @@ import { Recognition } from './schema/Recognition.schema';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 import { Types } from 'mongoose';
 import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Recognition')
+@ApiBearerAuth()
 @Controller('recognition')
 @UseGuards(JwtAuthGuard)
 export class RecognitionController {
@@ -81,6 +84,13 @@ export class RecognitionController {
     return this.recognitionService.deleteRecognition(
       new Types.ObjectId(recognitionId),
       new Types.ObjectId(userId),
+    );
+  }
+
+  @Delete('auto/:id')
+  async deleteAutoRecognition(@Param('id') recognitionId: string) {
+    return this.recognitionService.deleteAutoRecognition(
+      new Types.ObjectId(recognitionId),
     );
   }
 }

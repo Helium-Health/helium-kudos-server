@@ -220,7 +220,7 @@ export class ClaimService {
         0,
       );
 
-      await this.walletService.refundGiveableBalance(
+      await this.walletService.incrementGiveableBalance(
         claim.senderId,
         totalCoinAmount,
         session,

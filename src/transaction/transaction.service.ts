@@ -53,16 +53,17 @@ export class TransactionService {
       entityId: Types.ObjectId;
       entityType: EntityType;
       status: TransactionStatus;
+      type: TransactionType;
     },
     session: ClientSession,
   ) {
     const creditTransaction = new this.transactionModel({
       userId: transaction.receiverId,
       amount: transaction.amount,
-      status: TransactionStatus.SUCCESS,
-      type: TransactionType.CREDIT,
+      status: transaction.status,
       entityType: transaction.entityType,
       entityId: transaction.entityId,
+      type: transaction.type,
       isAuto: true,
     });
 

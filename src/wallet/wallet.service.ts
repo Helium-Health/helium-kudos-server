@@ -46,7 +46,7 @@ export class WalletService {
       });
   }
 
-  async refundGiveableBalance(
+  async incrementGiveableBalance(
     userId: Types.ObjectId,
     amount: number,
     session: ClientSession,
