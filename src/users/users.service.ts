@@ -232,7 +232,7 @@ export class UsersService {
   async getAllUsers(): Promise<UserDocument[]> {
     return await this.userModel.find({});
   }
-  
+
   async updateByEmail(email: string, updateData: UpdateUserFromSheetDto) {
     return await this.userModel.findOneAndUpdate(
       { email, active: true }, // Only update active users
@@ -330,28 +330,52 @@ export class UsersService {
         },
       },
       { $unwind: '$celebrations' },
-    ];
 
-    if (month) {
-      pipeline.push({
-        $match: {
-          $expr: {
-            $or: [
-              { $eq: [{ $month: '$celebrations.date' }, month] }, 
-              { $eq: [{ $month: '$celebrations.date' }, (month % 12) + 1] }, 
-            ],
-          },
+      {
+        $unionWith: {
+          coll: 'milestones',
+          pipeline: [
+            {
+              $match: {
+                milestoneDate: { $gte: new Date(todayISOString) },
+                isActive: true,
+              },
+            },
+            {
+              $project: {
+                name: '$title',
+                picture: null,
+                celebrations: {
+                  celebrationType: '',
+                  date: '$milestoneDate',
+                },
+              },
+            },
+          ],
         },
-      });
-    }
+      },
 
-    if (celebrationType) {
-      pipeline.push({
-        $match: { 'celebrations.celebrationType': celebrationType },
-      });
-    }
+      ...(month
+        ? [
+            {
+              $match: {
+                $expr: {
+                  $or: [
+                    { $eq: [{ $month: '$celebrations.date' }, month] },
+                    {
+                      $eq: [{ $month: '$celebrations.date' }, (month % 12) + 1],
+                    },
+                  ],
+                },
+              },
+            },
+          ]
+        : []),
 
-    pipeline.push(
+      ...(celebrationType
+        ? [{ $match: { 'celebrations.celebrationType': celebrationType } }]
+        : []),
+
       { $sort: { 'celebrations.date': 1 } },
       {
         $facet: {
@@ -359,7 +383,7 @@ export class UsersService {
           count: [{ $count: 'totalCelebrations' }],
         },
       },
-    );
+    ];
 
     const [result] = await this.userModel.aggregate(pipeline);
 
