@@ -23,8 +23,8 @@ jobs:
 
       - name: Build and push  Docker image
         run: |
-          docker build -t onemed/helium-kudos-server-prod .
-          docker push onemed/helium-kudos-server-prod
+          docker build -t 1med/helium-kudos-server-prod .
+          docker push 1med/helium-kudos-server-prod
 
 
       # - name: Set up ArgoCD CLI

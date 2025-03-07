@@ -63,6 +63,9 @@ export class User {
 
   @Prop({type: Boolean, default: true})
   active: boolean;
+
+  @Prop({ type: String})
+  originalEmail: string;
 }
 
 // Create schema using the class

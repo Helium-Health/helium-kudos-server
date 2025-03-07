@@ -48,8 +48,8 @@ jobs:
 
       - name: Build and push  Docker image
         run: |
-          docker build -t onemed/helium-kudos-server-dev .
-          docker push onemed/helium-kudos-server-dev
+          docker build -t 1med/helium-kudos-server-dev .
+          docker push 1med/helium-kudos-server-dev
    
       - name: Run Trivy Vulnerability Scan
         env:
@@ -61,7 +61,7 @@ jobs:
             --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
             --scanners vuln \
             --output trivy-results-image.txt \
-            onemed/helium-kudos-server-staging:latest
+            1med/helium-kudos-server-staging:latest
 
 
       - name: Upload Trivy scan results to artifacts
