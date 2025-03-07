@@ -163,8 +163,9 @@ export class RecognitionService {
       });
 
       await this.notifyReceiversViaSlack(
-        new Types.ObjectId(senderId),
         receivers,
+        new Types.ObjectId(senderId),
+        false,
       );
 
       return newRecognition;
@@ -182,10 +183,12 @@ export class RecognitionService {
   }
 
   private async notifyReceiversViaSlack(
-    senderId: Types.ObjectId,
     receivers: CreateRecognitionDto['receivers'],
+    senderId?: Types.ObjectId,
+    isAuto?: Boolean,
   ) {
     const sender = await this.usersService.findById(senderId);
+
     const clientUrl =
       process.env.NODE_ENV === 'production'
         ? PRODUCTION_CLIENT
@@ -200,7 +203,9 @@ export class RecognitionService {
           receiverUser.email,
         );
         if (slackUserId) {
-          const notificationMessage = `🌟 Hey ${receiverUser.name}!\n\n ${sender.name} just recognized your awesome work!\n\nCheck it out here: ${clientUrl}`;
+          const notificationMessage = isAuto
+            ? `🌟 Hey ${receiverUser.name}!\n\n You have received a recognition from Helium HR!\n\nCheck it out here: ${clientUrl}`
+            : `🌟 Hey ${receiverUser.name}!\n\n ${sender.name} just recognized your awesome work!\n\nCheck it out here: ${clientUrl}`;
           await this.slackService.sendDirectMessage(
             slackUserId,
             notificationMessage,
@@ -321,6 +326,15 @@ export class RecognitionService {
         receivers: receiverId,
         amount: coinAmount,
       });
+
+      await this.notifyReceiversViaSlack(
+        receiverId.map(({ receiverId }) => ({
+          receiverId: receiverId.toString(),
+          coinAmount,
+        })),
+        null,
+        true,
+      );
 
       return newRecognition;
     } catch (error) {
