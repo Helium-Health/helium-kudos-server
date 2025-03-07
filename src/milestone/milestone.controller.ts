@@ -74,39 +74,40 @@ export class MilestoneController {
   }
 
   // Trigger milestone recognition manually
-  @Post('trigger-birthday')
-  async triggerBirthdayRecognitions() {
-    await this.milestoneCronService.handleBirthdayRecognitions();
-    return { message: 'Birthday recognitions triggered successfully' };
-  }
+  // Hide endpoints in production
+  // @Post('trigger-birthday')
+  // async triggerBirthdayRecognitions() {
+  //   await this.milestoneCronService.handleBirthdayRecognitions();
+  //   return { message: 'Birthday recognitions triggered successfully' };
+  // }
 
-  @Post('trigger-work-anniversary')
-  async triggerWorkAnniversaryRecognitions() {
-    await this.milestoneCronService.handleWorkAnniversaryRecognitions();
-    return { message: 'Work anniversary recognitions triggered successfully' };
-  }
+  // @Post('trigger-work-anniversary')
+  // async triggerWorkAnniversaryRecognitions() {
+  //   await this.milestoneCronService.handleWorkAnniversaryRecognitions();
+  //   return { message: 'Work anniversary recognitions triggered successfully' };
+  // }
 
-  @Post('trigger-mens-day')
-  async triggerMensDayRecognitions() {
-    await this.milestoneCronService.handleMensDayRecognitions();
-    return {
-      message: "International Men's Day recognitions triggered successfully",
-    };
-  }
+  // @Post('trigger-mens-day')
+  // async triggerMensDayRecognitions() {
+  //   await this.milestoneCronService.handleMensDayRecognitions();
+  //   return {
+  //     message: "International Men's Day recognitions triggered successfully",
+  //   };
+  // }
 
-  @Post('trigger-womens-day')
-  async triggerWomensDayRecognitions() {
-    await this.milestoneCronService.handleWomensDayRecognitions();
-    return {
-      message: "International Women's Day recognitions triggered successfully",
-    };
-  }
+  // @Post('trigger-womens-day')
+  // async triggerWomensDayRecognitions() {
+  //   await this.milestoneCronService.handleWomensDayRecognitions();
+  //   return {
+  //     message: "International Women's Day recognitions triggered successfully",
+  //   };
+  // }
 
-  @Post('trigger-employee-appreciation')
-  async triggerEmployeeAppreciationRecognitions() {
-    await this.milestoneCronService.handleEmployeeAppreciationDayRecognitions();
-    return {
-      message: 'Employee Appreciation Day recognitions triggered successfully',
-    };
-  }
+  // @Post('trigger-employee-appreciation')
+  // async triggerEmployeeAppreciationRecognitions() {
+  //   await this.milestoneCronService.handleEmployeeAppreciationDayRecognitions();
+  //   return {
+  //     message: 'Employee Appreciation Day recognitions triggered successfully',
+  //   };
+  // }
 }
