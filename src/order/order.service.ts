@@ -12,7 +12,7 @@ import { CreateOrderDto, ProductDataDto } from './dto/order.dto';
 import { TransactionService } from 'src/transaction/transaction.service';
 import {
   EntityType,
-  transactionStatus,
+  TransactionStatus,
 } from 'src/transaction/schema/Transaction.schema';
 import { UsersService } from 'src/users/users.service';
 import { UserRole } from 'src/users/schema/User.schema';
@@ -120,7 +120,7 @@ export class OrderService {
           entityId: order._id as Types.ObjectId,
           receiverId: null,
           claimId: order._id as Types.ObjectId,
-          status: transactionStatus.SUCCESS,
+          status: TransactionStatus.SUCCESS,
         },
         session,
       );
@@ -324,7 +324,7 @@ export class OrderService {
           entityType: EntityType.ORDER,
           entityId: order.id,
           senderId: null,
-          status: transactionStatus.SUCCESS,
+          status: TransactionStatus.SUCCESS,
           claimId: order.id,
         },
         session,
@@ -420,7 +420,7 @@ export class OrderService {
           entityType: EntityType.ORDER,
           entityId: order.id,
           senderId: null,
-          status: transactionStatus.SUCCESS,
+          status: TransactionStatus.SUCCESS,
           claimId: order.id,
         },
         session,

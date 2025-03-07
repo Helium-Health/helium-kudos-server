@@ -21,7 +21,7 @@ import { WalletService } from 'src/wallet/wallet.service';
 import { TransactionService } from 'src/transaction/transaction.service';
 import {
   EntityType,
-  transactionStatus,
+  TransactionStatus,
 } from 'src/transaction/schema/Transaction.schema';
 
 @Injectable()
@@ -426,7 +426,7 @@ export class MissionService {
             entityType: EntityType.MISSION,
             entityId: missionId,
             senderId: new Types.ObjectId(winner.winnerId),
-            status: transactionStatus.SUCCESS,
+            status: TransactionStatus.SUCCESS,
             claimId: missionId,
           },
           session,
