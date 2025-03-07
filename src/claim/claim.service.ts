@@ -9,7 +9,7 @@ import {
 import { ClientSession, Model, Types } from 'mongoose';
 import {
   EntityType,
-  transactionStatus,
+  TransactionStatus,
 } from 'src/transaction/schema/Transaction.schema';
 import { TransactionService } from 'src/transaction/transaction.service';
 import { WalletService } from 'src/wallet/wallet.service';
@@ -76,7 +76,7 @@ export class ClaimService {
           entityId: recognitionId,
           entityType: EntityType.RECOGNITION,
           claimId: claim._id as Types.ObjectId,
-          status: transactionStatus.SUCCESS,
+          status: TransactionStatus.SUCCESS,
         },
         session,
       );
@@ -120,7 +120,7 @@ export class ClaimService {
             entityId: new Types.ObjectId(claim.recognitionId),
             entityType: EntityType.RECOGNITION,
             claimId: claim._id as Types.ObjectId,
-            status: transactionStatus.SUCCESS,
+            status: TransactionStatus.SUCCESS,
           },
           session,
         );
@@ -166,7 +166,7 @@ export class ClaimService {
               entityId: new Types.ObjectId(claim.recognitionId),
               entityType: EntityType.RECOGNITION,
               claimId: claim._id as Types.ObjectId,
-              status: transactionStatus.SUCCESS,
+              status: TransactionStatus.SUCCESS,
             },
             session,
           );
@@ -209,7 +209,7 @@ export class ClaimService {
             entityId: new Types.ObjectId(claim.recognitionId),
             entityType: EntityType.RECOGNITION,
             claimId: claim._id as Types.ObjectId,
-            status: transactionStatus.REVERSED,
+            status: TransactionStatus.REVERSED,
           },
           session,
         );
@@ -220,7 +220,7 @@ export class ClaimService {
         0,
       );
 
-      await this.walletService.refundGiveableBalance(
+      await this.walletService.incrementGiveableBalance(
         claim.senderId,
         totalCoinAmount,
         session,

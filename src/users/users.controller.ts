@@ -24,7 +24,7 @@ import { UserSyncService } from './user-sync.service';
 import { Types } from 'mongoose';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
-@ApiTags('Auth')
+@ApiTags('User')
 @ApiBearerAuth()
 @Controller('users')
 @UseGuards(JwtAuthGuard)
