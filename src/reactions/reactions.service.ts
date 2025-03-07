@@ -1,10 +1,12 @@
 import {
   ConflictException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
-import { Connection, Model, Types } from 'mongoose';
+import { ClientSession, Connection, Model, Types } from 'mongoose';
 import { Reaction } from './schema/reactions.schema';
 import { UsersService } from 'src/users/users.service';
 import { RecognitionService } from 'src/recognition/recognition.service';
@@ -14,8 +16,10 @@ export class ReactionService {
   constructor(
     @InjectModel(Reaction.name) private reactionModel: Model<Reaction>,
     private userService: UsersService,
-    private recognitionService: RecognitionService,
     @InjectConnection() private readonly connection: Connection,
+
+    @Inject(forwardRef(() => RecognitionService))
+    private readonly recognitionService: RecognitionService,
   ) {}
 
   async addReaction(
@@ -108,5 +112,14 @@ export class ReactionService {
     } finally {
       session.endSession();
     }
+  }
+  async deleteMany(
+    recognitionId: Types.ObjectId,
+    session: ClientSession,
+  ): Promise<{ deletedCount: number }> {
+    return this.reactionModel.deleteMany(
+      { recognitionId: recognitionId },
+      { session },
+    );
   }
 }
