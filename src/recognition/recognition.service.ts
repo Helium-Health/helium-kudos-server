@@ -22,7 +22,8 @@ import { CompanyValues } from 'src/constants/companyValues';
 import { Reaction } from 'src/reactions/schema/reactions.schema';
 import {
   EntityType,
-  transactionStatus,
+  TransactionStatus,
+  TransactionType,
 } from 'src/transaction/schema/Transaction.schema';
 import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
 import { ClaimService } from 'src/claim/claim.service';
@@ -31,6 +32,8 @@ import { RecognitionGateway } from './recognition.gateway';
 import { UserRole } from 'src/users/schema/User.schema';
 import { SlackService } from 'src/slack/slack.service';
 import { PRODUCTION_CLIENT, STAGING_CLIENT } from 'src/constants';
+import { CommentService } from 'src/comment/comment.service';
+import { ReactionService } from 'src/reactions/reactions.service';
 
 @Injectable()
 export class RecognitionService {
@@ -45,6 +48,12 @@ export class RecognitionService {
     private readonly usersService: UsersService,
     private readonly slackService: SlackService,
     private readonly transactionService: TransactionService,
+
+    @Inject(forwardRef(() => CommentService))
+    private readonly commentService: CommentService,
+
+    @Inject(forwardRef(() => ReactionService))
+    private readonly reactionService: ReactionService,
   ) {}
 
   async createRecognition(
@@ -212,10 +221,12 @@ export class RecognitionService {
           receiverUser.email,
         );
         if (slackUserId) {
-          const formattedMessage = `${message} \n\n✨ ${sender.name} \n\n🔗 Check it out here: ${clientUrl}`;
+          const notificationMessage = isAuto
+            ? `${message} \n\nLogin to Helium Kudos to start shopping with you gifted coins: ${clientUrl}`
+            : `🌟 Hey ${receiverUser.name}!\n\n ${sender.name} just recognized your awesome work!\n\nCheck it out here: ${clientUrl}`;
           await this.slackService.sendDirectMessage(
             slackUserId,
-            formattedMessage,
+            notificationMessage,
           );
         }
       }
@@ -310,6 +321,8 @@ export class RecognitionService {
                 amount: coinAmount,
                 entityId: newRecognition._id,
                 entityType: EntityType.RECOGNITION,
+                status: TransactionStatus.SUCCESS,
+                type: TransactionType.CREDIT,
               },
               session,
             )
@@ -345,6 +358,73 @@ export class RecognitionService {
       });
 
       return newRecognition;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  async deleteAutoRecognition(recognitionId: Types.ObjectId): Promise<string> {
+    const session = await this.recognitionModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      const recognition = await this.recognitionModel
+        .findById(recognitionId)
+        .session(session);
+
+      if (!recognition) {
+        throw new NotFoundException('Recognition not found');
+      }
+
+      if (!recognition.isAuto) {
+        throw new BadRequestException(
+          'This recognition is not an auto-generated recognition',
+        );
+      }
+
+      // Reverse wallet balances for each receiver
+      for (const receiver of recognition.receivers) {
+        if (receiver.coinAmount > 0) {
+          await this.walletService.incrementEarnedBalance(
+            receiver.receiverId,
+            -receiver.coinAmount,
+            session,
+          );
+
+          // Record reversal transaction
+          await this.transactionService.recordAutoTransaction(
+            {
+              receiverId: receiver.receiverId,
+              amount: -receiver.coinAmount,
+              entityId: recognitionId,
+              entityType: EntityType.RECOGNITION,
+              status: TransactionStatus.REVERSED,
+              type: TransactionType.DEBIT,
+            },
+            session,
+          );
+        }
+      }
+
+      // Delete the recognition
+      await this.recognitionModel
+        .deleteOne({ _id: recognitionId })
+        .session(session);
+
+      // Delete associated user recognitions
+      await this.userRecognitionService.deleteMany(recognitionId, session);
+
+      // Delete associated reactions
+      await this.reactionService.deleteMany(recognitionId, session);
+
+      // Delete associated comments
+      await this.commentService.deleteMany(recognitionId, session);
+
+      await session.commitTransaction();
+      return 'Auto-recognition and associated records deleted successfully';
     } catch (error) {
       await session.abortTransaction();
       throw error;
@@ -1232,8 +1312,15 @@ export class RecognitionService {
       const recognition = await this.recognitionModel
         .findById(recognitionId)
         .session(session);
+
       if (!recognition) {
         throw new BadRequestException('Recognition not found');
+      }
+
+      if (recognition.isAuto) {
+        throw new BadRequestException(
+          'Cannot delete auto-generated recognitions through this endpoint',
+        );
       }
 
       if (!recognition.senderId.equals(userId)) {
@@ -1265,7 +1352,7 @@ export class RecognitionService {
               entityId: new Types.ObjectId(claim.recognitionId),
               entityType: EntityType.RECOGNITION,
               claimId: claim._id as Types.ObjectId,
-              status: transactionStatus.REVERSED,
+              status: TransactionStatus.REVERSED,
             },
             session,
           );
@@ -1276,7 +1363,7 @@ export class RecognitionService {
           0,
         );
 
-        await this.walletService.refundGiveableBalance(
+        await this.walletService.incrementGiveableBalance(
           claim.senderId,
           totalCoinAmount,
           session,

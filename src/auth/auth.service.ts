@@ -14,7 +14,9 @@ import { OAuth2Client } from 'google-auth-library';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { UserInfoClient } from 'auth0';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('User')
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);

@@ -13,7 +13,7 @@ export enum EntityType {
   ORDER = 'order',
   MISSION = 'mission'
 }
-export enum transactionStatus {
+export enum TransactionStatus {
   SUCCESS = 'success',
   FAILED = 'failed',
   REVERSED = 'reversed',
@@ -39,10 +39,10 @@ export class Transaction {
   @Prop({ type: Types.ObjectId, ref: 'User', required: false })
   relatedUserId?: Types.ObjectId;
 
-  @Prop({ type: String, enum: transactionStatus, required: true })
-  status: transactionStatus;
+  @Prop({ type: String, enum: TransactionStatus, required: true })
+  status: TransactionStatus;
 
-  @Prop({ type: Types.ObjectId, ref: 'Claim', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'Claim' })
   claimId: Types.ObjectId;
 
   @Prop({ type: Date, default: Date.now })

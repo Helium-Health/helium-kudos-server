@@ -99,8 +99,10 @@ export class MilestoneCronService {
     }
   }
 
-  private static readonly cronExpression: string =
-    process.env.NODE_ENV === 'development' ? '0 15 5 3 *' : '0 8 7 3 *';
+
+  private static readonly cronExpression: string =process.env.NODE_ENV === 'development' ? '0 15 5 3 *' //5:15 AM on March 5th
+   : '0 8 7 3 *' // 8:00 AM on March 7th
+   ;
 
   @Cron(MilestoneCronService.cronExpression)
   async handleEmployeeAppreciationDayRecognitions() {
