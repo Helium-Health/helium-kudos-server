@@ -29,7 +29,10 @@ export class GroupsService {
 
     return await this.groupModel.create({
       name: createGroupDto.name,
-      members: createGroupDto.members.map((memberId) => new Types.ObjectId(memberId)),});
+      members: createGroupDto.members.map(
+        (memberId) => new Types.ObjectId(memberId),
+      ),
+    });
   }
 
   findAll() {
@@ -51,7 +54,7 @@ export class GroupsService {
         (id) => new Types.ObjectId(id),
       );
     }
-  
+
     const updatedGroup = await this.groupModel
       .findByIdAndUpdate(new Types.ObjectId(id), updateGroupDto, {
         new: true,
@@ -88,8 +91,6 @@ export class GroupsService {
     }
 
     const memberIds = [...new Set(groups.flatMap((group) => group.members))];
-
-    console.log('Unique Group Members:', memberIds);
 
     const members = await Promise.all(
       memberIds.map((memberId) =>
