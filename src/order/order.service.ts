@@ -12,7 +12,7 @@ import { CreateOrderDto, ProductDataDto } from './dto/order.dto';
 import { TransactionService } from 'src/transaction/transaction.service';
 import {
   EntityType,
-  transactionStatus,
+  TransactionStatus,
 } from 'src/transaction/schema/Transaction.schema';
 import { UsersService } from 'src/users/users.service';
 import { UserRole } from 'src/users/schema/User.schema';
@@ -43,6 +43,11 @@ export class OrderService {
           );
         }
 
+        if (product.stock < data.quantity) {
+          throw new BadRequestException(
+            `No enough stock for ${product.name}`,
+          );
+        }
         let price = product.basePrice;
         const matchedVariants = [];
 
@@ -115,16 +120,26 @@ export class OrderService {
           entityId: order._id as Types.ObjectId,
           receiverId: null,
           claimId: order._id as Types.ObjectId,
-          status: transactionStatus.SUCCESS,
+          status: TransactionStatus.SUCCESS,
         },
         session,
       );
+
+      for (const item of order.items) {
+        await this.productService.deductStock(
+          item.productId,
+          item.variants,
+          item.quantity,
+          session,
+        );
+      }
+
       await session.commitTransaction();
       return order;
     } catch (error) {
       console.error('Order placement failed:', error);
       await session.abortTransaction();
-      throw new BadRequestException('Order placement failed');
+      throw new BadRequestException('Order placement failed', error.message);
     } finally {
       session.endSession();
     }
@@ -268,14 +283,6 @@ export class OrderService {
       order.expectedDeliveryDate = new Date(expectedDeliveryDate);
       await order.save({ session });
 
-      for (const item of order.items) {
-        await this.productService.deductStock(
-          item.productId,
-          item.variants,
-          item.quantity,
-          session,
-        );
-      }
       await session.commitTransaction();
       session.endSession();
       return {
@@ -317,7 +324,7 @@ export class OrderService {
           entityType: EntityType.ORDER,
           entityId: order.id,
           senderId: null,
-          status: transactionStatus.SUCCESS,
+          status: TransactionStatus.SUCCESS,
           claimId: order.id,
         },
         session,
@@ -413,7 +420,7 @@ export class OrderService {
           entityType: EntityType.ORDER,
           entityId: order.id,
           senderId: null,
-          status: transactionStatus.SUCCESS,
+          status: TransactionStatus.SUCCESS,
           claimId: order.id,
         },
         session,
@@ -421,6 +428,15 @@ export class OrderService {
 
       order.status = OrderStatus.CANCELED;
       await order.save({ session });
+
+      for (const item of order.items) {
+        await this.productService.returnStock(
+          item.productId,
+          item.variants,
+          item.quantity,
+          session,
+        );
+      }
 
       await session.commitTransaction();
       return {

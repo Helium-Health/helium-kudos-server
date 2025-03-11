@@ -14,7 +14,9 @@ import { OAuth2Client } from 'google-auth-library';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { UserInfoClient } from 'auth0';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('User')
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -30,13 +32,6 @@ export class AuthService {
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
     );
-    // this.auth0UserInfo = new UserInfoClient({
-    //   domain:
-    //     process.env.NODE_ENV === 'production'
-    //       ? PROD_AUTH0_DOMAIN
-    //       : STAGING_AUTH0_DOMAIN,
-    // });
-
     this.auth0UserInfo = new UserInfoClient({
       domain: process.env.AUTH0_DOMAIN,
     });
@@ -80,7 +75,7 @@ export class AuthService {
           this.logger.log(
             'Unverified user exists. Updating with Google data...',
           );
-          const updatedUser = await this.userService.updateByEmail(
+          await this.userService.updateByEmail(
             payload.email,
             {
               picture: payload.picture,
@@ -115,13 +110,14 @@ export class AuthService {
 
       if (!userExists) {
         this.logger.log('User not found. Creating...');
-        const { newUser } = await this.userService.createUser({
-          email: userInfo.data.email,
-          name: userInfo.data.name,
-          picture: userInfo.data.picture,
-          verified: userInfo.data?.email_verified || true,
-        });
-        userDetails = newUser;
+        // Temporarily prevent user account creation with support for User invitation
+        // const { newUser } = await this.userService.createUser({
+        //   email: userInfo.data.email,
+        //   name: userInfo.data.name,
+        //   picture: userInfo.data.picture,
+        //   verified: userInfo.data?.email_verified || true,
+        // });
+        // userDetails = newUser;
       } else {
         this.logger.log('User Exist ...');
         if (!userExists.active) {
@@ -135,7 +131,7 @@ export class AuthService {
           this.logger.log(
             'Unverified user exists. Updating with Auth0 data...',
           );
-          const updatedUser = await this.userService.updateByEmail(
+          await this.userService.updateByEmail(
             userInfo.data.email,
             {
               picture: userInfo.data.picture,
