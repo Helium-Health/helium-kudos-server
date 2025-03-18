@@ -127,6 +127,15 @@ export class UsersService {
     }
   }
 
+  async validateActiveUsers(userIds: string[]): Promise<string[]> {
+    const inactiveUsers = await this.userModel.find(
+      { _id: { $in: userIds }, active: false },
+      { email: 1 },
+    );
+
+    return inactiveUsers.map((user) => user.email);
+  }
+
   async updateUser(
     id: string,
     updateData: UpdateUserDto,
@@ -205,9 +214,7 @@ export class UsersService {
       query.name = { $all: words.map((word) => new RegExp(word, 'i')) };
     }
 
-    if (active) {
-      query.active = active;
-    }
+    active !== undefined && (query.active = active);
 
     const totalCount = await this.userModel.countDocuments(query).exec();
     const totalPages = Math.ceil(totalCount / limit);
@@ -232,7 +239,7 @@ export class UsersService {
   async getAllUsers(): Promise<UserDocument[]> {
     return await this.userModel.find({});
   }
-  
+
   async updateByEmail(email: string, updateData: UpdateUserFromSheetDto) {
     return await this.userModel.findOneAndUpdate(
       { email, active: true }, // Only update active users
@@ -337,8 +344,8 @@ export class UsersService {
         $match: {
           $expr: {
             $or: [
-              { $eq: [{ $month: '$celebrations.date' }, month] }, 
-              { $eq: [{ $month: '$celebrations.date' }, (month % 12) + 1] }, 
+              { $eq: [{ $month: '$celebrations.date' }, month] },
+              { $eq: [{ $month: '$celebrations.date' }, (month % 12) + 1] },
             ],
           },
         },

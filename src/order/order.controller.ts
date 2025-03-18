@@ -15,6 +15,7 @@ import { Types } from 'mongoose';
 import { Order } from './schema/Order.schema';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
 import { CreateOrderDto } from './dto/order.dto';
+import { ActiveUserGuard } from 'src/auth/guards/active-user.guard';
 
 @UseGuards(JwtAuthGuard)
 @Controller('order')
@@ -22,6 +23,7 @@ export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
   @Post()
+  @UseGuards(ActiveUserGuard)
   async placeOrder(@Request() req, @Body() createOrderDto: CreateOrderDto) {
     const userId = req.user?.userId;
     return this.orderService.placeOrder(userId, createOrderDto);
@@ -63,6 +65,7 @@ export class OrderController {
   }
 
   @Patch(':orderId/cancel')
+  @UseGuards(ActiveUserGuard)
   async cancelOrder(@Param('orderId') orderId: Types.ObjectId, @Request() req) {
     const userId = req.user?.userId;
     const response = await this.orderService.cancelOrder(orderId, userId);

@@ -144,7 +144,7 @@ export class WalletService {
             },
           },
           { $unwind: '$user' },
-          { $match: { 'user.active': true } },
+          { $match: { 'user.active': true } }, //Allocate  coin to only active users
           { $project: { _id: 1 } },
         ])
         .session(session);
