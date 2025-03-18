@@ -8,7 +8,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Model, Types } from 'mongoose';
+import { ClientSession, Model, PipelineStage, Types } from 'mongoose';
 import { Recognition, RecognitionDocument } from './schema/Recognition.schema';
 import {
   CreateRecognitionDto,
@@ -1386,5 +1386,87 @@ export class RecognitionService {
     } finally {
       session.endSession();
     }
+  }
+
+  async getCumulativePostMetrics() {
+    const pipeline: PipelineStage[] = [
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' },
+            day: { $dayOfMonth: '$createdAt' },
+          },
+          totalPosts: { $sum: 1 },
+        },
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
+      {
+        $project: {
+          _id: 0,
+          date: {
+            $dateFromParts: {
+              year: '$_id.year',
+              month: '$_id.month',
+              day: '$_id.day',
+            },
+          },
+          totalPosts: 1,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          data: {
+            $push: {
+              date: '$date',
+              totalPosts: '$totalPosts',
+            },
+          },
+        },
+      },
+      {
+        $unwind: '$data',
+      },
+      {
+        $sort: { 'data.date': 1 },
+      },
+      {
+        $group: {
+          _id: null,
+          cumulativeData: {
+            $push: {
+              date: '$data.date',
+              totalPosts: { $sum: '$data.totalPosts' },
+            },
+          },
+        },
+      },
+      {
+        $unwind: '$cumulativeData',
+      },
+      {
+        $group: {
+          _id: null,
+          data: {
+            $push: {
+              date: '$cumulativeData.date',
+              totalPosts: {
+                $sum: '$cumulativeData.totalPosts',
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          data: 1,
+        },
+      },
+    ];
+
+    const result = await this.recognitionModel.aggregate(pipeline);
+    return result.length > 0 ? result[0].data : [];
   }
 }
