@@ -15,6 +15,14 @@ export class MilestoneSeedService implements OnModuleInit {
     private milestoneModel: Model<MilestoneDocument>,
   ) {}
 
+  getFirstFridayOfMarch(year: number): Date {
+    let date = new Date(year, 2, 1); // March 1st
+    while (date.getDay() !== 5) {
+      date.setDate(date.getDate() + 1); // Move forward until it's Friday
+    }
+    return date;
+  }
+
   async onModuleInit() {
     await this.milestoneModel.deleteMany({});
     this.logger.log('Deleted all existing milestones');
@@ -43,6 +51,8 @@ export class MilestoneSeedService implements OnModuleInit {
           "Happy International Men's Day, 🎉 Thank you for your strength, kindness, and contributions.",
         coins: 5,
         isActive: true,
+        isGeneric: true,
+        milestoneDate: new Date(new Date().getFullYear(), 10, 19), // November 19
       },
       {
         type: MilestoneType.INTERNATIONAL_WOMENS_DAY,
@@ -51,6 +61,8 @@ export class MilestoneSeedService implements OnModuleInit {
           "Happy International Women's Day, 🌟 Thank you for your strength, resilience, and invaluable contributions.",
         coins: 5,
         isActive: true,
+        isGeneric: true,
+        milestoneDate: new Date(new Date().getFullYear(), 2, 8), // March 8
       },
       {
         type: MilestoneType.VALENTINE_DAY,
@@ -59,6 +71,8 @@ export class MilestoneSeedService implements OnModuleInit {
           "Happy Valentine's Day Team! 💖 Thank you for your love, support, and dedication.",
         coins: 5,
         isActive: true,
+        isGeneric: true,
+        milestoneDate: new Date(new Date().getFullYear(), 1, 14), // February 14
       },
       {
         type: MilestoneType.INTERNATIONAL_EMPLOYEE_APPRECIATION_DAY,
@@ -67,6 +81,8 @@ export class MilestoneSeedService implements OnModuleInit {
           'Happy International Employee Day! 🎉 We appreciate your hard work, dedication, and contributions!',
         coins: 5,
         isActive: true,
+        isGeneric: true,
+        milestoneDate: this.getFirstFridayOfMarch(new Date().getFullYear()),
       },
     ];
 
