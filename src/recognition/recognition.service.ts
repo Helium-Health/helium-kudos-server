@@ -8,7 +8,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Model, Types } from 'mongoose';
+import { ClientSession, Model, PipelineStage, Types } from 'mongoose';
 import { Recognition, RecognitionDocument } from './schema/Recognition.schema';
 import {
   CreateRecognitionDto,
@@ -171,10 +171,12 @@ export class RecognitionService {
         giphyUrl,
       });
 
-      await this.notifyReceiversViaSlack(
-        new Types.ObjectId(senderId),
-        receivers,
-      );
+      await this.notifyReceiversViaSlack({
+        receivers: receivers,
+        senderId: new Types.ObjectId(senderId),
+        isAuto: false,
+        message: message,
+      });
 
       return newRecognition;
     } catch (error) {
@@ -190,11 +192,21 @@ export class RecognitionService {
     }
   }
 
-  private async notifyReceiversViaSlack(
-    senderId: Types.ObjectId,
-    receivers: CreateRecognitionDto['receivers'],
-  ) {
-    const sender = await this.usersService.findById(senderId);
+  private async notifyReceiversViaSlack({
+    receivers,
+    senderId,
+    isAuto,
+    message,
+  }: {
+    receivers: CreateRecognitionDto['receivers'];
+    senderId?: Types.ObjectId;
+    isAuto?: boolean;
+    message?: string;
+  }) {
+    const sender = senderId
+      ? await this.usersService.findById(senderId)
+      : { name: 'Helium HR' };
+
     const clientUrl =
       process.env.NODE_ENV === 'production'
         ? PRODUCTION_CLIENT
@@ -209,7 +221,9 @@ export class RecognitionService {
           receiverUser.email,
         );
         if (slackUserId) {
-          const notificationMessage = `🌟 Hey ${receiverUser.name}!\n\n ${sender.name} just recognized your awesome work!\n\nCheck it out here: ${clientUrl}`;
+          const notificationMessage = isAuto
+            ? `${message} \n\nLogin to Helium Kudos to start shopping with you gifted coins: ${clientUrl}`
+            : `🌟 Hey ${receiverUser.name}!\n\n ${sender.name} just recognized your awesome work!\n\nCheck it out here: ${clientUrl}`;
           await this.slackService.sendDirectMessage(
             slackUserId,
             notificationMessage,
@@ -331,6 +345,16 @@ export class RecognitionService {
         recognitionType: EntityType.RECOGNITION,
         receivers: receiverId,
         amount: coinAmount,
+      });
+
+      await this.notifyReceiversViaSlack({
+        receivers: receiverId.map(({ receiverId }) => ({
+          receiverId: receiverId.toString(),
+          coinAmount,
+        })),
+        senderId: null,
+        isAuto: true,
+        message,
       });
 
       return newRecognition;
@@ -1362,5 +1386,87 @@ export class RecognitionService {
     } finally {
       session.endSession();
     }
+  }
+
+  async getCumulativePostMetrics() {
+    const pipeline: PipelineStage[] = [
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' },
+            day: { $dayOfMonth: '$createdAt' },
+          },
+          totalPosts: { $sum: 1 },
+        },
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
+      {
+        $project: {
+          _id: 0,
+          date: {
+            $dateFromParts: {
+              year: '$_id.year',
+              month: '$_id.month',
+              day: '$_id.day',
+            },
+          },
+          totalPosts: 1,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          data: {
+            $push: {
+              date: '$date',
+              totalPosts: '$totalPosts',
+            },
+          },
+        },
+      },
+      {
+        $unwind: '$data',
+      },
+      {
+        $sort: { 'data.date': 1 },
+      },
+      {
+        $group: {
+          _id: null,
+          cumulativeData: {
+            $push: {
+              date: '$data.date',
+              totalPosts: { $sum: '$data.totalPosts' },
+            },
+          },
+        },
+      },
+      {
+        $unwind: '$cumulativeData',
+      },
+      {
+        $group: {
+          _id: null,
+          data: {
+            $push: {
+              date: '$cumulativeData.date',
+              totalPosts: {
+                $sum: '$cumulativeData.totalPosts',
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          data: 1,
+        },
+      },
+    ];
+
+    const result = await this.recognitionModel.aggregate(pipeline);
+    return result.length > 0 ? result[0].data : [];
   }
 }

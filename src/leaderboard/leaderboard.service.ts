@@ -84,4 +84,9 @@ export class LeaderboardService {
   async getYearlyStatisticsWithMonthlyDetails(year: number) {
     return this.recognitionService.getYearlyStatisticsWithMonthlyDetails(year);
   }
+  
+async cumulativePostMetrics(){
+  return this.recognitionService.getCumulativePostMetrics();
+}
+  
 }

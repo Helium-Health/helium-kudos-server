@@ -150,4 +150,10 @@ export class LeaderboardController {
       parsedEndDate,
     );
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('post-metrics')
+  async postMetrics() {
+    return await this.leaderboardService.cumulativePostMetrics();
+  }
 }
