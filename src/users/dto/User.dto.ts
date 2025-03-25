@@ -2,6 +2,7 @@ import { PartialType } from '@nestjs/swagger';
 import {
   IsBoolean,
   IsDate,
+  IsDateString,
   IsEmail,
   IsEnum,
   IsNotEmpty,
@@ -65,4 +66,40 @@ export class UpdateUserDto extends PartialType(CreateUserDto) {}
 export class UpdateUserRoleDto extends PartialType(CreateUserDto) {
   @IsEnum(UserRole)
   role: UserRole;
+}
+
+export class InviteUserDto {
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  name: string;
+
+  @IsOptional()
+  @IsEnum(UserGender)
+  gender?: UserGender;
+
+  @IsOptional()
+  @IsString()
+  picture?: string;
+
+  @IsOptional()
+  @IsEnum(UserRole)
+  role?: UserRole;
+
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: Date;
+
+  @IsOptional()
+  @IsDateString()
+  joinDate?: Date;
+
+  @IsOptional()
+  @IsString()
+  team?: string;
+
+  @IsOptional()
+  @IsString()
+  nationality?: string;
 }

@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   Inject,
   Injectable,
   InternalServerErrorException,
@@ -7,26 +8,23 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, Types } from 'mongoose';
 import { User, UserDocument, UserGender } from 'src/users/schema/User.schema';
-import { CreateUserDto, UpdateUserDto } from './dto/User.dto';
+import { CreateUserDto, InviteUserDto, UpdateUserDto } from './dto/User.dto';
 import { WalletService } from 'src/wallet/wallet.service';
 import { UpdateUserFromSheetDto } from './dto/UpdateFromSheet.dto';
 import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
 import * as argon2 from 'argon2';
 import { fieldsToMerge, fieldsToRevert } from 'src/constants';
 import { WithId } from 'mongodb';
+import { SlackService } from 'src/slack/slack.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     private walletService: WalletService,
+    private readonly slackService: SlackService,
     @Inject('AUTH_SERVICE') private authService,
   ) {}
-
-  //TODO: Remove this method after DB migration
-  async onModuleInit() {
-    await this.updateExistingUsers(this.userModel);
-  }
 
   async runTransactionWithRetry(session, operation) {
     for (let i = 0; i < 5; i++) {
@@ -415,13 +413,47 @@ export class UsersService {
     );
   }
 
-  //TODO: Remove this method after DB migration
-  private async updateExistingUsers(userModel: Model<User>) {
-    await userModel.updateMany(
-      { active: { $exists: false } },
-      { $set: { active: true } },
-    );
-    console.log('Existing users updated with default active value');
+  async inviteUser(inviteUserDto: InviteUserDto): Promise<User> {
+    const {
+      email,
+      name,
+      gender,
+      picture,
+      role,
+      dateOfBirth,
+      joinDate,
+      team,
+      nationality,
+    } = inviteUserDto;
+
+    const slackUserId = await this.slackService.getUserIdByEmail(email);
+    if (!slackUserId) {
+      throw new NotFoundException(
+        'User is not a member of the organization on Slack',
+      );
+    }
+
+    const existingUser = await this.userModel.findOne({ email }).exec();
+    if (existingUser) {
+      throw new ConflictException('User with this email already exists');
+    }
+
+    const newUser = new this.userModel({
+      email,
+      originalEmail: email,
+      name,
+      gender,
+      picture,
+      role: role || 'user',
+      verified: false,
+      active: true,
+      dateOfBirth,
+      joinDate,
+      team,
+      nationality,
+    });
+
+    return newUser.save();
   }
 
   async mergeDuplicateEmails() {

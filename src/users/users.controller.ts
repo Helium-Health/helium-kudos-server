@@ -14,6 +14,7 @@ import {
 import { UsersService } from './users.service';
 import {
   CreateUserDto,
+  InviteUserDto,
   UpdateUserDto,
   UpdateUserRoleDto,
 } from './dto/User.dto';
@@ -112,5 +113,10 @@ export class UsersController {
   @Post('revert-duplicate-email-merge')
   async revertDuplicateEmailMerge() {
     return this.usersService.revertDuplicateEmailMerge();
+  }
+
+  @Post('invite')
+  async inviteUser(@Body() inviteUserDto: InviteUserDto): Promise<User> {
+    return this.usersService.inviteUser(inviteUserDto);
   }
 }
