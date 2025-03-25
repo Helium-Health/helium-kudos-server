@@ -115,6 +115,7 @@ export class UsersController {
     return this.usersService.revertDuplicateEmailMerge();
   }
 
+  @UseGuards(AdminGuard)
   @Post('invite')
   async inviteUser(@Body() inviteUserDto: InviteUserDto): Promise<User> {
     return this.usersService.inviteUser(inviteUserDto);
