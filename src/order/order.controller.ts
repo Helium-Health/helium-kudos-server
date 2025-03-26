@@ -24,7 +24,6 @@ export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
   @Post()
-  @UseGuards(ActiveUserGuard)
   async placeOrder(@Request() req, @Body() createOrderDto: CreateOrderDto) {
     const userId = req.user?.userId;
     return this.orderService.placeOrder(userId, createOrderDto);

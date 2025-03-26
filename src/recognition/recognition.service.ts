@@ -1458,8 +1458,18 @@ export class RecognitionService {
     }
   }
 
-  async getCumulativePostMetrics() {
+  async getCumulativePostMetrics(month?: number) {
     const pipeline: PipelineStage[] = [
+      ...(month
+        ? [
+            {
+              $match: {
+                $expr: { $eq: [{ $month: '$createdAt' }, month] },
+              },
+            },
+          ]
+        : []),
+
       {
         $group: {
           _id: {
@@ -1471,6 +1481,7 @@ export class RecognitionService {
         },
       },
       { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
+
       {
         $project: {
           _id: 0,
@@ -1484,6 +1495,7 @@ export class RecognitionService {
           totalPosts: 1,
         },
       },
+
       {
         $group: {
           _id: null,
@@ -1495,12 +1507,9 @@ export class RecognitionService {
           },
         },
       },
-      {
-        $unwind: '$data',
-      },
-      {
-        $sort: { 'data.date': 1 },
-      },
+      { $unwind: '$data' },
+      { $sort: { 'data.date': 1 } },
+
       {
         $group: {
           _id: null,
@@ -1512,18 +1521,14 @@ export class RecognitionService {
           },
         },
       },
-      {
-        $unwind: '$cumulativeData',
-      },
+      { $unwind: '$cumulativeData' },
       {
         $group: {
           _id: null,
           data: {
             $push: {
               date: '$cumulativeData.date',
-              totalPosts: {
-                $sum: '$cumulativeData.totalPosts',
-              },
+              totalPosts: { $sum: '$cumulativeData.totalPosts' },
             },
           },
         },

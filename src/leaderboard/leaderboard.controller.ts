@@ -153,7 +153,8 @@ export class LeaderboardController {
 
   @UseGuards(JwtAuthGuard)
   @Get('post-metrics')
-  async postMetrics() {
-    return await this.leaderboardService.cumulativePostMetrics();
+  async postMetrics(@Query('month') month?: string) {
+    const monthNumber = month ? parseInt(month, 10) : undefined;
+    return await this.leaderboardService.cumulativePostMetrics(monthNumber);
   }
 }
