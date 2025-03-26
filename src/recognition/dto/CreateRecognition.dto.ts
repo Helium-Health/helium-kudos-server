@@ -12,6 +12,7 @@ import {
   Matches,
   IsUrl,
   ArrayMaxSize,
+  IsInt,
 } from 'class-validator';
 import { CompanyValues } from 'src/constants/companyValues';
 
@@ -22,6 +23,7 @@ class Receiver {
 
   @IsOptional()
   @IsNumber()
+  @IsInt()
   @Min(0)
   coinAmount: number;
 }

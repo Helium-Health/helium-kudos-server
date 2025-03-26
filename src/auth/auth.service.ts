@@ -75,13 +75,10 @@ export class AuthService {
           this.logger.log(
             'Unverified user exists. Updating with Google data...',
           );
-          await this.userService.updateByEmail(
-            payload.email,
-            {
-              picture: payload.picture,
-              verified: payload.email_verified || true,
-            },
-          );
+          await this.userService.updateByEmail(payload.email, {
+            picture: payload.picture,
+            verified: payload.email_verified || true,
+          });
         }
       }
       const user = userExists || userDetails;
@@ -123,7 +120,7 @@ export class AuthService {
         if (!userExists.active) {
           this.logger.log('User Exist but not active ...');
           throw new UnauthorizedException(
-            'Your account is currently inactive. Contact Administrator for assistance.',
+            'Your account is currently inactive. Contact Administrator for assistance.', //Only active users can login
           );
         }
 
@@ -131,13 +128,10 @@ export class AuthService {
           this.logger.log(
             'Unverified user exists. Updating with Auth0 data...',
           );
-          await this.userService.updateByEmail(
-            userInfo.data.email,
-            {
-              picture: userInfo.data.picture,
-              verified: userInfo.data.email_verified || true,
-            },
-          );
+          await this.userService.updateByEmail(userInfo.data.email, {
+            picture: userInfo.data.picture,
+            verified: userInfo.data.email_verified || true,
+          });
         }
       }
       const user = userExists || userDetails;
@@ -157,14 +151,24 @@ export class AuthService {
       _id: Types.ObjectId;
     },
   ) {
-    const payload = { email: user.email, sub: user._id, role: user.role };
+    const payload = {
+      email: user.email,
+      sub: user._id,
+      role: user.role,
+      active: user.active,
+    };
     return this.jwtService.sign(payload);
   }
 
   async generateAndStoreRefreshToken(
     user: User & { _id: Types.ObjectId },
   ): Promise<string> {
-    const payload = { email: user.email, sub: user._id, role: user.role };
+    const payload = {
+      email: user.email,
+      sub: user._id,
+      role: user.role,
+      active: user.active,
+    };
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '4d' });
 
     const hashedToken = await argon2.hash(refreshToken);

@@ -135,6 +135,15 @@ export class UsersService {
     }
   }
 
+  async getInactiveUserEmails(userIds: string[]): Promise<string[]> {
+    const inactiveUsers = await this.userModel.find(
+      { _id: { $in: userIds }, active: false },
+      { email: 1 },
+    );
+
+    return inactiveUsers.map((user) => user.email);
+  }
+
   async updateUser(
     id: string,
     updateData: UpdateUserDto,
@@ -213,9 +222,7 @@ export class UsersService {
       query.name = { $all: words.map((word) => new RegExp(word, 'i')) };
     }
 
-    if (active) {
-      query.active = active;
-    }
+    active !== undefined && (query.active = active);
 
     const totalCount = await this.userModel.countDocuments(query).exec();
     const totalPages = Math.ceil(totalCount / limit);

@@ -15,13 +15,16 @@ import { Types } from 'mongoose';
 import { Order } from './schema/Order.schema';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
 import { CreateOrderDto } from './dto/order.dto';
+import { ActiveUserGuard } from 'src/auth/guards/active-user.guard';
 
 @UseGuards(JwtAuthGuard)
+@UseGuards(ActiveUserGuard)
 @Controller('order')
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
   @Post()
+  @UseGuards(ActiveUserGuard)
   async placeOrder(@Request() req, @Body() createOrderDto: CreateOrderDto) {
     const userId = req.user?.userId;
     return this.orderService.placeOrder(userId, createOrderDto);
