@@ -1,8 +1,11 @@
 import {
   BadRequestException,
   ConflictException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
+  Type,
 } from '@nestjs/common';
 import { CreateGroupDto, UpdateGroupDto } from './dto/group.dto';
 import { InjectModel } from '@nestjs/mongoose';
@@ -14,6 +17,7 @@ import { UsersService } from 'src/users/users.service';
 @Injectable()
 export class GroupsService {
   constructor(
+    @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
     @InjectModel(Group.name) private readonly groupModel: Model<Group>,
   ) {}
@@ -99,5 +103,32 @@ export class GroupsService {
     );
 
     return { users: members.filter((user) => user !== null) };
+  }
+
+  async addMembersToGroup(
+    groupId: Types.ObjectId,
+    userIds: Types.ObjectId[] | Types.ObjectId,
+    session?: any,
+  ): Promise<Group> {
+    const group = await this.groupModel
+      .findById(groupId)
+      .session(session)
+      .exec();
+    if (!group) {
+      throw new NotFoundException('Group not found');
+    }
+
+    const userIdsArray = Array.isArray(userIds) ? userIds : [userIds];
+
+    const newMembers = userIdsArray
+      .map((id) => new Types.ObjectId(id))
+      .filter((id) => !group.members.some((member) => member.equals(id)));
+
+    if (newMembers.length > 0) {
+      group.members.push(...newMembers);
+      await group.save({ session });
+    }
+
+    return group;
   }
 }

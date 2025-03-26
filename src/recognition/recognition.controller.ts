@@ -29,8 +29,7 @@ import { AdminGuard } from 'src/auth/guards/admin.guard';
 @ApiTags('Recognition')
 @ApiBearerAuth()
 @Controller('recognition')
-@UseGuards(JwtAuthGuard)
-@UseGuards(ActiveUserGuard)
+@UseGuards(JwtAuthGuard, ActiveUserGuard)
 export class RecognitionController {
   constructor(private readonly recognitionService: RecognitionService) {}
 
