@@ -126,4 +126,15 @@ export class UsersController {
   getAllTeams() {
     return this.usersService.getAllTeams();
   }
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Put(':id')
+  async updateUser(
+    @Param('id') userId: string,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    return this.usersService.updateUserFields(
+      new Types.ObjectId(userId),
+      updateUserDto,
+    );
+  }
 }

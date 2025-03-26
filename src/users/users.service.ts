@@ -158,6 +158,24 @@ export class UsersService {
     return updatedUser;
   }
 
+  async updateUserFields(
+    userId: Types.ObjectId,
+    updateUserDto: UpdateUserDto,
+  ): Promise<User> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    Object.keys(updateUserDto).forEach((key) => {
+      if (updateUserDto[key] !== undefined) {
+        user[key] = updateUserDto[key];
+      }
+    });
+
+    return user.save();
+  }
+
   async deleteUser(id: string): Promise<User | null> {
     return this.userModel.findByIdAndDelete(id).exec();
   }
