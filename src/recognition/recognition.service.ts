@@ -99,6 +99,14 @@ export class RecognitionService {
       throw new BadRequestException('One or more receiver IDs are invalid');
     }
 
+    const inactiveUsers =
+      await this.usersService.getInactiveUserEmails(receiverIds);
+    if (inactiveUsers.length > 0) {
+      throw new ForbiddenException(
+        `The following users are inactive: ${inactiveUsers.join(', ')}`,
+      );
+    }
+
     const totalCoinAmount = receivers.reduce(
       (sum, r) => sum + (r.coinAmount ?? 0),
       0,
