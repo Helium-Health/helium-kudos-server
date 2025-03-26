@@ -9,7 +9,7 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
-import { UserGender, UserRole } from 'src/users/schema/User.schema';
+import { UserGender, UserRole, UserTeam } from 'src/users/schema/User.schema';
 export class CreateUserDto {
   @IsNotEmpty()
   @IsString()
@@ -96,8 +96,10 @@ export class InviteUserDto {
   joinDate?: Date;
 
   @IsOptional()
-  @IsString()
-  team?: string;
+  @IsEnum(UserTeam, {
+    message: 'Invalid team. Must be one of the predefined values.',
+  })
+  team?: UserTeam;
 
   @IsOptional()
   @IsString()
