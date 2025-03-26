@@ -127,7 +127,7 @@ export class UsersService {
     }
   }
 
-  async validateActiveUsers(userIds: string[]): Promise<string[]> {
+  async getInactiveUserEmails(userIds: string[]): Promise<string[]> {
     const inactiveUsers = await this.userModel.find(
       { _id: { $in: userIds }, active: false },
       { email: 1 },

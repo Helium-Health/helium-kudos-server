@@ -30,6 +30,7 @@ import { AdminGuard } from 'src/auth/guards/admin.guard';
 @ApiBearerAuth()
 @Controller('recognition')
 @UseGuards(JwtAuthGuard)
+@UseGuards(ActiveUserGuard)
 export class RecognitionController {
   constructor(private readonly recognitionService: RecognitionService) {}
 
@@ -67,7 +68,6 @@ export class RecognitionController {
   }
 
   @Patch(':id')
-  @UseGuards(ActiveUserGuard)
   async editRecognition(
     @Param('id') recognitionId: string,
     @Body() editRecognitionDto: EditRecognitionDto,
@@ -82,7 +82,6 @@ export class RecognitionController {
   }
 
   @Delete(':id')
-  @UseGuards(ActiveUserGuard)
   async deleteRecogntions(@Request() req, @Param('id') recognitionId: string) {
     const userId = req.user.userId;
     return this.recognitionService.deleteRecognition(
@@ -92,7 +91,7 @@ export class RecognitionController {
   }
 
   @Delete('auto/:id')
-  @UseGuards(ActiveUserGuard, AdminGuard)
+  @UseGuards(AdminGuard)
   async deleteAutoRecognition(@Param('id') recognitionId: string) {
     return this.recognitionService.deleteAutoRecognition(
       new Types.ObjectId(recognitionId),

@@ -18,6 +18,7 @@ import { CreateOrderDto } from './dto/order.dto';
 import { ActiveUserGuard } from 'src/auth/guards/active-user.guard';
 
 @UseGuards(JwtAuthGuard)
+@UseGuards(ActiveUserGuard)
 @Controller('order')
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
@@ -65,7 +66,6 @@ export class OrderController {
   }
 
   @Patch(':orderId/cancel')
-  @UseGuards(ActiveUserGuard)
   async cancelOrder(@Param('orderId') orderId: Types.ObjectId, @Request() req) {
     const userId = req.user?.userId;
     const response = await this.orderService.cancelOrder(orderId, userId);

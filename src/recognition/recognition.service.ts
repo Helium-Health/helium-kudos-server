@@ -100,7 +100,7 @@ export class RecognitionService {
     }
 
     const inactiveUsers =
-      await this.usersService.validateActiveUsers(receiverIds);
+      await this.usersService.getInactiveUserEmails(receiverIds);
     if (inactiveUsers.length > 0) {
       throw new ForbiddenException(
         `The following users are inactive: ${inactiveUsers.join(', ')}`,
