@@ -8,7 +8,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Model, Types } from 'mongoose';
+import { ClientSession, Model, PipelineStage, Types } from 'mongoose';
 import { Recognition, RecognitionDocument } from './schema/Recognition.schema';
 import {
   CreateRecognitionDto,
@@ -97,6 +97,14 @@ export class RecognitionService {
 
     if (!areValidUsers) {
       throw new BadRequestException('One or more receiver IDs are invalid');
+    }
+
+    const inactiveUsers =
+      await this.usersService.getInactiveUserEmails(receiverIds);
+    if (inactiveUsers.length > 0) {
+      throw new ForbiddenException(
+        `The following users are inactive: ${inactiveUsers.join(', ')}`,
+      );
     }
 
     const totalCoinAmount = receivers.reduce(
@@ -1269,7 +1277,8 @@ export class RecognitionService {
       };
     }
 
-    const totals = await this.recognitionModel.aggregate([
+    // Calculate Current Period Stats
+    const currentTotals = await this.recognitionModel.aggregate([
       ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
       {
         $group: {
@@ -1280,25 +1289,86 @@ export class RecognitionService {
       },
     ]);
 
-    const totalStats = totals[0] || {
+    const currentStats = currentTotals[0] || {
       totalRecognitions: 0,
       totalCoinsGiven: 0,
     };
 
+    // Automatically calculate previous period based on duration
+    let previousStartDate, previousEndDate;
+
+    if (startDate && endDate) {
+      const durationMs =
+        new Date(endDate).getTime() - new Date(startDate).getTime();
+      previousEndDate = new Date(startDate);
+      previousStartDate = new Date(previousEndDate.getTime() - durationMs);
+    } else if (endDate) {
+      const durationMs = new Date(endDate).getTime() - new Date().getTime();
+      previousEndDate = new Date(endDate);
+      previousStartDate = new Date(previousEndDate.getTime() - durationMs);
+    }
+
+    const prevMatchStage: any = {};
+    if (previousStartDate) {
+      prevMatchStage.createdAt = { $gte: previousStartDate };
+    }
+    if (previousEndDate) {
+      prevMatchStage.createdAt = {
+        ...prevMatchStage.createdAt,
+        $lte: previousEndDate,
+      };
+    }
+
+    // Calculate Previous Period Stats
+    const previousTotals = await this.recognitionModel.aggregate([
+      ...(Object.keys(prevMatchStage).length > 0
+        ? [{ $match: prevMatchStage }]
+        : []),
+      {
+        $group: {
+          _id: null,
+          totalRecognitions: { $sum: 1 },
+          totalCoinsGiven: { $sum: { $sum: '$receivers.coinAmount' } },
+        },
+      },
+    ]);
+
+    const previousStats = previousTotals[0] || {
+      totalRecognitions: 0,
+      totalCoinsGiven: 0,
+    };
+
+    // Function to calculate percentage change
+    const calculatePercentageChange = (current: number, previous: number) => {
+      if (previous === 0) return current === 0 ? 0 : 100; // If no previous data, assume 100% increase
+      return ((current - previous) / previous) * 100;
+    };
+
+    const recognitionChange = calculatePercentageChange(
+      currentStats.totalRecognitions,
+      previousStats.totalRecognitions,
+    );
+
+    const coinChange = calculatePercentageChange(
+      currentStats.totalCoinsGiven,
+      previousStats.totalCoinsGiven,
+    );
+
     return {
+      status: 200,
+      message: currentStats.totalRecognitions > 0 ? 'Success' : 'No data found',
       data: {
-        totalRecognitions: totalStats.totalRecognitions,
-        totalCoinsGiven: totalStats.totalCoinsGiven,
+        totalRecognitions: currentStats.totalRecognitions,
+        totalCoinsGiven: currentStats.totalCoinsGiven,
+        percentageChange: {
+          recognitions: recognitionChange.toFixed(2) + '%',
+          coins: coinChange.toFixed(2) + '%',
+        },
         timeFrame:
           startDate || endDate
             ? { startDate: startDate || null, endDate: endDate || null }
             : 'All Time',
       },
-      status: 200,
-      message:
-        totalStats.totalRecognitions > 0 || totalStats.totalCoinsGiven > 0
-          ? 'Success'
-          : 'No data found',
     };
   }
 
@@ -1386,5 +1456,87 @@ export class RecognitionService {
     } finally {
       session.endSession();
     }
+  }
+
+  async getCumulativePostMetrics() {
+    const pipeline: PipelineStage[] = [
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' },
+            day: { $dayOfMonth: '$createdAt' },
+          },
+          totalPosts: { $sum: 1 },
+        },
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
+      {
+        $project: {
+          _id: 0,
+          date: {
+            $dateFromParts: {
+              year: '$_id.year',
+              month: '$_id.month',
+              day: '$_id.day',
+            },
+          },
+          totalPosts: 1,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          data: {
+            $push: {
+              date: '$date',
+              totalPosts: '$totalPosts',
+            },
+          },
+        },
+      },
+      {
+        $unwind: '$data',
+      },
+      {
+        $sort: { 'data.date': 1 },
+      },
+      {
+        $group: {
+          _id: null,
+          cumulativeData: {
+            $push: {
+              date: '$data.date',
+              totalPosts: { $sum: '$data.totalPosts' },
+            },
+          },
+        },
+      },
+      {
+        $unwind: '$cumulativeData',
+      },
+      {
+        $group: {
+          _id: null,
+          data: {
+            $push: {
+              date: '$cumulativeData.date',
+              totalPosts: {
+                $sum: '$cumulativeData.totalPosts',
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          data: 1,
+        },
+      },
+    ];
+
+    const result = await this.recognitionModel.aggregate(pipeline);
+    return result.length > 0 ? result[0].data : [];
   }
 }

@@ -17,4 +17,8 @@ export class ValidateUserDto {
   @IsNotEmpty()
   @IsString()
   picture: string;
+
+  @IsNotEmpty()
+  @IsBoolean()
+  active: boolean;
 }

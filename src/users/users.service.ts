@@ -1,4 +1,6 @@
 import {
+  ConflictException,
+  forwardRef,
   Inject,
   Injectable,
   InternalServerErrorException,
@@ -6,27 +8,33 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, Types } from 'mongoose';
-import { User, UserDocument, UserGender } from 'src/users/schema/User.schema';
-import { CreateUserDto, UpdateUserDto } from './dto/User.dto';
+import {
+  User,
+  UserDocument,
+  UserGender,
+  UserTeam,
+} from 'src/users/schema/User.schema';
+import { CreateUserDto, InviteUserDto, UpdateUserDto } from './dto/User.dto';
 import { WalletService } from 'src/wallet/wallet.service';
 import { UpdateUserFromSheetDto } from './dto/UpdateFromSheet.dto';
 import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
 import * as argon2 from 'argon2';
 import { fieldsToMerge, fieldsToRevert } from 'src/constants';
 import { WithId } from 'mongodb';
+import { SlackService } from 'src/slack/slack.service';
+import { GroupsService } from 'src/groups/groups.service';
 
 @Injectable()
 export class UsersService {
   constructor(
+    @Inject(forwardRef(() => GroupsService))
+    private groupService: GroupsService,
     @InjectModel(User.name) private userModel: Model<User>,
     private walletService: WalletService,
+
+    private readonly slackService: SlackService,
     @Inject('AUTH_SERVICE') private authService,
   ) {}
-
-  //TODO: Remove this method after DB migration
-  async onModuleInit() {
-    await this.updateExistingUsers(this.userModel);
-  }
 
   async runTransactionWithRetry(session, operation) {
     for (let i = 0; i < 5; i++) {
@@ -127,6 +135,15 @@ export class UsersService {
     }
   }
 
+  async getInactiveUserEmails(userIds: string[]): Promise<string[]> {
+    const inactiveUsers = await this.userModel.find(
+      { _id: { $in: userIds }, active: false },
+      { email: 1 },
+    );
+
+    return inactiveUsers.map((user) => user.email);
+  }
+
   async updateUser(
     id: string,
     updateData: UpdateUserDto,
@@ -205,9 +222,7 @@ export class UsersService {
       query.name = { $all: words.map((word) => new RegExp(word, 'i')) };
     }
 
-    if (active) {
-      query.active = active;
-    }
+    active !== undefined && (query.active = active);
 
     const totalCount = await this.userModel.countDocuments(query).exec();
     const totalPages = Math.ceil(totalCount / limit);
@@ -415,15 +430,78 @@ export class UsersService {
     );
   }
 
-  //TODO: Remove this method after DB migration
-  private async updateExistingUsers(userModel: Model<User>) {
-    await userModel.updateMany(
-      { active: { $exists: false } },
-      { $set: { active: true } },
-    );
-    console.log('Existing users updated with default active value');
+  async inviteUser(inviteUserDto: InviteUserDto): Promise<User> {
+    const {
+      email,
+      name,
+      gender,
+      picture,
+      role,
+      dateOfBirth,
+      joinDate,
+      team,
+      nationality,
+      groupId,
+    } = inviteUserDto;
+
+    const session = await this.userModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      const slackUserId = await this.slackService.getUserIdByEmail(email);
+      if (!slackUserId) {
+        throw new NotFoundException(
+          'User is not a member of the organization on Slack',
+        );
+      }
+
+      const existingUser = await this.userModel
+        .findOne({ email })
+        .session(session)
+        .exec();
+      if (existingUser) {
+        throw new ConflictException('User with this email already exists');
+      }
+
+      const newUser = new this.userModel({
+        email,
+        originalEmail: email,
+        name,
+        gender,
+        picture,
+        role: role || 'user',
+        verified: false,
+        active: true,
+        dateOfBirth,
+        joinDate,
+        team,
+        nationality,
+      });
+
+      const savedUser = await newUser.save({ session });
+
+      if (groupId) {
+        await this.groupService.addMembersToGroup(
+          groupId,
+          savedUser._id,
+          session,
+        );
+      }
+
+      await session.commitTransaction();
+      session.endSession();
+
+      return savedUser;
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
+    }
   }
 
+  async getAllTeams() {
+    return Object.values(UserTeam);
+  }
   async mergeDuplicateEmails() {
     const session = await this.userModel.db.startSession();
     session.startTransaction();

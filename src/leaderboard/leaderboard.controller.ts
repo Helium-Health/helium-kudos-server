@@ -94,6 +94,24 @@ export class LeaderboardController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('coin-use')
+  async getCoinUseMetrics(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('sortBy', new DefaultValuePipe('totalCoinEarned'))
+    sortBy: 'totalCoinEarned' | 'totalCoinBalance' | 'totalCoinSpent',
+    @Query('sortOrder', new DefaultValuePipe('DESCENDING'))
+    sortOrder: 'ASCENDING' | 'DESCENDING',
+  ) {
+    return this.leaderboardService.getCoinUseMetrics(
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('participants/:year/:quarter')
   async getQuarterParticipants(
     @Param('year') year: number,
@@ -131,5 +149,11 @@ export class LeaderboardController {
       parsedStartDate,
       parsedEndDate,
     );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('post-metrics')
+  async postMetrics() {
+    return await this.leaderboardService.cumulativePostMetrics();
   }
 }
