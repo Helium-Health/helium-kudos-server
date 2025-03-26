@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, Types } from 'mongoose';
-import { User, UserDocument, UserGender } from 'src/users/schema/User.schema';
+import { User, UserDocument, UserGender, UserTeam } from 'src/users/schema/User.schema';
 import { CreateUserDto, InviteUserDto, UpdateUserDto } from './dto/User.dto';
 import { WalletService } from 'src/wallet/wallet.service';
 import { UpdateUserFromSheetDto } from './dto/UpdateFromSheet.dto';
@@ -456,6 +456,9 @@ export class UsersService {
     return newUser.save();
   }
 
+  async getAllTeams() {
+    return Object.values(UserTeam);
+  }
   async mergeDuplicateEmails() {
     const session = await this.userModel.db.startSession();
     session.startTransaction();

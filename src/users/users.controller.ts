@@ -120,4 +120,10 @@ export class UsersController {
   async inviteUser(@Body() inviteUserDto: InviteUserDto): Promise<User> {
     return this.usersService.inviteUser(inviteUserDto);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('teams')
+  getAllTeams() {
+    return this.usersService.getAllTeams();
+  }
 }
