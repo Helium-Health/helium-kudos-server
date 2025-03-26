@@ -39,14 +39,27 @@ export class GroupsService {
     });
   }
 
-  findAll() {
-    return this.groupModel.find().exec();
-  }
+  async findGroups(name?: string, page = 1, limit = 10) {
+    const query: any = {};
 
-  findByName(name: string) {
-    return this.groupModel
-      .findOne({ name: { $regex: new RegExp(name, 'i') } })
+    if (name) {
+      query.name = { $regex: new RegExp(name, 'i') };
+    }
+
+    const groups = await this.groupModel
+      .find(query)
+      .skip((page - 1) * limit)
+      .limit(limit)
       .exec();
+
+    const total = await this.groupModel.countDocuments(query);
+
+    return {
+      data: groups,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   async update(id: string, updateGroupDto: UpdateGroupDto) {
