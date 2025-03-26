@@ -9,6 +9,7 @@ import {
   IsOptional,
   IsString,
 } from 'class-validator';
+import { Types } from 'mongoose';
 import { UserGender, UserRole, UserTeam } from 'src/users/schema/User.schema';
 export class CreateUserDto {
   @IsNotEmpty()
@@ -104,4 +105,8 @@ export class InviteUserDto {
   @IsOptional()
   @IsString()
   nationality?: string;
+
+  @IsOptional()
+  @IsString()
+  groupId?: Types.ObjectId;
 }

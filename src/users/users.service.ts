@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  forwardRef,
   Inject,
   Injectable,
   InternalServerErrorException,
@@ -7,7 +8,12 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, Types } from 'mongoose';
-import { User, UserDocument, UserGender, UserTeam } from 'src/users/schema/User.schema';
+import {
+  User,
+  UserDocument,
+  UserGender,
+  UserTeam,
+} from 'src/users/schema/User.schema';
 import { CreateUserDto, InviteUserDto, UpdateUserDto } from './dto/User.dto';
 import { WalletService } from 'src/wallet/wallet.service';
 import { UpdateUserFromSheetDto } from './dto/UpdateFromSheet.dto';
@@ -16,12 +22,16 @@ import * as argon2 from 'argon2';
 import { fieldsToMerge, fieldsToRevert } from 'src/constants';
 import { WithId } from 'mongodb';
 import { SlackService } from 'src/slack/slack.service';
+import { GroupsService } from 'src/groups/groups.service';
 
 @Injectable()
 export class UsersService {
   constructor(
+    @Inject(forwardRef(() => GroupsService))
+    private groupService: GroupsService,
     @InjectModel(User.name) private userModel: Model<User>,
     private walletService: WalletService,
+
     private readonly slackService: SlackService,
     @Inject('AUTH_SERVICE') private authService,
   ) {}
@@ -424,6 +434,7 @@ export class UsersService {
       joinDate,
       team,
       nationality,
+      groupId,
     } = inviteUserDto;
 
     const slackUserId = await this.slackService.getUserIdByEmail(email);
@@ -452,7 +463,10 @@ export class UsersService {
       team,
       nationality,
     });
-
+    const savedUser = await newUser.save();
+    if (groupId) {
+      await this.groupService.addMembersToGroup(groupId, savedUser._id);
+    }
     return newUser.save();
   }
 
