@@ -126,4 +126,10 @@ export class UsersController {
   getAllTeams() {
     return this.usersService.getAllTeams();
   }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Post('resend-invite')
+  async resentInvite(@Param('id') id: string): Promise<User> {
+    return this.usersService.resendInvite(new Types.ObjectId(id));
+  }
 }
