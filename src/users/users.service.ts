@@ -437,37 +437,59 @@ export class UsersService {
       groupId,
     } = inviteUserDto;
 
-    const slackUserId = await this.slackService.getUserIdByEmail(email);
-    if (!slackUserId) {
-      throw new NotFoundException(
-        'User is not a member of the organization on Slack',
-      );
-    }
+    const session = await this.userModel.db.startSession();
+    session.startTransaction();
 
-    const existingUser = await this.userModel.findOne({ email }).exec();
-    if (existingUser) {
-      throw new ConflictException('User with this email already exists');
-    }
+    try {
+      const slackUserId = await this.slackService.getUserIdByEmail(email);
+      if (!slackUserId) {
+        throw new NotFoundException(
+          'User is not a member of the organization on Slack',
+        );
+      }
 
-    const newUser = new this.userModel({
-      email,
-      originalEmail: email,
-      name,
-      gender,
-      picture,
-      role: role || 'user',
-      verified: false,
-      active: true,
-      dateOfBirth,
-      joinDate,
-      team,
-      nationality,
-    });
-    const savedUser = await newUser.save();
-    if (groupId) {
-      await this.groupService.addMembersToGroup(groupId, savedUser._id);
+      const existingUser = await this.userModel
+        .findOne({ email })
+        .session(session)
+        .exec();
+      if (existingUser) {
+        throw new ConflictException('User with this email already exists');
+      }
+
+      const newUser = new this.userModel({
+        email,
+        originalEmail: email,
+        name,
+        gender,
+        picture,
+        role: role || 'user',
+        verified: false,
+        active: true,
+        dateOfBirth,
+        joinDate,
+        team,
+        nationality,
+      });
+
+      const savedUser = await newUser.save({ session });
+
+      if (groupId) {
+        await this.groupService.addMembersToGroup(
+          groupId,
+          savedUser._id,
+          session,
+        );
+      }
+
+      await session.commitTransaction();
+      session.endSession();
+
+      return savedUser;
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
     }
-    return newUser.save();
   }
 
   async getAllTeams() {

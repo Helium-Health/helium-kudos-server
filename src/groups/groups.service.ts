@@ -17,7 +17,8 @@ import { UsersService } from 'src/users/users.service';
 @Injectable()
 export class GroupsService {
   constructor(
-    @Inject(forwardRef(() => UsersService)) private readonly usersService: UsersService,
+    @Inject(forwardRef(() => UsersService))
+    private readonly usersService: UsersService,
     @InjectModel(Group.name) private readonly groupModel: Model<Group>,
   ) {}
   async create(createGroupDto: CreateGroupDto) {
@@ -107,8 +108,12 @@ export class GroupsService {
   async addMembersToGroup(
     groupId: Types.ObjectId,
     userIds: Types.ObjectId[] | Types.ObjectId,
+    session?: any,
   ): Promise<Group> {
-    const group = await this.groupModel.findById(groupId);
+    const group = await this.groupModel
+      .findById(groupId)
+      .session(session)
+      .exec();
     if (!group) {
       throw new NotFoundException('Group not found');
     }
@@ -117,11 +122,11 @@ export class GroupsService {
 
     const newMembers = userIdsArray
       .map((id) => new Types.ObjectId(id))
-      .filter((id) => !group.members.includes(id));
+      .filter((id) => !group.members.some((member) => member.equals(id)));
 
     if (newMembers.length > 0) {
       group.members.push(...newMembers);
-      await group.save();
+      await group.save({ session });
     }
 
     return group;
