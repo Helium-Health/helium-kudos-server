@@ -16,6 +16,7 @@ import {
   CreateUserDto,
   InviteUserDto,
   UpdateUserDto,
+  UpdateUserFieldsDto,
   UpdateUserRoleDto,
 } from './dto/User.dto';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
@@ -126,15 +127,16 @@ export class UsersController {
   getAllTeams() {
     return this.usersService.getAllTeams();
   }
+
   @UseGuards(JwtAuthGuard, AdminGuard)
-  @Put(':id')
-  async updateUser(
-    @Param('id') userId: string,
-    @Body() updateUserDto: UpdateUserDto,
+  @Put(':userId')
+  async updateUserFields(
+    @Param('userId') userId: string,
+    @Body() updateUserFieldsDto: UpdateUserFieldsDto,
   ) {
     return this.usersService.updateUserFields(
       new Types.ObjectId(userId),
-      updateUserDto,
+      updateUserFieldsDto,
     );
   }
 }

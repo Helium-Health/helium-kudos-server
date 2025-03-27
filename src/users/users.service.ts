@@ -14,7 +14,12 @@ import {
   UserGender,
   UserTeam,
 } from 'src/users/schema/User.schema';
-import { CreateUserDto, InviteUserDto, UpdateUserDto } from './dto/User.dto';
+import {
+  CreateUserDto,
+  InviteUserDto,
+  UpdateUserDto,
+  UpdateUserFieldsDto,
+} from './dto/User.dto';
 import { WalletService } from 'src/wallet/wallet.service';
 import { UpdateUserFromSheetDto } from './dto/UpdateFromSheet.dto';
 import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
@@ -160,16 +165,16 @@ export class UsersService {
 
   async updateUserFields(
     userId: Types.ObjectId,
-    updateUserDto: UpdateUserDto,
+    updateUserFieldsDto: UpdateUserFieldsDto,
   ): Promise<User> {
     const user = await this.userModel.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    Object.keys(updateUserDto).forEach((key) => {
-      if (key !== 'email' && updateUserDto[key] !== undefined) {
-        user[key] = updateUserDto[key];
+    Object.keys(updateUserFieldsDto).forEach((key) => {
+      if (key !== 'email' && updateUserFieldsDto[key] !== undefined) {
+        user[key] = updateUserFieldsDto[key];
       }
     });
 

@@ -1,4 +1,5 @@
 import { PartialType } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import {
   IsBoolean,
   IsDate,
@@ -63,6 +64,15 @@ export class CreateUserDto {
 }
 
 export class UpdateUserDto extends PartialType(CreateUserDto) {}
+export class UpdateUserFieldsDto extends PartialType(UpdateUserDto) {
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: Date;
+
+  @IsOptional()
+  @IsDateString()
+  joinDate?: Date;
+}
 
 export class UpdateUserRoleDto extends PartialType(CreateUserDto) {
   @IsEnum(UserRole)
