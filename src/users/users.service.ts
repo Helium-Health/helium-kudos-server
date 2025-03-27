@@ -168,7 +168,7 @@ export class UsersService {
     }
 
     Object.keys(updateUserDto).forEach((key) => {
-      if (updateUserDto[key] !== undefined) {
+      if (key !== 'email' && updateUserDto[key] !== undefined) {
         user[key] = updateUserDto[key];
       }
     });
