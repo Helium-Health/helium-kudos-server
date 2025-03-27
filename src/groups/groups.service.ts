@@ -39,26 +39,18 @@ export class GroupsService {
     });
   }
 
-  async findGroups(name?: string, page = 1, limit = 10) {
+  async findGroups(name?: string) {
     const query: any = {};
 
     if (name) {
       query.name = { $regex: new RegExp(name, 'i') };
     }
 
-    const groups = await this.groupModel
-      .find(query)
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .exec();
-
-    const total = await this.groupModel.countDocuments(query);
+    const groups = await this.groupModel.find(query).exec();
 
     return {
       data: groups,
-      total,
-      page,
-      totalPages: Math.ceil(total / limit),
+      total: groups.length,
     };
   }
 
