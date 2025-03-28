@@ -39,14 +39,19 @@ export class GroupsService {
     });
   }
 
-  findAll() {
-    return this.groupModel.find().exec();
-  }
+  async findGroups(name?: string) {
+    const query: any = {};
 
-  findByName(name: string) {
-    return this.groupModel
-      .findOne({ name: { $regex: new RegExp(name, 'i') } })
-      .exec();
+    if (name) {
+      query.name = { $regex: new RegExp(name, 'i') };
+    }
+
+    const groups = await this.groupModel.find(query).exec();
+
+    return {
+      data: groups,
+      total: groups.length,
+    };
   }
 
   async update(id: string, updateGroupDto: UpdateGroupDto) {

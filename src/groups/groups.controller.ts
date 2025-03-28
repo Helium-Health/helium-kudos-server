@@ -37,12 +37,9 @@ export class GroupsController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('search')
+  @Get()
   async find(@Query('name') name?: string) {
-    if (name) {
-      return this.groupsService.findByName(name);
-    }
-    return this.groupsService.findAll();
+    return this.groupsService.findGroups(name);
   }
 
   @UseGuards(JwtAuthGuard, AdminGuard)
