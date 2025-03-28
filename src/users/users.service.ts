@@ -24,7 +24,12 @@ import { WalletService } from 'src/wallet/wallet.service';
 import { UpdateUserFromSheetDto } from './dto/UpdateFromSheet.dto';
 import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
 import * as argon2 from 'argon2';
-import { fieldsToMerge, fieldsToRevert } from 'src/constants';
+import {
+  fieldsToMerge,
+  fieldsToRevert,
+  PRODUCTION_CLIENT,
+  STAGING_CLIENT,
+} from 'src/constants';
 import { WithId } from 'mongodb';
 import { SlackService } from 'src/slack/slack.service';
 import { GroupsService } from 'src/groups/groups.service';
@@ -467,6 +472,10 @@ export class UsersService {
       groupId,
     } = inviteUserDto;
 
+    const clientUrl =
+      process.env.NODE_ENV === 'production'
+        ? PRODUCTION_CLIENT
+        : STAGING_CLIENT;
     const session = await this.userModel.db.startSession();
     session.startTransaction();
 
@@ -502,7 +511,10 @@ export class UsersService {
       });
 
       const savedUser = await newUser.save({ session });
-
+      await this.slackService.sendDirectMessage(
+        savedUser._id.toString(),
+        `Welcome to Helium Kudos!, Please sign in here: ${clientUrl}`,
+      );
       if (groupId) {
         await this.groupService.addMembersToGroup(
           groupId,
@@ -520,6 +532,21 @@ export class UsersService {
       session.endSession();
       throw error;
     }
+  }
+
+  async resendInvite(id: Types.ObjectId) {
+    const user = await this.userModel.findById(id);
+    if (user && !user.verified) {
+      const clientUrl =
+        process.env.NODE_ENV === 'production'
+          ? PRODUCTION_CLIENT
+          : STAGING_CLIENT;
+      await this.slackService.sendDirectMessage(
+        id.toString(),
+        `You have a pending invite from Helium Kudos!, Please sign in here: ${clientUrl}`,
+      );
+    }
+    return user;
   }
 
   async getAllTeams() {

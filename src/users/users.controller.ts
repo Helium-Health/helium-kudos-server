@@ -129,6 +129,12 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard, AdminGuard)
+  @Post('resend-invite')
+  async resentInvite(@Param('id') id: string): Promise<User> {
+    return this.usersService.resendInvite(new Types.ObjectId(id));
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
   @Put(':userId')
   async updateUserFields(
     @Param('userId') userId: string,
