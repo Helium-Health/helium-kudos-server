@@ -1,3 +1,4 @@
+import { OmitType } from '@nestjs/mapped-types';
 import { PartialType } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
@@ -64,7 +65,7 @@ export class CreateUserDto {
 }
 
 export class UpdateUserDto extends PartialType(CreateUserDto) {}
-export class UpdateUserFieldsDto extends PartialType(UpdateUserDto) {
+export class UpdateUserFieldsDto extends OmitType(UpdateUserDto, ['email']) {
   @IsOptional()
   @IsDateString()
   dateOfBirth?: Date;
