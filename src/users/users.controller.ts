@@ -16,7 +16,6 @@ import {
   CreateUserDto,
   InviteUserDto,
   UpdateUserDto,
-  UpdateUserFieldsDto,
   UpdateUserRoleDto,
 } from './dto/User.dto';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
@@ -71,7 +70,7 @@ export class UsersController {
 
   @Patch('me')
   async update(@Request() req, @Body() updateUserDto: UpdateUserDto) {
-    const allowedUpdates = {
+    const allowedUpdates: UpdateUserDto = {
       dateOfBirth: updateUserDto.dateOfBirth,
       joinDate: updateUserDto.joinDate,
       gender: updateUserDto.gender,
@@ -138,7 +137,7 @@ export class UsersController {
   @Put(':userId')
   async updateUserFields(
     @Param('userId') userId: string,
-    @Body() updateUserFieldsDto: UpdateUserFieldsDto,
+    @Body() updateUserFieldsDto: UpdateUserDto,
   ) {
     return this.usersService.updateUserFields(
       new Types.ObjectId(userId),

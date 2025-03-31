@@ -64,16 +64,18 @@ export class CreateUserDto {
   nationality?: string;
 }
 
-export class UpdateUserDto extends PartialType(CreateUserDto) {}
-export class UpdateUserFieldsDto extends OmitType(UpdateUserDto, ['email']) {
-  @IsOptional()
-  @IsDateString()
-  dateOfBirth?: Date;
+export class UpdateUserDto extends PartialType(
+  OmitType(CreateUserDto, ['email']),
+) {}
+// export class UpdateUserFieldsDto extends OmitType(UpdateUserDto, ['email']) {
+//   @IsOptional()
+//   @IsDateString()
+//   dateOfBirth?: Date;
 
-  @IsOptional()
-  @IsDateString()
-  joinDate?: Date;
-}
+//   @IsOptional()
+//   @IsDateString()
+//   joinDate?: Date;
+// }
 
 export class UpdateUserRoleDto extends PartialType(CreateUserDto) {
   @IsEnum(UserRole)
