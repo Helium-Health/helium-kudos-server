@@ -163,6 +163,20 @@ export class UsersService {
     return updatedUser;
   }
 
+  async updateUserFields(
+    userId: Types.ObjectId,
+    updateUserDto: UpdateUserDto,
+  ): Promise<User> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    Object.assign(user, updateUserDto);
+
+    return user.save();
+  }
+
   async deleteUser(id: string): Promise<User | null> {
     return this.userModel.findByIdAndDelete(id).exec();
   }
@@ -173,6 +187,7 @@ export class UsersService {
   ): Promise<UserDocument[]> {
     return this.userModel
       .find({
+        active: true,
         $expr: {
           $and: [
             { $eq: [{ $month: '$dateOfBirth' }, month] },
@@ -189,6 +204,7 @@ export class UsersService {
   ): Promise<UserDocument[]> {
     return this.userModel
       .find({
+        active: true,
         $expr: {
           $and: [
             { $eq: [{ $month: '$joinDate' }, month] },
@@ -200,7 +216,7 @@ export class UsersService {
   }
 
   async findUsersByGender(gender: UserGender): Promise<UserDocument[]> {
-    return this.userModel.find({ gender }).exec();
+    return this.userModel.find({ gender, active: true }).exec();
   }
 
   async findUsers(
@@ -250,7 +266,7 @@ export class UsersService {
   }
 
   async getAllUsers(): Promise<UserDocument[]> {
-    return await this.userModel.find({});
+    return await this.userModel.find({ active: true }).exec();
   }
 
   async updateByEmail(email: string, updateData: UpdateUserFromSheetDto) {
@@ -277,6 +293,10 @@ export class UsersService {
     const skip = (page - 1) * limit;
 
     const pipeline: any[] = [
+      {
+        $match: { active: true },
+      },
+
       {
         $addFields: {
           nextBirthday: {
