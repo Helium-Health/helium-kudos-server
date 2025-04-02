@@ -202,7 +202,7 @@ export class UsersService {
   }
 
   async findUsersByGender(gender: UserGender): Promise<UserDocument[]> {
-    return this.userModel.find({ gender, isActive: true }).exec();
+    return this.userModel.find({ gender, active: true }).exec();
   }
 
   async findUsers(
@@ -252,7 +252,7 @@ export class UsersService {
   }
 
   async getAllUsers(): Promise<UserDocument[]> {
-    return await this.userModel.find({isActive: true}).exec();
+    return await this.userModel.find({ active: true }).exec();
   }
 
   async updateByEmail(email: string, updateData: UpdateUserFromSheetDto) {
@@ -275,15 +275,14 @@ export class UsersService {
       today.getMonth(),
       today.getDate(),
     ).toISOString();
-  
+
     const skip = (page - 1) * limit;
-  
+
     const pipeline: any[] = [
-      // Exclude inactive users
-      { 
-        $match: { active: true } 
+      {
+        $match: { active: true },
       },
-  
+
       {
         $addFields: {
           nextBirthday: {
@@ -357,7 +356,7 @@ export class UsersService {
         },
       },
       { $unwind: '$celebrations' },
-  
+
       {
         $unionWith: {
           coll: 'milestones',
@@ -381,7 +380,7 @@ export class UsersService {
           ],
         },
       },
-  
+
       ...(month
         ? [
             {
@@ -398,11 +397,11 @@ export class UsersService {
             },
           ]
         : []),
-  
+
       ...(celebrationType
         ? [{ $match: { 'celebrations.celebrationType': celebrationType } }]
         : []),
-  
+
       { $sort: { 'celebrations.date': 1 } },
       {
         $facet: {
@@ -411,13 +410,13 @@ export class UsersService {
         },
       },
     ];
-  
+
     const [result] = await this.userModel.aggregate(pipeline);
-  
+
     const celebrations = result?.data || [];
     const totalCount = result?.count[0]?.totalCelebrations || 0;
     const totalPages = Math.ceil(totalCount / limit);
-  
+
     return {
       data: celebrations,
       meta: {

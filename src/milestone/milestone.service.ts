@@ -33,7 +33,7 @@ export class MilestoneService {
   }
 
   async findByType(type: string): Promise<Milestone> {
-    return this.milestoneModel.findOne({ type, isActive: true }).exec();
+    return this.milestoneModel.findOne({ type }).exec();
   }
 
   async update(
