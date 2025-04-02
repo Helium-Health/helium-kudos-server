@@ -10,6 +10,10 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  Validate,
+  ValidationArguments,
+  ValidatorConstraint,
+  ValidatorConstraintInterface,
 } from 'class-validator';
 import { Types } from 'mongoose';
 import { UserGender, UserRole, UserTeam } from 'src/users/schema/User.schema';
@@ -64,18 +68,30 @@ export class CreateUserDto {
   nationality?: string;
 }
 
+@ValidatorConstraint({ name: 'forbidEmail', async: false })
+class ForbidEmailUpdate implements ValidatorConstraintInterface {
+  validate(value: any, args: ValidationArguments) {
+    return !value;
+  }
+  defaultMessage(args: ValidationArguments) {
+    return 'Updating email is not allowed';
+  }
+}
 export class UpdateUserDto extends PartialType(
   OmitType(CreateUserDto, ['email']),
-) {}
-// export class UpdateUserFieldsDto extends OmitType(UpdateUserDto, ['email']) {
-//   @IsOptional()
-//   @IsDateString()
-//   dateOfBirth?: Date;
+) {
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: Date;
 
-//   @IsOptional()
-//   @IsDateString()
-//   joinDate?: Date;
-// }
+  @IsOptional()
+  @IsDateString()
+  joinDate?: Date;
+
+  @IsOptional()
+  @Validate(ForbidEmailUpdate)
+  email?: string;
+}
 
 export class UpdateUserRoleDto extends PartialType(CreateUserDto) {
   @IsEnum(UserRole)
