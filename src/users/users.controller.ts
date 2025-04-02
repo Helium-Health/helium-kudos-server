@@ -70,7 +70,7 @@ export class UsersController {
 
   @Patch('me')
   async update(@Request() req, @Body() updateUserDto: UpdateUserDto) {
-    const allowedUpdates = {
+    const allowedUpdates: UpdateUserDto = {
       dateOfBirth: updateUserDto.dateOfBirth,
       joinDate: updateUserDto.joinDate,
       gender: updateUserDto.gender,
@@ -131,5 +131,17 @@ export class UsersController {
   @Post('resend-invite')
   async resentInvite(@Param('id') id: string): Promise<User> {
     return this.usersService.resendInvite(new Types.ObjectId(id));
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Put(':userId')
+  async updateUserFields(
+    @Param('userId') userId: string,
+    @Body() updateUserFieldsDto: UpdateUserDto,
+  ) {
+    return this.usersService.updateUserFields(
+      new Types.ObjectId(userId),
+      updateUserFieldsDto,
+    );
   }
 }
