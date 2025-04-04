@@ -15,10 +15,6 @@ export class LeaderboardService {
     return this.recognitionService.topUsers(year, filterBy, month);
   }
 
-  async getUncreditedUsers() {
-    return this.transactionService.findUncreditedUsers();
-  }
-
   async getTopRecognitionReceivers(
     page: number,
     limit: number,
@@ -65,20 +61,6 @@ export class LeaderboardService {
 
   async getCompanyValueAnalytics(startDate: Date, endDate: Date) {
     return this.recognitionService.getCompanyValueAnalytics(startDate, endDate);
-  }
-
-  async getQuarterParticipants(
-    page: number,
-    limit: number,
-    year: number,
-    quarter: number,
-  ) {
-    return this.recognitionService.getQuarterParticipants(
-      page,
-      limit,
-      year,
-      quarter,
-    );
   }
 
   async getYearlyStatisticsWithMonthlyDetails(year: number) {
