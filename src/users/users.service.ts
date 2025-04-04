@@ -509,7 +509,7 @@ export class UsersService {
 
       const savedUser = await newUser.save({ session });
       await this.slackService.sendDirectMessage(
-        savedUser._id.toString(),
+        slackUserId.toString(),
         `Welcome to Helium Kudos!, Please sign in here: ${clientUrl}`,
       );
       if (groupId) {
