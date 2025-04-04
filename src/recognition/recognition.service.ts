@@ -1458,18 +1458,23 @@ export class RecognitionService {
     }
   }
 
-  async getCumulativePostMetrics(month?: number) {
-    const pipeline: PipelineStage[] = [
-      ...(month
-        ? [
-            {
-              $match: {
-                $expr: { $eq: [{ $month: '$createdAt' }, month] },
+  async getPostMetrics(startDate?: Date, endDate?: Date) {
+    const matchStage: PipelineStage.Match = {
+      $match: {
+        ...(startDate && endDate
+          ? {
+              createdAt: {
+                $gte: startDate,
+                $lte: endDate,
               },
-            },
-          ]
-        : []),
-
+            }
+          : {}),
+      },
+    };
+  
+    const pipeline: PipelineStage[] = [
+      matchStage,
+  
       {
         $group: {
           _id: {
@@ -1481,7 +1486,7 @@ export class RecognitionService {
         },
       },
       { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
-
+  
       {
         $project: {
           _id: 0,
@@ -1495,53 +1500,10 @@ export class RecognitionService {
           totalPosts: 1,
         },
       },
-
-      {
-        $group: {
-          _id: null,
-          data: {
-            $push: {
-              date: '$date',
-              totalPosts: '$totalPosts',
-            },
-          },
-        },
-      },
-      { $unwind: '$data' },
-      { $sort: { 'data.date': 1 } },
-
-      {
-        $group: {
-          _id: null,
-          cumulativeData: {
-            $push: {
-              date: '$data.date',
-              totalPosts: { $sum: '$data.totalPosts' },
-            },
-          },
-        },
-      },
-      { $unwind: '$cumulativeData' },
-      {
-        $group: {
-          _id: null,
-          data: {
-            $push: {
-              date: '$cumulativeData.date',
-              totalPosts: { $sum: '$cumulativeData.totalPosts' },
-            },
-          },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          data: 1,
-        },
-      },
     ];
-
+  
     const result = await this.recognitionModel.aggregate(pipeline);
-    return result.length > 0 ? result[0].data : [];
+    return result;
   }
+  
 }
