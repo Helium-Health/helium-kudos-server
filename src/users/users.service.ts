@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   forwardRef,
   Inject,
@@ -533,16 +534,32 @@ export class UsersService {
 
   async resendInvite(id: Types.ObjectId) {
     const user = await this.userModel.findById(id);
-    if (user && !user.verified) {
-      const clientUrl =
-        process.env.NODE_ENV === 'production'
-          ? PRODUCTION_CLIENT
-          : STAGING_CLIENT;
-      await this.slackService.sendDirectMessage(
-        id.toString(),
-        `You have a pending invite from Helium Kudos!, Please sign in here: ${clientUrl}`,
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.verified) {
+      throw new BadRequestException('User is already verified');
+    }
+
+    const slackUserId = await this.slackService.getUserIdByEmail(user.email);
+    if (!slackUserId) {
+      throw new NotFoundException(
+        'User is not a member of the organization on Slack',
       );
     }
+
+    const clientUrl =
+      process.env.NODE_ENV === 'production'
+        ? PRODUCTION_CLIENT
+        : STAGING_CLIENT;
+
+    await this.slackService.sendDirectMessage(
+      slackUserId.toString(),
+      `You have a pending invite from Helium Kudos! Please sign in here: ${clientUrl}`,
+    );
+
     return user;
   }
 
