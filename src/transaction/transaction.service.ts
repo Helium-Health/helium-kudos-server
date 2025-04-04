@@ -123,30 +123,6 @@ export class TransactionService {
     return transaction;
   }
 
-  async findUncreditedUsers() {
-    return this.transactionModel.aggregate([
-      {
-        $match: {
-          entityType: EntityType.RECOGNITION,
-          $or: [
-            { status: { $ne: TransactionStatus.SUCCESS } },
-            { relatedUserId: { $exists: false } },
-          ],
-        },
-      },
-      { $group: { _id: '$userId', uncreditedAmount: { $sum: '$amount' } } },
-      {
-        $lookup: {
-          from: 'users',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'user',
-        },
-      },
-      { $unwind: '$user' },
-    ]);
-  }
-
   async getTotalRecordsForEarnedCoins() {
     return this.transactionModel.countDocuments({
       entityType: EntityType.RECOGNITION,
