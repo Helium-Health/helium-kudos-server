@@ -10,7 +10,7 @@ import {
 import { LeaderboardService } from './leaderboard.service';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
-import { start } from 'repl';
+
 
 @Controller('leaderboard')
 export class LeaderboardController {
@@ -153,8 +153,15 @@ export class LeaderboardController {
 
   @UseGuards(JwtAuthGuard)
   @Get('post-metrics')
-  async postMetrics(@Query('month') month?: string) {
-    const monthNumber = month ? parseInt(month, 10) : undefined;
-    return await this.leaderboardService.cumulativePostMetrics(monthNumber);
+  async postMetrics(
+    @Query('startDate') startDate?: number,
+    @Query('endDate') endDate?: number,
+  ) {
+    const parsedStartDate = startDate ? new Date(Number(startDate)) : undefined;
+    const parsedEndDate = endDate ? new Date(Number(endDate)) : new Date();
+    return await this.leaderboardService.cumulativePostMetrics(
+      parsedStartDate,
+      parsedEndDate,
+    );
   }
 }
