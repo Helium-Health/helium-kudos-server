@@ -14,7 +14,7 @@ import { AdminGuard } from 'src/auth/guards/admin.guard';
 @Controller('leaderboard')
 export class LeaderboardController {
   constructor(private readonly leaderboardService: LeaderboardService) {}
-
+  secondsToMilliseconds = 1000;
   @UseGuards(JwtAuthGuard)
   @Get('top-users')
   async getTopUsers(
@@ -42,8 +42,8 @@ export class LeaderboardController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    const parseStartDate = startDate ? new Date(Number(startDate)) : undefined;
-    const parseEndDate = endDate ? new Date(Number(endDate)) : new Date();
+    const parseStartDate = startDate ? new Date(Number(startDate) * this.secondsToMilliseconds) : undefined;
+    const parseEndDate = endDate ? new Date(Number(endDate) * this.secondsToMilliseconds) : new Date();
     return this.leaderboardService.getCompanyValueAnalytics(
       parseStartDate,
       parseEndDate,
@@ -58,8 +58,8 @@ export class LeaderboardController {
     @Query('startDate') startDate?: number,
     @Query('endDate') endDate?: number,
   ) {
-    const parsedStartDate = startDate ? new Date(Number(startDate)) : undefined;
-    const parsedEndDate = endDate ? new Date(Number(endDate)) : new Date();
+    const parsedStartDate = startDate ? new Date(Number(startDate) * this.secondsToMilliseconds) : undefined;
+    const parsedEndDate = endDate ? new Date(Number(endDate) * this.secondsToMilliseconds ) : new Date();
     return this.leaderboardService.getTopRecognitionReceivers(
       page,
       limit,
@@ -76,8 +76,8 @@ export class LeaderboardController {
     @Query('startDate') startDate?: number,
     @Query('endDate') endDate?: number,
   ) {
-    const parsedStartDate = startDate ? new Date(Number(startDate)) : undefined;
-    const parsedEndDate = endDate ? new Date(Number(endDate)) : new Date();
+    const parsedStartDate = startDate ? new Date(Number(startDate) * this.secondsToMilliseconds) : undefined;
+    const parsedEndDate = endDate ? new Date(Number(endDate) * this.secondsToMilliseconds) : new Date();
     return this.leaderboardService.getTopRecognitionSenders(
       page,
       limit,
@@ -119,8 +119,8 @@ export class LeaderboardController {
     @Query('startDate') startDate?: number,
     @Query('endDate') endDate?: number,
   ) {
-    const parsedStartDate = startDate ? new Date(Number(startDate)) : undefined;
-    const parsedEndDate = endDate ? new Date(Number(endDate)) : new Date();
+    const parsedStartDate = startDate ? new Date(Number(startDate) * this.secondsToMilliseconds) : undefined;
+    const parsedEndDate = endDate ? new Date(Number(endDate) * this.secondsToMilliseconds) : new Date();
 
     return await this.leaderboardService.totalCoinAndRecognitionGiven(
       parsedStartDate,
@@ -134,8 +134,8 @@ export class LeaderboardController {
     @Query('startDate') startDate?: number,
     @Query('endDate') endDate?: number,
   ) {
-    const parsedStartDate = startDate ? new Date(Number(startDate)) : undefined;
-    const parsedEndDate = endDate ? new Date(Number(endDate)) : new Date();
+    const parsedStartDate = startDate ? new Date(Number(startDate) * this.secondsToMilliseconds) : undefined;
+    const parsedEndDate = endDate ? new Date(Number(endDate) * this.secondsToMilliseconds) : new Date();
     return await this.leaderboardService.cumulativePostMetrics(
       parsedStartDate,
       parsedEndDate,
