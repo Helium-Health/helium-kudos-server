@@ -58,7 +58,7 @@ export class LeaderboardService {
     startDate: Date,
     endDate: Date,
   ) {
-    return this.walletService.getCoinUseMetrics(page, limit, sortBy, sortOrder);
+    return this.walletService.getCoinUseMetrics(page, limit, sortBy, sortOrder, startDate, endDate);
   }
 
   async getCompanyValueAnalytics(startDate: Date, endDate: Date) {
