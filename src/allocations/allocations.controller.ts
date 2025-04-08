@@ -30,8 +30,8 @@ export class AllocationsController {
     return this.allocationsService.update(id, updateAllocationDto);
   }
 
-  @Post('users')
-  async allocateToAllUsers(@Body() bulkAllocationDto: BulkAllocationDto) {
-    return this.allocationsService.allocateCoinsToAllUsers(bulkAllocationDto.amount);
-  }
+  // @Post('users')
+  // async allocateToAllUsers(@Body() bulkAllocationDto: BulkAllocationDto) {
+  //   return this.allocationsService.allocateCoinsToAllUsers(bulkAllocationDto.amount);
+  // }
 }

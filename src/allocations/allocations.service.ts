@@ -30,29 +30,29 @@ export class AllocationsService implements OnModuleInit {
     await this.loadAllocations();
   }
 
-  // TODO: Remove this method after February 15th, 2025
-  async allocateCoinsToAllUsers(amount: number): Promise<void> {
-    const currentDate = new Date();
+  // // TODO: Remove this method after February 15th, 2025
+  // async allocateCoinsToAllUsers(amount: number): Promise<void> {
+  //   const currentDate = new Date();
 
-    if (currentDate > this.CUTOFF_DATE) {
-      throw new ForbiddenException(
-        'Bulk allocation is no longer available after February 15th, 2025',
-      );
-    }
+  //   if (currentDate > this.CUTOFF_DATE) {
+  //     throw new ForbiddenException(
+  //       'Bulk allocation is no longer available after February 15th, 2025',
+  //     );
+  //   }
 
-    const session = await this.allocationModel.db.startSession();
-    session.startTransaction();
+  //   const session = await this.allocationModel.db.startSession();
+  //   session.startTransaction();
 
-    try {
-      await this.walletService.allocateCoinsToAll(amount);
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      session.endSession();
-    }
-  }
+  //   try {
+  //     await this.walletService.allocateCoinsToAll(amount);
+  //     await session.commitTransaction();
+  //   } catch (error) {
+  //     await session.abortTransaction();
+  //     throw error;
+  //   } finally {
+  //     session.endSession();
+  //   }
+  // }
 
   private async loadAllocations() {
     const allocations = await this.allocationModel.find().exec();
@@ -111,7 +111,8 @@ export class AllocationsService implements OnModuleInit {
     return this.allocationModel.findOne().exec();
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  // @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  @Cron(CronExpression.EVERY_MINUTE)
   handleCron() {
     const now = new Date();
     this.logger.log(`Cron job running at ${now.toISOString()}`);
