@@ -268,15 +268,14 @@ export class WalletService {
   async getCoinUseMetrics(
     page: number = 1,
     limit: number = 10,
-    sortBy:
-      | 'totalCoinEarned'
-      | 'totalCoinBalance'
-      | 'totalCoinSpent' = 'totalCoinEarned',
+    sortBy: 'totalCoinEarned' | 'totalCoinBalance' | 'totalCoinSpent' = 'totalCoinEarned',
     sortOrder: 'ASCENDING' | 'DESCENDING' = 'DESCENDING',
+    startDate?: Date,
+    endDate?: Date,
   ) {
     const parsedSortOrder = sortOrder === 'ASCENDING' ? 1 : -1;
     const skip = (page - 1) * limit;
-
+  
     const aggregationPipeline: any[] = [
       {
         $lookup: {
@@ -290,6 +289,14 @@ export class WalletService {
                     { $eq: ['$entityType', 'recognition'] },
                     { $eq: ['$type', 'DEBIT'] },
                     { $eq: ['$userId', '$$userId'] },
+                    ...(startDate && endDate
+                      ? [{
+                          $and: [
+                            { $gte: ['$createdAt', startDate] },
+                            { $lte: ['$createdAt', endDate] },
+                          ],
+                        }]
+                      : []),
                   ],
                 },
               },
@@ -307,6 +314,14 @@ export class WalletService {
                           { $eq: ['$userId', '$$userId'] },
                           { $eq: ['$type', 'CREDIT'] },
                           { $eq: ['$status', 'reversed'] },
+                          ...(startDate && endDate
+                            ? [{
+                                $and: [
+                                  { $gte: ['$createdAt', startDate] },
+                                  { $lte: ['$createdAt', endDate] },
+                                ],
+                              }]
+                            : []),
                         ],
                       },
                     },
@@ -376,26 +391,27 @@ export class WalletService {
       { $skip: skip },
       { $limit: limit },
     ];
-
+  
     const totalCountPipeline: any[] = [{ $count: 'totalCount' }];
-
+  
     const [data, totalCountResult] = await Promise.all([
       this.walletModel.aggregate(aggregationPipeline).exec(),
       this.walletModel.aggregate(totalCountPipeline).exec(),
     ]);
-
+  
     const totalCount =
       totalCountResult.length > 0 ? totalCountResult[0].totalCount : 0;
     const totalPages = Math.ceil(totalCount / limit);
-
+  
     return {
       data,
       meta: {
-        totalCount: totalCount,
+        totalCount,
         totalPages,
-        page: page,
-        limit: limit,
+        page,
+        limit,
       },
     };
   }
+  
 }
