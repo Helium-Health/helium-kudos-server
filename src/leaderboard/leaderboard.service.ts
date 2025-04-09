@@ -55,8 +55,10 @@ export class LeaderboardService {
     limit: number,
     sortBy: 'totalCoinEarned' | 'totalCoinBalance' | 'totalCoinSpent',
     sortOrder: 'ASCENDING' | 'DESCENDING',
+    startDate: Date,
+    endDate: Date,
   ) {
-    return this.walletService.getCoinUseMetrics(page, limit, sortBy, sortOrder);
+    return this.walletService.getCoinUseMetrics(page, limit, sortBy, sortOrder, startDate, endDate);
   }
 
   async getCompanyValueAnalytics(startDate: Date, endDate: Date) {
