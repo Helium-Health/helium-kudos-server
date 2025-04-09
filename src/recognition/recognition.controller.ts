@@ -45,6 +45,7 @@ export class RecognitionController {
       createRecognitionDto,
     );
   }
+  
 
   @Get()
   async getAllRecognitions(

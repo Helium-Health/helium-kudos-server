@@ -13,7 +13,7 @@ export enum UserGender {
   Female = 'female',
 }
 
-export enum UserTeam {
+export enum UserDepartment {
   Engineering = 'Engineering',
   Executives = 'Executives',
   ProjectManagement = 'Project Management',

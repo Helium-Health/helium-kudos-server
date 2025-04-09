@@ -13,7 +13,7 @@ import {
   User,
   UserDocument,
   UserGender,
-  UserTeam,
+  UserDepartment,
 } from 'src/users/schema/User.schema';
 import { CreateUserDto, InviteUserDto, UpdateUserDto } from './dto/User.dto';
 import { WalletService } from 'src/wallet/wallet.service';
@@ -563,9 +563,22 @@ export class UsersService {
     return user;
   }
 
-  async getAllTeams() {
-    return Object.values(UserTeam);
+  async getAllDepartments() {
+    return Object.values(UserDepartment);
   }
+
+  async getUserIdsByDepartment(department: string): Promise<Types.ObjectId[]> {
+    const users = await this.userModel
+      .find({
+        team: { $regex: new RegExp(department, 'i') },
+        active: true,
+      })
+      .select('_id')
+      .exec();
+
+    return users.map((user) => user._id);
+  }
+
   async mergeDuplicateEmails() {
     const session = await this.userModel.db.startSession();
     session.startTransaction();

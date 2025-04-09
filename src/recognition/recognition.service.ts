@@ -64,6 +64,7 @@ export class RecognitionService {
       companyValues = [],
       giphyUrl,
       media = [],
+      departments = [],
     }: CreateRecognitionDto,
   ) {
     const invalidValues = companyValues.filter(
@@ -71,9 +72,32 @@ export class RecognitionService {
     );
 
     if (receivers.length === 0) {
-      throw new BadRequestException(
-        'At least one receiver is required for recognition',
-      );
+      if (!departments || departments.length === 0) {
+        throw new BadRequestException(
+          'At least one receiver or department is required for recognition',
+        );
+      }
+      const userIdsSet = new Set<string>();
+
+      for (const department of departments) {
+        const userIds =
+          await this.usersService.getUserIdsByDepartment(department);
+        for (const userId of userIds) {
+          const idStr = userId.toString();
+          if (idStr !== senderId) {
+            userIdsSet.add(idStr);
+          }
+        }
+      }
+
+      if (userIdsSet.size === 0) {
+        throw new BadRequestException('No valid users found for departments');
+      }
+
+      receivers = Array.from(userIdsSet).map((id) => ({
+        receiverId: id,
+        coinAmount: 0,
+      }));
     }
 
     if (invalidValues.length > 0) {

@@ -123,8 +123,8 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Get('teams')
-  getAllTeams() {
-    return this.usersService.getAllTeams();
+  getAllDepartment() {
+    return this.usersService.getAllDepartments();
   }
 
   @UseGuards(JwtAuthGuard, AdminGuard)
