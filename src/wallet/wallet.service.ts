@@ -268,14 +268,19 @@ export class WalletService {
   async getCoinUseMetrics(
     page: number = 1,
     limit: number = 10,
-    sortBy: 'totalCoinEarned' | 'totalCoinBalance' | 'totalCoinSpent' = 'totalCoinEarned',
+    sortBy:
+      | 'totalCoinEarned'
+      | 'totalCoinBalance'
+      | 'totalCoinSpent' = 'totalCoinEarned',
     sortOrder: 'ASCENDING' | 'DESCENDING' = 'DESCENDING',
     startDate?: Date,
     endDate?: Date,
   ) {
     const parsedSortOrder = sortOrder === 'ASCENDING' ? 1 : -1;
     const skip = (page - 1) * limit;
-  
+    const now = new Date();
+    const isFutureDate = endDate && endDate > now;
+
     const aggregationPipeline: any[] = [
       {
         $lookup: {
@@ -286,17 +291,58 @@ export class WalletService {
               $match: {
                 $expr: {
                   $and: [
-                    { $eq: ['$entityType', 'recognition'] },
-                    { $eq: ['$type', 'DEBIT'] },
                     { $eq: ['$userId', '$$userId'] },
+                    { $eq: ['$type', 'CREDIT'] },
+                    { $eq: ['$entityType', 'recognition'] },
+                    { $ne: ['$status', 'reversed'] },
                     ...(startDate && endDate
-                      ? [{
-                          $and: [
-                            { $gte: ['$createdAt', startDate] },
-                            { $lte: ['$createdAt', endDate] },
-                          ],
-                        }]
-                      : []),
+                      ? [
+                          {
+                            $and: [
+                              { $gte: ['$createdAt', startDate] },
+                              { $lte: ['$createdAt', endDate] },
+                              { $lte: ['$createdAt', now] },
+                            ],
+                          },
+                        ]
+                      : [{ $lte: ['$createdAt', now] }]),
+                  ],
+                },
+              },
+            },
+            {
+              $group: {
+                _id: '$userId',
+                totalEarned: { $sum: '$amount' },
+              },
+            },
+          ],
+          as: 'coinEarnedData',
+        },
+      },
+      {
+        $lookup: {
+          from: 'transactions',
+          let: { userId: '$userId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$userId', '$$userId'] },
+                    { $eq: ['$type', 'DEBIT'] },
+                    { $eq: ['$entityType', 'recognition'] },
+                    ...(startDate && endDate
+                      ? [
+                          {
+                            $and: [
+                              { $gte: ['$createdAt', startDate] },
+                              { $lte: ['$createdAt', endDate] },
+                              { $lte: ['$createdAt', now] },
+                            ],
+                          },
+                        ]
+                      : [{ $lte: ['$createdAt', now] }]),
                   ],
                 },
               },
@@ -314,14 +360,6 @@ export class WalletService {
                           { $eq: ['$userId', '$$userId'] },
                           { $eq: ['$type', 'CREDIT'] },
                           { $eq: ['$status', 'reversed'] },
-                          ...(startDate && endDate
-                            ? [{
-                                $and: [
-                                  { $gte: ['$createdAt', startDate] },
-                                  { $lte: ['$createdAt', endDate] },
-                                ],
-                              }]
-                            : []),
                         ],
                       },
                     },
@@ -336,9 +374,7 @@ export class WalletService {
               },
             },
             {
-              $match: {
-                isReversed: false,
-              },
+              $match: { isReversed: false },
             },
             {
               $group: {
@@ -355,8 +391,10 @@ export class WalletService {
           totalCoinSpent: {
             $ifNull: [{ $arrayElemAt: ['$coinSpentData.totalSpent', 0] }, 0],
           },
-          totalCoinEarned: '$earnedBalance',
-          totalCoinBalance: '$giveableBalance',
+          totalCoinEarned: {
+            $ifNull: [{ $arrayElemAt: ['$coinEarnedData.totalEarned', 0] }, 0],
+          },
+          totalCoinBalance: isFutureDate ? 0 : '$giveableBalance',
         },
       },
       {
@@ -391,18 +429,18 @@ export class WalletService {
       { $skip: skip },
       { $limit: limit },
     ];
-  
+
     const totalCountPipeline: any[] = [{ $count: 'totalCount' }];
-  
+
     const [data, totalCountResult] = await Promise.all([
       this.walletModel.aggregate(aggregationPipeline).exec(),
       this.walletModel.aggregate(totalCountPipeline).exec(),
     ]);
-  
+
     const totalCount =
       totalCountResult.length > 0 ? totalCountResult[0].totalCount : 0;
     const totalPages = Math.ceil(totalCount / limit);
-  
+
     return {
       data,
       meta: {
@@ -413,5 +451,4 @@ export class WalletService {
       },
     };
   }
-  
 }
