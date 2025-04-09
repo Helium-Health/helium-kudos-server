@@ -123,66 +123,6 @@ export class WalletService {
     };
   }
 
-  // async allocateCoinsToAll(allocation: number) {
-  //   if (allocation < 0) {
-  //     this.logger.warn('Invalid allocation: Negative value');
-  //     throw new BadRequestException('Allocation must be a positive number');
-  //   }
-
-  //   const session = await this.connection.startSession();
-  //   session.startTransaction();
-
-  //   try {
-  //     const activeWallets = await this.walletModel
-  //       .aggregate([
-  //         {
-  //           $lookup: {
-  //             from: 'users',
-  //             localField: 'userId',
-  //             foreignField: '_id',
-  //             as: 'user',
-  //           },
-  //         },
-  //         { $unwind: '$user' },
-  //         { $match: { 'user.active': true } },
-  //         { $project: { _id: 1 } },
-  //       ])
-  //       .session(session);
-
-  //     const walletIds = activeWallets.map((wallet) => wallet._id);
-
-  //     if (walletIds.length === 0) {
-  //       this.logger.warn('No activeWallets found for allocation');
-  //       throw new NotFoundException('No activeWallets found');
-  //     }
-
-  //     const result = await this.walletModel.updateMany(
-  //       { _id: { $in: walletIds } },
-  //       { $set: { giveableBalance: allocation } },
-  //       { session },
-  //     );
-
-  //     if (result.modifiedCount === 0) {
-  //       this.logger.warn('No active Wallets were updated');
-  //     } else {
-  //       this.logger.log(
-  //         `Successfully allocated ${allocation} coins to ${result.modifiedCount} activeWallets.`,
-  //       );
-  //     }
-
-  //     await session.commitTransaction();
-  //     this.logger.log('Transaction committed successfully.');
-
-  //     return result;
-  //   } catch (error) {
-  //     await session.abortTransaction();
-  //     this.logger.error('Transaction aborted due to an error: ', error.message);
-  //     throw new Error(error.message);
-  //   } finally {
-  //     session.endSession();
-  //   }
-  // }
-
   async allocateCoinsToAll(allocation: number) {
     if (allocation < 0) {
       this.logger.warn('Invalid allocation: Negative value');
@@ -204,18 +144,20 @@ export class WalletService {
             },
           },
           { $unwind: '$user' },
-          { $match: { 'user.active': true } }, //Allocate  coin to only active users
+          { $match: { 'user.active': true } },
           { $project: { _id: 1 } },
         ])
         .session(session);
 
-      if (!activeWallets || activeWallets.length === 0) {
+      const walletIds = activeWallets.map((wallet) => wallet._id);
+
+      if (walletIds.length === 0) {
         this.logger.warn('No activeWallets found for allocation');
         throw new NotFoundException('No activeWallets found');
       }
 
       const result = await this.walletModel.updateMany(
-        {},
+        { _id: { $in: walletIds } },
         { $set: { giveableBalance: allocation } },
         { session },
       );
