@@ -275,9 +275,13 @@ export class WalletService {
       | 'totalCoinBalance'
       | 'totalCoinSpent' = 'totalCoinEarned',
     sortOrder: 'ASCENDING' | 'DESCENDING' = 'DESCENDING',
+    startDate?: Date,
+    endDate?: Date,
   ) {
     const parsedSortOrder = sortOrder === 'ASCENDING' ? 1 : -1;
     const skip = (page - 1) * limit;
+    const now = new Date();
+    const isFutureDate = endDate && endDate > now;
 
     const aggregationPipeline: any[] = [
       {
@@ -289,9 +293,58 @@ export class WalletService {
               $match: {
                 $expr: {
                   $and: [
-                    { $eq: ['$entityType', 'recognition'] },
-                    { $eq: ['$type', 'DEBIT'] },
                     { $eq: ['$userId', '$$userId'] },
+                    { $eq: ['$type', 'CREDIT'] },
+                    { $eq: ['$entityType', 'recognition'] },
+                    { $ne: ['$status', 'reversed'] },
+                    ...(startDate && endDate
+                      ? [
+                          {
+                            $and: [
+                              { $gte: ['$createdAt', startDate] },
+                              { $lte: ['$createdAt', endDate] },
+                              { $lte: ['$createdAt', now] },
+                            ],
+                          },
+                        ]
+                      : [{ $lte: ['$createdAt', now] }]),
+                  ],
+                },
+              },
+            },
+            {
+              $group: {
+                _id: '$userId',
+                totalEarned: { $sum: '$amount' },
+              },
+            },
+          ],
+          as: 'coinEarnedData',
+        },
+      },
+      {
+        $lookup: {
+          from: 'transactions',
+          let: { userId: '$userId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$userId', '$$userId'] },
+                    { $eq: ['$type', 'DEBIT'] },
+                    { $eq: ['$entityType', 'recognition'] },
+                    ...(startDate && endDate
+                      ? [
+                          {
+                            $and: [
+                              { $gte: ['$createdAt', startDate] },
+                              { $lte: ['$createdAt', endDate] },
+                              { $lte: ['$createdAt', now] },
+                            ],
+                          },
+                        ]
+                      : [{ $lte: ['$createdAt', now] }]),
                   ],
                 },
               },
@@ -323,9 +376,7 @@ export class WalletService {
               },
             },
             {
-              $match: {
-                isReversed: false,
-              },
+              $match: { isReversed: false },
             },
             {
               $group: {
@@ -342,8 +393,10 @@ export class WalletService {
           totalCoinSpent: {
             $ifNull: [{ $arrayElemAt: ['$coinSpentData.totalSpent', 0] }, 0],
           },
-          totalCoinEarned: '$earnedBalance',
-          totalCoinBalance: '$giveableBalance',
+          totalCoinEarned: {
+            $ifNull: [{ $arrayElemAt: ['$coinEarnedData.totalEarned', 0] }, 0],
+          },
+          totalCoinBalance: isFutureDate ? 0 : '$giveableBalance',
         },
       },
       {
@@ -393,10 +446,10 @@ export class WalletService {
     return {
       data,
       meta: {
-        totalCount: totalCount,
+        totalCount,
         totalPages,
-        page: page,
-        limit: limit,
+        page,
+        limit,
       },
     };
   }

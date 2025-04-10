@@ -129,7 +129,7 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard, AdminGuard)
   @Post('resend-invite')
-  async resentInvite(@Param('id') id: string): Promise<User> {
+  async resentInvite(@Query('id') id: string): Promise<User> {
     return this.usersService.resendInvite(new Types.ObjectId(id));
   }
 
