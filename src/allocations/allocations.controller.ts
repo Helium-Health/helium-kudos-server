@@ -8,7 +8,10 @@ import {
 } from '@nestjs/common';
 import { AllocationsService } from './allocations.service';
 import { CreateAllocationDto } from './dto/create-allocation.dto';
-import { BulkAllocationDto, UpdateAllocationDto } from './dto/update-allocation.dto';
+import {
+  BulkAllocationDto,
+  UpdateAllocationDto,
+} from './dto/update-allocation.dto';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 
 @Controller('allocations')
@@ -30,8 +33,10 @@ export class AllocationsController {
     return this.allocationsService.update(id, updateAllocationDto);
   }
 
-  // @Post('users')
-  // async allocateToAllUsers(@Body() bulkAllocationDto: BulkAllocationDto) {
-  //   return this.allocationsService.allocateCoinsToAllUsers(bulkAllocationDto.amount);
-  // }
+  @Post('users')
+  async allocateToAllUsers(@Body() bulkAllocationDto: BulkAllocationDto) {
+    return this.allocationsService.allocateCoinsToAllUsersManually(
+      bulkAllocationDto.amount,
+    );
+  }
 }

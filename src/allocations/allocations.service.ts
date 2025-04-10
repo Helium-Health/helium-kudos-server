@@ -15,8 +15,6 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class AllocationsService implements OnModuleInit {
-  private readonly CUTOFF_DATE = new Date('2025-02-15');
-
   constructor(
     @InjectModel(Allocation.name)
     private readonly allocationModel: Model<Allocation>,
@@ -30,29 +28,23 @@ export class AllocationsService implements OnModuleInit {
     await this.loadAllocations();
   }
 
-  // // TODO: Remove this method after February 15th, 2025
-  // async allocateCoinsToAllUsers(amount: number): Promise<void> {
-  //   const currentDate = new Date();
+  async allocateCoinsToAllUsersManually(amount: number): Promise<void> {
+    const session = await this.allocationModel.db.startSession();
+    session.startTransaction();
 
-  //   if (currentDate > this.CUTOFF_DATE) {
-  //     throw new ForbiddenException(
-  //       'Bulk allocation is no longer available after February 15th, 2025',
-  //     );
-  //   }
+    try {
+      this.logger.log(`Manually allocating ${amount} coins to all users`);
 
-  //   const session = await this.allocationModel.db.startSession();
-  //   session.startTransaction();
+      await this.walletService.allocateCoinsToAll(amount);
 
-  //   try {
-  //     await this.walletService.allocateCoinsToAll(amount);
-  //     await session.commitTransaction();
-  //   } catch (error) {
-  //     await session.abortTransaction();
-  //     throw error;
-  //   } finally {
-  //     session.endSession();
-  //   }
-  // }
+      await session.commitTransaction();
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
 
   private async loadAllocations() {
     const allocations = await this.allocationModel.find().exec();
