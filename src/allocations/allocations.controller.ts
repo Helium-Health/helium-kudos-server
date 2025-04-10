@@ -13,6 +13,7 @@ import {
   UpdateAllocationDto,
 } from './dto/update-allocation.dto';
 import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
+import { AdminGuard } from 'src/auth/guards/admin.guard';
 
 @Controller('allocations')
 export class AllocationsController {
@@ -33,6 +34,7 @@ export class AllocationsController {
     return this.allocationsService.update(id, updateAllocationDto);
   }
 
+  @UseGuards(JwtAuthGuard, AdminGuard)
   @Post('users')
   async allocateToAllUsers(@Body() bulkAllocationDto: BulkAllocationDto) {
     return this.allocationsService.allocateCoinsToAllUsersManually(
