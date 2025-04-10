@@ -39,13 +39,12 @@ export class RecognitionController {
     @Body() createRecognitionDto: CreateRecognitionDto,
   ): Promise<Recognition> {
     const senderId = req.user.userId;
-
+    console.log('createRecognitionDto', createRecognitionDto);
     return this.recognitionService.createRecognition(
       senderId,
       createRecognitionDto,
     );
   }
-  
 
   @Get()
   async getAllRecognitions(

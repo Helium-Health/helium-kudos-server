@@ -47,7 +47,6 @@ export class CreateRecognitionDto {
   message: string;
 
   @IsArray()
-  @ArrayNotEmpty()
   @ValidateNested({ each: true })
   @Type(() => Receiver)
   receivers: Receiver[];

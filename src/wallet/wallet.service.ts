@@ -69,8 +69,21 @@ export class WalletService {
     userId: Types.ObjectId,
     amount: number,
   ): Promise<boolean> {
-    const wallet = await this.walletModel.findOne({ userId });
-    return wallet.giveableBalance >= amount;
+    try {
+      const wallet = await this.walletModel.findOne({ userId });
+
+      if (!wallet) {
+        throw new NotFoundException(`Wallet not found for userId: ${userId}`);
+      }
+
+      return wallet.giveableBalance >= amount;
+    } catch (error) {
+      this.logger.error(
+        `Failed to check wallet balance for user: ${userId}`,
+        error,
+      );
+      return false;
+    }
   }
 
   async deductCoins(
@@ -110,7 +123,9 @@ export class WalletService {
 
   async getEarnedCoinBalance(userId: string) {
     const wallet = await this.findWalletByUserId(new Types.ObjectId(userId));
-
+    if (!wallet) {
+      throw new NotFoundException('Wallet not found');
+    }
     return {
       earnedBalance: wallet.earnedBalance,
     };
@@ -118,6 +133,9 @@ export class WalletService {
 
   async getAvailableToGive(userId: string) {
     const wallet = await this.findWalletByUserId(new Types.ObjectId(userId));
+    if (!wallet) {
+      throw new NotFoundException('Wallet not found');
+    }
     return {
       availableToGive: wallet.giveableBalance,
     };
