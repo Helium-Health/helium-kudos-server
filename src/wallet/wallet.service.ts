@@ -18,6 +18,33 @@ export class WalletService {
   ) {}
   private readonly logger = new Logger(WalletService.name);
 
+  async runTransactionWithRetry(operation: (session) => Promise<any>) {
+    for (let i = 0; i < 5; i++) {
+      const session = await this.connection.startSession();
+      try {
+        session.startTransaction();
+        const result = await operation(session);
+        await session.commitTransaction();
+        return result;
+      } catch (err) {
+        await session.abortTransaction();
+
+        if (err.hasErrorLabel?.('TransientTransactionError')) {
+          const backoff = Math.pow(2, i) * 100;
+          this.logger.warn(`Transient error, retrying in ${backoff}ms...`);
+          await new Promise((resolve) => setTimeout(resolve, backoff));
+        } else {
+          throw err;
+        }
+      } finally {
+        session.endSession();
+      }
+    }
+
+    this.logger.error('Transaction failed after maximum retries');
+    throw new Error('Transaction failed after multiple retries');
+  }
+
   async createWallet(userId: Types.ObjectId, session: ClientSession) {
     const newWallet = new this.walletModel({
       userId,
@@ -129,58 +156,48 @@ export class WalletService {
       throw new BadRequestException('Allocation must be a positive number');
     }
 
-    const session = await this.connection.startSession();
-    session.startTransaction();
-
-    try {
-      const activeWallets = await this.walletModel
-        .aggregate([
-          {
-            $lookup: {
-              from: 'users',
-              localField: 'userId',
-              foreignField: '_id',
-              as: 'user',
+    return await this.runTransactionWithRetry(
+      async (session) => {
+        const activeWallets = await this.walletModel
+          .aggregate([
+            {
+              $lookup: {
+                from: 'users',
+                localField: 'userId',
+                foreignField: '_id',
+                as: 'user',
+              },
             },
-          },
-          { $unwind: '$user' },
-          { $match: { 'user.active': true } },
-          { $project: { _id: 1 } },
-        ])
-        .session(session);
+            { $unwind: '$user' },
+            { $match: { 'user.active': true } },
+            { $project: { _id: 1 } },
+          ])
+          .session(session);
 
-      const walletIds = activeWallets.map((wallet) => wallet._id);
+        const walletIds = activeWallets.map((wallet) => wallet._id);
 
-      if (walletIds.length === 0) {
-        this.logger.warn('No activeWallets found for allocation');
-        throw new NotFoundException('No activeWallets found');
-      }
+        if (!walletIds.length) {
+          this.logger.warn('No active wallets found');
+          throw new NotFoundException('No active wallets found');
+        }
 
-      const result = await this.walletModel.updateMany(
-        { _id: { $in: walletIds } },
-        { $set: { giveableBalance: allocation } },
-        { session },
-      );
-
-      if (result.modifiedCount === 0) {
-        this.logger.warn('No active Wallets were updated');
-      } else {
-        this.logger.log(
-          `Successfully allocated ${allocation} coins to ${result.modifiedCount} activeWallets.`,
+        const result = await this.walletModel.updateMany(
+          { _id: { $in: walletIds } },
+          { $set: { giveableBalance: allocation } },
+          { session },
         );
-      }
 
-      await session.commitTransaction();
-      this.logger.log('Transaction committed successfully.');
+        if (!result.modifiedCount) {
+          this.logger.warn('No active Wallets were updated');
+        } else {
+          this.logger.log(
+            `Allocated ${allocation} coins to ${result.modifiedCount} wallets`,
+          );
+        }
 
-      return result;
-    } catch (error) {
-      await session.abortTransaction();
-      this.logger.error('Transaction aborted due to an error: ', error.message);
-      throw new Error(error.message);
-    } finally {
-      session.endSession();
-    }
+        return result;
+      },
+    );
   }
 
   async allocateCoinsToSpecificUser(
