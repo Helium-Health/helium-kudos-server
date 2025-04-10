@@ -533,7 +533,7 @@ export class UsersService {
   }
 
   async resendInvite(id: Types.ObjectId) {
-    const user = await this.userModel.findById(id);
+    const user = await this.findById(id);
 
     if (!user) {
       throw new NotFoundException('User not found');
