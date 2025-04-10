@@ -18,30 +18,26 @@ export class WalletService {
   ) {}
   private readonly logger = new Logger(WalletService.name);
 
-  async runTransactionWithRetry(operation: (session) => Promise<any>) {
-    for (let i = 0; i < 5; i++) {
-      const session = await this.connection.startSession();
+  async runTransactionWithRetry(
+    session: ClientSession,
+    operation: (session) => Promise<any>,
+  ) {
+    for (let i = 0; i < 4; i++) {
       try {
-        session.startTransaction();
+        this.logger.log(`Trying Allocation transaction...${i + 1} attempt`);
         const result = await operation(session);
-        await session.commitTransaction();
         return result;
       } catch (err) {
-        await session.abortTransaction();
-
         if (err.hasErrorLabel?.('TransientTransactionError')) {
-          const backoff = Math.pow(2, i) * 100;
+          const backoff = Math.pow(2, i) * 4000;
           this.logger.warn(`Transient error, retrying in ${backoff}ms...`);
           await new Promise((resolve) => setTimeout(resolve, backoff));
         } else {
           throw err;
         }
-      } finally {
-        session.endSession();
       }
     }
 
-    this.logger.error('Transaction failed after maximum retries');
     throw new Error('Transaction failed after multiple retries');
   }
 
@@ -156,8 +152,11 @@ export class WalletService {
       throw new BadRequestException('Allocation must be a positive number');
     }
 
-    return await this.runTransactionWithRetry(
-      async (session) => {
+    const session = await this.walletModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      const op = async (session) => {
         const activeWallets = await this.walletModel
           .aggregate([
             {
@@ -195,9 +194,17 @@ export class WalletService {
           );
         }
 
+        await session.commitTransaction();
         return result;
-      },
-    );
+      };
+
+      return await this.runTransactionWithRetry(session, op);
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 
   async allocateCoinsToSpecificUser(
