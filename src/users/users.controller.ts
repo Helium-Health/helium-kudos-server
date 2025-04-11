@@ -14,6 +14,7 @@ import {
 import { UsersService } from './users.service';
 import {
   CreateUserDto,
+  InviteUserDto,
   UpdateUserDto,
   UpdateUserRoleDto,
 } from './dto/User.dto';
@@ -69,7 +70,7 @@ export class UsersController {
 
   @Patch('me')
   async update(@Request() req, @Body() updateUserDto: UpdateUserDto) {
-    const allowedUpdates = {
+    const allowedUpdates: UpdateUserDto = {
       dateOfBirth: updateUserDto.dateOfBirth,
       joinDate: updateUserDto.joinDate,
       gender: updateUserDto.gender,
@@ -112,5 +113,35 @@ export class UsersController {
   @Post('revert-duplicate-email-merge')
   async revertDuplicateEmailMerge() {
     return this.usersService.revertDuplicateEmailMerge();
+  }
+
+  @UseGuards(AdminGuard)
+  @Post('invite')
+  async inviteUser(@Body() inviteUserDto: InviteUserDto): Promise<User> {
+    return this.usersService.inviteUser(inviteUserDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('teams')
+  getAllTeams() {
+    return this.usersService.getAllTeams();
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Post('resend-invite')
+  async resentInvite(@Query('id') id: string): Promise<User> {
+    return this.usersService.resendInvite(new Types.ObjectId(id));
+  }
+
+  @UseGuards(JwtAuthGuard, AdminGuard)
+  @Put(':userId')
+  async updateUserFields(
+    @Param('userId') userId: string,
+    @Body() updateUserFieldsDto: UpdateUserDto,
+  ) {
+    return this.usersService.updateUserFields(
+      new Types.ObjectId(userId),
+      updateUserFieldsDto,
+    );
   }
 }

@@ -123,30 +123,6 @@ export class TransactionService {
     return transaction;
   }
 
-  async findUncreditedUsers() {
-    return this.transactionModel.aggregate([
-      {
-        $match: {
-          entityType: EntityType.RECOGNITION,
-          $or: [
-            { status: { $ne: TransactionStatus.SUCCESS } },
-            { relatedUserId: { $exists: false } },
-          ],
-        },
-      },
-      { $group: { _id: '$userId', uncreditedAmount: { $sum: '$amount' } } },
-      {
-        $lookup: {
-          from: 'users',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'user',
-        },
-      },
-      { $unwind: '$user' },
-    ]);
-  }
-
   async getTotalRecordsForEarnedCoins() {
     return this.transactionModel.countDocuments({
       entityType: EntityType.RECOGNITION,
@@ -252,6 +228,59 @@ export class TransactionService {
       {
         $group: {
           _id: '$userId',
+          netAmount: { $sum: '$amount' },
+        },
+      },
+    ]);
+
+    return result.length > 0 ? Math.abs(result[0].netAmount) : 0;
+  }
+
+  async getUserCoinSpentOnRecognitions(
+    userId: Types.ObjectId,
+  ): Promise<number> {
+    const result = await this.transactionModel.aggregate([
+      {
+        $match: {
+          entityType: 'recognition',
+          type: 'DEBIT',
+          userId: userId,
+        },
+      },
+      {
+        $lookup: {
+          from: 'transactions',
+          let: { claimId: '$claimId', userId: '$userId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$claimId', '$$claimId'] },
+                    { $eq: ['$userId', '$$userId'] },
+                    { $eq: ['$type', 'CREDIT'] },
+                    { $eq: ['$status', 'reversed'] },
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'reversedTransactions',
+        },
+      },
+      {
+        $addFields: {
+          isReversed: { $gt: [{ $size: '$reversedTransactions' }, 0] },
+        },
+      },
+      {
+        $match: {
+          isReversed: false,
+        },
+      },
+      {
+        $group: {
+          _id: null,
           netAmount: { $sum: '$amount' },
         },
       },

@@ -1,32 +1,49 @@
 import {
+  BadRequestException,
+  ConflictException,
+  forwardRef,
   Inject,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, Types } from 'mongoose';
-import { User, UserDocument, UserGender } from 'src/users/schema/User.schema';
-import { CreateUserDto, UpdateUserDto } from './dto/User.dto';
+import {
+  User,
+  UserDocument,
+  UserGender,
+  UserTeam,
+} from 'src/users/schema/User.schema';
+import { CreateUserDto, InviteUserDto, UpdateUserDto } from './dto/User.dto';
 import { WalletService } from 'src/wallet/wallet.service';
 import { UpdateUserFromSheetDto } from './dto/UpdateFromSheet.dto';
 import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
 import * as argon2 from 'argon2';
-import { fieldsToMerge, fieldsToRevert } from 'src/constants';
+import {
+  fieldsToMerge,
+  fieldsToRevert,
+  PRODUCTION_CLIENT,
+  STAGING_CLIENT,
+} from 'src/constants';
 import { WithId } from 'mongodb';
+import { SlackService } from 'src/slack/slack.service';
+import { GroupsService } from 'src/groups/groups.service';
 
 @Injectable()
 export class UsersService {
   constructor(
+    @Inject(forwardRef(() => GroupsService))
+    private groupService: GroupsService,
     @InjectModel(User.name) private userModel: Model<User>,
     private walletService: WalletService,
+
+    private readonly slackService: SlackService,
     @Inject('AUTH_SERVICE') private authService,
   ) {}
 
-  //TODO: Remove this method after DB migration
-  async onModuleInit() {
-    await this.updateExistingUsers(this.userModel);
-  }
+  private readonly logger = new Logger(UsersService.name);
 
   async runTransactionWithRetry(session, operation) {
     for (let i = 0; i < 5; i++) {
@@ -61,7 +78,6 @@ export class UsersService {
         await newUser.save({ session });
 
         // Step 2: Create wallet
-        await this.walletService.createWallet(newUser._id, session);
 
         // Step 3: Generate and hash the refresh token
         const newUserRefreshToken = await this.generateAndStoreRefreshToken(
@@ -101,7 +117,7 @@ export class UsersService {
   }
 
   // Method to find a user by email
-  async findByEmail(email: string): Promise<User | null> {
+  async findByEmail(email: string): Promise<User | UserDocument | null> {
     return await this.userModel
       .findOne({
         email,
@@ -127,6 +143,15 @@ export class UsersService {
     }
   }
 
+  async getInactiveUserEmails(userIds: string[]): Promise<string[]> {
+    const inactiveUsers = await this.userModel.find(
+      { _id: { $in: userIds }, active: false },
+      { email: 1 },
+    );
+
+    return inactiveUsers.map((user) => user.email);
+  }
+
   async updateUser(
     id: string,
     updateData: UpdateUserDto,
@@ -141,6 +166,20 @@ export class UsersService {
     return updatedUser;
   }
 
+  async updateUserFields(
+    userId: Types.ObjectId,
+    updateUserDto: UpdateUserDto,
+  ): Promise<User> {
+    const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    Object.assign(user, updateUserDto);
+
+    return user.save();
+  }
+
   async deleteUser(id: string): Promise<User | null> {
     return this.userModel.findByIdAndDelete(id).exec();
   }
@@ -151,6 +190,7 @@ export class UsersService {
   ): Promise<UserDocument[]> {
     return this.userModel
       .find({
+        active: true,
         $expr: {
           $and: [
             { $eq: [{ $month: '$dateOfBirth' }, month] },
@@ -167,6 +207,7 @@ export class UsersService {
   ): Promise<UserDocument[]> {
     return this.userModel
       .find({
+        active: true,
         $expr: {
           $and: [
             { $eq: [{ $month: '$joinDate' }, month] },
@@ -178,7 +219,7 @@ export class UsersService {
   }
 
   async findUsersByGender(gender: UserGender): Promise<UserDocument[]> {
-    return this.userModel.find({ gender }).exec();
+    return this.userModel.find({ gender, active: true }).exec();
   }
 
   async findUsers(
@@ -205,9 +246,7 @@ export class UsersService {
       query.name = { $all: words.map((word) => new RegExp(word, 'i')) };
     }
 
-    if (active) {
-      query.active = active;
-    }
+    active !== undefined && (query.active = active);
 
     const totalCount = await this.userModel.countDocuments(query).exec();
     const totalPages = Math.ceil(totalCount / limit);
@@ -230,7 +269,7 @@ export class UsersService {
   }
 
   async getAllUsers(): Promise<UserDocument[]> {
-    return await this.userModel.find({});
+    return await this.userModel.find({ active: true }).exec();
   }
 
   async updateByEmail(email: string, updateData: UpdateUserFromSheetDto) {
@@ -257,6 +296,10 @@ export class UsersService {
     const skip = (page - 1) * limit;
 
     const pipeline: any[] = [
+      {
+        $match: { active: true },
+      },
+
       {
         $addFields: {
           nextBirthday: {
@@ -415,15 +458,117 @@ export class UsersService {
     );
   }
 
-  //TODO: Remove this method after DB migration
-  private async updateExistingUsers(userModel: Model<User>) {
-    await userModel.updateMany(
-      { active: { $exists: false } },
-      { $set: { active: true } },
-    );
-    console.log('Existing users updated with default active value');
+  async inviteUser(inviteUserDto: InviteUserDto): Promise<User> {
+    const {
+      email,
+      name,
+      gender,
+      picture,
+      role,
+      dateOfBirth,
+      joinDate,
+      team,
+      nationality,
+      groupId,
+    } = inviteUserDto;
+
+    const clientUrl =
+      process.env.NODE_ENV === 'production'
+        ? PRODUCTION_CLIENT
+        : STAGING_CLIENT;
+    const session = await this.userModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      const slackUserId = await this.slackService.getUserIdByEmail(email);
+      if (!slackUserId) {
+        throw new NotFoundException(
+          'User is not a member of the organization on Slack',
+        );
+      }
+
+      const existingUser = await this.userModel
+        .findOne({ email })
+        .session(session)
+        .exec();
+      if (existingUser) {
+        throw new ConflictException('User with this email already exists');
+      }
+
+      const newUser = new this.userModel({
+        email,
+        originalEmail: email,
+        name,
+        gender,
+        picture,
+        role: role || 'user',
+        verified: false,
+        active: true,
+        dateOfBirth,
+        joinDate,
+        team,
+        nationality,
+      });
+
+      const savedUser = await newUser.save({ session });
+      await this.slackService.sendDirectMessage(
+        slackUserId.toString(),
+        `Welcome to Helium Kudos!, Please sign in here: ${clientUrl}`,
+      );
+      if (groupId) {
+        await this.groupService.addMembersToGroup(
+          groupId,
+          savedUser._id,
+          session,
+        );
+      }
+
+      await this.walletService.createWallet(savedUser._id, session);
+      await session.commitTransaction();
+      session.endSession();
+
+      return savedUser;
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
+    }
   }
 
+  async resendInvite(id: Types.ObjectId) {
+    const user = await this.findById(id);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.verified) {
+      throw new BadRequestException('User is already verified');
+    }
+
+    const slackUserId = await this.slackService.getUserIdByEmail(user.email);
+    if (!slackUserId) {
+      throw new NotFoundException(
+        'User is not a member of the organization on Slack',
+      );
+    }
+
+    const clientUrl =
+      process.env.NODE_ENV === 'production'
+        ? PRODUCTION_CLIENT
+        : STAGING_CLIENT;
+
+    await this.slackService.sendDirectMessage(
+      slackUserId.toString(),
+      `You have a pending invite from Helium Kudos! Please sign in here: ${clientUrl}`,
+    );
+
+    return user;
+  }
+
+  async getAllTeams() {
+    return Object.values(UserTeam);
+  }
   async mergeDuplicateEmails() {
     const session = await this.userModel.db.startSession();
     session.startTransaction();

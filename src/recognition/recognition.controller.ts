@@ -23,11 +23,13 @@ import { JwtAuthGuard } from 'src/auth/utils/jwt-auth.guard';
 import { Types } from 'mongoose';
 import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ActiveUserGuard } from 'src/auth/guards/active-user.guard';
+import { AdminGuard } from 'src/auth/guards/admin.guard';
 
 @ApiTags('Recognition')
 @ApiBearerAuth()
 @Controller('recognition')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ActiveUserGuard)
 export class RecognitionController {
   constructor(private readonly recognitionService: RecognitionService) {}
 
@@ -88,6 +90,7 @@ export class RecognitionController {
   }
 
   @Delete('auto/:id')
+  @UseGuards(AdminGuard)
   async deleteAutoRecognition(@Param('id') recognitionId: string) {
     return this.recognitionService.deleteAutoRecognition(
       new Types.ObjectId(recognitionId),

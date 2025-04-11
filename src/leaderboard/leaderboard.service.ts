@@ -1,20 +1,18 @@
 import { Injectable, Query } from '@nestjs/common';
 import { RecognitionService } from 'src/recognition/recognition.service';
 import { TransactionService } from 'src/transaction/transaction.service';
+import { WalletService } from 'src/wallet/wallet.service';
 
 @Injectable()
 export class LeaderboardService {
   constructor(
     private readonly recognitionService: RecognitionService,
     private readonly transactionService: TransactionService,
+    private readonly walletService: WalletService,
   ) {}
 
   async topUsers(year, filterBy, month) {
     return this.recognitionService.topUsers(year, filterBy, month);
-  }
-
-  async getUncreditedUsers() {
-    return this.transactionService.findUncreditedUsers();
   }
 
   async getTopRecognitionReceivers(
@@ -52,25 +50,29 @@ export class LeaderboardService {
     );
   }
 
+  async getCoinUseMetrics(
+    page: number,
+    limit: number,
+    sortBy: 'totalCoinEarned' | 'totalCoinBalance' | 'totalCoinSpent',
+    sortOrder: 'ASCENDING' | 'DESCENDING',
+    startDate: Date,
+    endDate: Date,
+  ) {
+    return this.walletService.getCoinUseMetrics(page, limit, sortBy, sortOrder, startDate, endDate);
+  }
+
   async getCompanyValueAnalytics(startDate: Date, endDate: Date) {
     return this.recognitionService.getCompanyValueAnalytics(startDate, endDate);
   }
 
-  async getQuarterParticipants(
-    page: number,
-    limit: number,
-    year: number,
-    quarter: number,
-  ) {
-    return this.recognitionService.getQuarterParticipants(
-      page,
-      limit,
-      year,
-      quarter,
-    );
-  }
-
   async getYearlyStatisticsWithMonthlyDetails(year: number) {
     return this.recognitionService.getYearlyStatisticsWithMonthlyDetails(year);
+  }
+
+  async cumulativePostMetrics(parsedStartDate: Date, parsedEndDate: Date) {
+    return this.recognitionService.getPostMetrics(
+      parsedStartDate,
+      parsedEndDate,
+    );
   }
 }

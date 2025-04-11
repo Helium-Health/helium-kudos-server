@@ -144,7 +144,7 @@ export class WalletService {
             },
           },
           { $unwind: '$user' },
-          { $match: { 'user.active': true } },
+          { $match: { 'user.active': true } }, //Allocate  coin to only active users
           { $project: { _id: 1 } },
         ])
         .session(session);
@@ -154,10 +154,9 @@ export class WalletService {
         throw new NotFoundException('No activeWallets found');
       }
 
-      
       const result = await this.walletModel.updateMany(
         {},
-        { $set: { giveableBalance: allocation } }, 
+        { $set: { giveableBalance: allocation } },
         { session },
       );
 
@@ -265,5 +264,191 @@ export class WalletService {
         }
         return result;
       });
+  }
+  async getCoinUseMetrics(
+    page: number = 1,
+    limit: number = 10,
+    sortBy:
+      | 'totalCoinEarned'
+      | 'totalCoinBalance'
+      | 'totalCoinSpent' = 'totalCoinEarned',
+    sortOrder: 'ASCENDING' | 'DESCENDING' = 'DESCENDING',
+    startDate?: Date,
+    endDate?: Date,
+  ) {
+    const parsedSortOrder = sortOrder === 'ASCENDING' ? 1 : -1;
+    const skip = (page - 1) * limit;
+    const now = new Date();
+    const isFutureDate = endDate && endDate > now;
+
+    const aggregationPipeline: any[] = [
+      {
+        $lookup: {
+          from: 'transactions',
+          let: { userId: '$userId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$userId', '$$userId'] },
+                    { $eq: ['$type', 'CREDIT'] },
+                    { $eq: ['$entityType', 'recognition'] },
+                    { $ne: ['$status', 'reversed'] },
+                    ...(startDate && endDate
+                      ? [
+                          {
+                            $and: [
+                              { $gte: ['$createdAt', startDate] },
+                              { $lte: ['$createdAt', endDate] },
+                              { $lte: ['$createdAt', now] },
+                            ],
+                          },
+                        ]
+                      : [{ $lte: ['$createdAt', now] }]),
+                  ],
+                },
+              },
+            },
+            {
+              $group: {
+                _id: '$userId',
+                totalEarned: { $sum: '$amount' },
+              },
+            },
+          ],
+          as: 'coinEarnedData',
+        },
+      },
+      {
+        $lookup: {
+          from: 'transactions',
+          let: { userId: '$userId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$userId', '$$userId'] },
+                    { $eq: ['$type', 'DEBIT'] },
+                    { $eq: ['$entityType', 'recognition'] },
+                    ...(startDate && endDate
+                      ? [
+                          {
+                            $and: [
+                              { $gte: ['$createdAt', startDate] },
+                              { $lte: ['$createdAt', endDate] },
+                              { $lte: ['$createdAt', now] },
+                            ],
+                          },
+                        ]
+                      : [{ $lte: ['$createdAt', now] }]),
+                  ],
+                },
+              },
+            },
+            {
+              $lookup: {
+                from: 'transactions',
+                let: { claimId: '$claimId', userId: '$userId' },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [
+                          { $eq: ['$claimId', '$$claimId'] },
+                          { $eq: ['$userId', '$$userId'] },
+                          { $eq: ['$type', 'CREDIT'] },
+                          { $eq: ['$status', 'reversed'] },
+                        ],
+                      },
+                    },
+                  },
+                ],
+                as: 'reversedTransactions',
+              },
+            },
+            {
+              $addFields: {
+                isReversed: { $gt: [{ $size: '$reversedTransactions' }, 0] },
+              },
+            },
+            {
+              $match: { isReversed: false },
+            },
+            {
+              $group: {
+                _id: '$userId',
+                totalSpent: { $sum: '$amount' },
+              },
+            },
+          ],
+          as: 'coinSpentData',
+        },
+      },
+      {
+        $addFields: {
+          totalCoinSpent: {
+            $ifNull: [{ $arrayElemAt: ['$coinSpentData.totalSpent', 0] }, 0],
+          },
+          totalCoinEarned: {
+            $ifNull: [{ $arrayElemAt: ['$coinEarnedData.totalEarned', 0] }, 0],
+          },
+          totalCoinBalance: isFutureDate ? 0 : '$giveableBalance',
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      {
+        $unwind: {
+          path: '$user',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          totalCoinEarned: 1,
+          totalCoinSpent: { $abs: '$totalCoinSpent' },
+          totalCoinBalance: 1,
+          user: {
+            userId: '$user._id',
+            email: '$user.email',
+            name: '$user.name',
+            picture: '$user.picture',
+          },
+        },
+      },
+      { $sort: { [sortBy]: parsedSortOrder } },
+      { $skip: skip },
+      { $limit: limit },
+    ];
+
+    const totalCountPipeline: any[] = [{ $count: 'totalCount' }];
+
+    const [data, totalCountResult] = await Promise.all([
+      this.walletModel.aggregate(aggregationPipeline).exec(),
+      this.walletModel.aggregate(totalCountPipeline).exec(),
+    ]);
+
+    const totalCount =
+      totalCountResult.length > 0 ? totalCountResult[0].totalCount : 0;
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return {
+      data,
+      meta: {
+        totalCount,
+        totalPages,
+        page,
+        limit,
+      },
+    };
   }
 }
