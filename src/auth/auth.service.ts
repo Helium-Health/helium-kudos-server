@@ -132,7 +132,9 @@ export class AuthService {
             picture: userInfo.data.picture,
             verified: userInfo.data.email_verified || true,
           });
-        }
+
+          this.logger.log('Creating Wallet for first time user ...');
+          }
       }
       const user = userExists || userDetails;
       const refreshToken = await this.generateAndStoreRefreshToken(user);
