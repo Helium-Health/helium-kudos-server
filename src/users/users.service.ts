@@ -45,11 +45,6 @@ export class UsersService {
 
   private readonly logger = new Logger(UsersService.name);
 
-  //TODO: Remove this after deploying to production
-  async onModuleInit() {
-    await this.createWalletsForUsersWithoutWallet();
-  }
-
   async runTransactionWithRetry(session, operation) {
     for (let i = 0; i < 5; i++) {
       try {
@@ -281,10 +276,7 @@ export class UsersService {
     return await this.userModel.findOneAndUpdate(
       { email, active: true }, // Only update active users
       { $set: updateData },
-      {
-        new: true,
-        // session
-      },
+      { new: true },
     );
   }
 
@@ -781,60 +773,5 @@ export class UsersService {
 
     // Log final state after transaction commits
     console.log('Migration Down completed.', updatedAccounts);
-  }
-
-  //TODO: Remove this after deploying to production
-  async createWalletsForUsersWithoutWallet() {
-    const session = await this.userModel.db.startSession();
-
-    try {
-      session.startTransaction();
-
-      const usersWithoutWallet = await this.userModel
-        .aggregate([
-          {
-            $lookup: {
-              from: 'wallets', // wallet collection
-              localField: '_id',
-              foreignField: 'userId',
-              as: 'wallet',
-            },
-          },
-          {
-            $match: {
-              wallet: { $eq: [] }, // users without wallet
-            },
-          },
-          {
-            $project: { _id: 1 },
-          },
-        ])
-        .session(session);
-
-      if (!usersWithoutWallet.length) {
-        this.logger.log('All verified users already have wallets');
-        await session.abortTransaction();
-        return;
-      }
-
-      for (const user of usersWithoutWallet) {
-        await this.walletService.createWallet(user._id, session);
-      }
-
-      await session.commitTransaction();
-
-      this.logger.log(
-        `Successfully created wallets for ${usersWithoutWallet.length} users`,
-      );
-    } catch (error) {
-      await session.abortTransaction();
-      this.logger.error(
-        'Failed to create wallets for users without wallet',
-        error,
-      );
-      throw error;
-    } finally {
-      session.endSession();
-    }
   }
 }
