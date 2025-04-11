@@ -837,7 +837,7 @@ export class UsersService {
         .session(session);
 
       if (!usersWithoutWallet.length) {
-        this.logger.log('All active users already have wallets');
+        this.logger.log('All users already have wallets');
         await session.abortTransaction();
         return;
       }
