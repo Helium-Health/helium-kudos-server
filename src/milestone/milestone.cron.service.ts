@@ -21,8 +21,7 @@ export class MilestoneCronService {
     private readonly milestoneService: MilestoneService,
   ) {}
 
-  // @Cron(CRON_EVERY_DAY_AT_QUARTER_PAST_MIDNIGHT)
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CRON_EVERY_DAY_AT_QUARTER_PAST_MIDNIGHT)
   async handleBirthdayRecognitions() {
     const birthdayMilestone = await this.milestoneService.findByType(
       MilestoneType.BIRTHDAY,
