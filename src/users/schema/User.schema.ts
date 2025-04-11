@@ -92,6 +92,9 @@ export class User {
   team: string;
 
   @Prop()
+  department: string;
+
+  @Prop()
   nationality: string;
 
   @Prop({ type: Boolean, default: true })

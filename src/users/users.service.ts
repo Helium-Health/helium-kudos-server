@@ -42,6 +42,10 @@ export class UsersService {
     @Inject('AUTH_SERVICE') private authService,
   ) {}
 
+  async onModuleInit() {
+    await this.migrateTeamToDepartment();
+  }
+
   async runTransactionWithRetry(session, operation) {
     for (let i = 0; i < 5; i++) {
       try {
@@ -466,6 +470,7 @@ export class UsersService {
       dateOfBirth,
       joinDate,
       team,
+      department,
       nationality,
       groupId,
     } = inviteUserDto;
@@ -505,6 +510,7 @@ export class UsersService {
         dateOfBirth,
         joinDate,
         team,
+        department,
         nationality,
       });
 
@@ -570,7 +576,7 @@ export class UsersService {
   async getUserIdsByDepartment(department: string): Promise<Types.ObjectId[]> {
     const users = await this.userModel
       .find({
-        team: { $regex: new RegExp(department, 'i') },
+        department: { $regex: new RegExp(department, 'i') },
         active: true,
       })
       .select('_id')
@@ -784,4 +790,26 @@ export class UsersService {
     // Log final state after transaction commits
     console.log('Migration Down completed.', updatedAccounts);
   }
+
+
+  //TODO: REMOVE AFTER DEPLOYMENT
+  async migrateTeamToDepartment() {
+    const result = await this.userModel.updateMany(
+      {
+        team: { $exists: true, $ne: null }, // has team field with value
+      },
+      [
+        {
+          $set: {
+            department: "$team", // set department = team
+          },
+        },
+      ],
+    );
+  
+    console.log(
+      `Successfully updated ${result.modifiedCount} users with team to have department`,
+    );
+  }
+  
 }

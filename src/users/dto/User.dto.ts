@@ -46,6 +46,10 @@ export class CreateUserDto {
   @IsOptional()
   team?: string;
 
+  @IsString()
+  @IsOptional()
+  department?: string;
+
   @IsDate()
   @IsOptional()
   joinDate?: Date;
@@ -130,10 +134,14 @@ export class InviteUserDto {
   joinDate?: Date;
 
   @IsOptional()
+  @IsString()
+  team?: string;
+
+  @IsOptional()
   @IsEnum(UserDepartment, {
     message: 'Invalid team. Must be one of the predefined values.',
   })
-  team?: UserDepartment;
+  department?: UserDepartment;
 
   @IsOptional()
   @IsString()
