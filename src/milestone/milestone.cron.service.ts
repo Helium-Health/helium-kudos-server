@@ -8,6 +8,7 @@ import { UserGender } from 'src/users/schema/User.schema';
 import { Types } from 'mongoose';
 import {
   CRON_EVERY_DAY_AT_HALF_PAST_MIDNIGHT,
+  CRON_EVERY_DAY_AT_QUARTER_PAST_MIDNIGHT,
   CRON_EVERY_MARCH_8_0020,
   CRON_EVERY_YEAR_ON_NOVEMBER_19_AT_0020,
 } from 'src/constants/index';
@@ -20,7 +21,7 @@ export class MilestoneCronService {
     private readonly milestoneService: MilestoneService,
   ) {}
 
-  @Cron(CRON_EVERY_DAY_AT_HALF_PAST_MIDNIGHT)
+  @Cron(CRON_EVERY_DAY_AT_QUARTER_PAST_MIDNIGHT)
   async handleBirthdayRecognitions() {
     const birthdayMilestone = await this.milestoneService.findByType(
       MilestoneType.BIRTHDAY,
