@@ -5,6 +5,7 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -42,6 +43,13 @@ export class UsersService {
     @Inject('AUTH_SERVICE') private authService,
   ) {}
 
+  private readonly logger = new Logger(UsersService.name);
+
+  //TODO: Remove this after deploying to production
+  async onModuleInit() {
+    await this.createWalletsForUsersWithoutWallet();
+  }
+
   async runTransactionWithRetry(session, operation) {
     for (let i = 0; i < 5; i++) {
       try {
@@ -75,7 +83,6 @@ export class UsersService {
         await newUser.save({ session });
 
         // Step 2: Create wallet
-        await this.walletService.createWallet(newUser._id, session);
 
         // Step 3: Generate and hash the refresh token
         const newUserRefreshToken = await this.generateAndStoreRefreshToken(
@@ -115,7 +122,7 @@ export class UsersService {
   }
 
   // Method to find a user by email
-  async findByEmail(email: string): Promise<User | null> {
+  async findByEmail(email: string): Promise<User | UserDocument | null> {
     return await this.userModel
       .findOne({
         email,
@@ -274,7 +281,10 @@ export class UsersService {
     return await this.userModel.findOneAndUpdate(
       { email, active: true }, // Only update active users
       { $set: updateData },
-      { new: true },
+      {
+        new: true,
+        // session
+      },
     );
   }
 
@@ -521,6 +531,7 @@ export class UsersService {
         );
       }
 
+      await this.walletService.createWallet(savedUser._id, session);
       await session.commitTransaction();
       session.endSession();
 
@@ -770,5 +781,60 @@ export class UsersService {
 
     // Log final state after transaction commits
     console.log('Migration Down completed.', updatedAccounts);
+  }
+
+  //TODO: Remove this after deploying to production
+  async createWalletsForUsersWithoutWallet() {
+    const session = await this.userModel.db.startSession();
+
+    try {
+      session.startTransaction();
+
+      const usersWithoutWallet = await this.userModel
+        .aggregate([
+          {
+            $lookup: {
+              from: 'wallets', // wallet collection
+              localField: '_id',
+              foreignField: 'userId',
+              as: 'wallet',
+            },
+          },
+          {
+            $match: {
+              wallet: { $eq: [] }, // users without wallet
+            },
+          },
+          {
+            $project: { _id: 1 },
+          },
+        ])
+        .session(session);
+
+      if (!usersWithoutWallet.length) {
+        this.logger.log('All verified users already have wallets');
+        await session.abortTransaction();
+        return;
+      }
+
+      for (const user of usersWithoutWallet) {
+        await this.walletService.createWallet(user._id, session);
+      }
+
+      await session.commitTransaction();
+
+      this.logger.log(
+        `Successfully created wallets for ${usersWithoutWallet.length} users`,
+      );
+    } catch (error) {
+      await session.abortTransaction();
+      this.logger.error(
+        'Failed to create wallets for users without wallet',
+        error,
+      );
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 }
