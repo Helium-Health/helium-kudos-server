@@ -802,7 +802,6 @@ export class UsersService {
           },
           {
             $match: {
-              verified: true,
               wallet: { $eq: [] }, // users without wallet
             },
           },
