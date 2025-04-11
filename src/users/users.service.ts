@@ -83,7 +83,6 @@ export class UsersService {
         await newUser.save({ session });
 
         // Step 2: Create wallet
-        await this.walletService.createWallet(newUser._id, session);
 
         // Step 3: Generate and hash the refresh token
         const newUserRefreshToken = await this.generateAndStoreRefreshToken(
@@ -278,39 +277,14 @@ export class UsersService {
     return await this.userModel.find({ active: true }).exec();
   }
 
-  async updateByEmailandCreateWallet(
-    email: string,
-    updateData: UpdateUserFromSheetDto,
-  ) {
-    const session = await this.userModel.db.startSession();
-
-    try {
-      session.startTransaction();
-
-      const updatedUser = await this.updateByEmail(email, updateData, session);
-
-      await this.walletService.createWallet(updatedUser._id, session);
-
-      await session.commitTransaction();
-
-      return updatedUser;
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      session.endSession();
-    }
-  }
-
-  async updateByEmail(
-    email: string,
-    updateData: UpdateUserFromSheetDto,
-    session?: ClientSession,
-  ) {
+  async updateByEmail(email: string, updateData: UpdateUserFromSheetDto) {
     return await this.userModel.findOneAndUpdate(
       { email, active: true }, // Only update active users
       { $set: updateData },
-      { new: true, session },
+      {
+        new: true,
+        // session
+      },
     );
   }
 
@@ -557,6 +531,7 @@ export class UsersService {
         );
       }
 
+      await this.walletService.createWallet(savedUser._id, session);
       await session.commitTransaction();
       session.endSession();
 
