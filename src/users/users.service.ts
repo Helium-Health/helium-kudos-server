@@ -5,6 +5,7 @@ import {
   Inject,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -41,6 +42,8 @@ export class UsersService {
     private readonly slackService: SlackService,
     @Inject('AUTH_SERVICE') private authService,
   ) {}
+
+  private readonly logger = new Logger(UsersService.name);
 
   async onModuleInit() {
     await this.migrateTeamToDepartment();
@@ -79,7 +82,6 @@ export class UsersService {
         await newUser.save({ session });
 
         // Step 2: Create wallet
-        await this.walletService.createWallet(newUser._id, session);
 
         // Step 3: Generate and hash the refresh token
         const newUserRefreshToken = await this.generateAndStoreRefreshToken(
@@ -119,7 +121,7 @@ export class UsersService {
   }
 
   // Method to find a user by email
-  async findByEmail(email: string): Promise<User | null> {
+  async findByEmail(email: string): Promise<User | UserDocument | null> {
     return await this.userModel
       .findOne({
         email,
@@ -527,6 +529,7 @@ export class UsersService {
         );
       }
 
+      await this.walletService.createWallet(savedUser._id, session);
       await session.commitTransaction();
       session.endSession();
 
@@ -539,7 +542,7 @@ export class UsersService {
   }
 
   async resendInvite(id: Types.ObjectId) {
-    const user = await this.userModel.findById(id);
+    const user = await this.findById(id);
 
     if (!user) {
       throw new NotFoundException('User not found');
