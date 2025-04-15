@@ -46,9 +46,11 @@ export class CreateUserDto {
   @IsOptional()
   team?: string;
 
-  @IsString()
   @IsOptional()
-  department?: string;
+  @IsEnum(UserDepartment, {
+    message: 'Invalid Department. Must be one of the predefined values.',
+  })
+  department?: UserDepartment;
 
   @IsDate()
   @IsOptional()
