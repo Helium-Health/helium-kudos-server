@@ -500,6 +500,10 @@ export class UsersService {
         throw new ConflictException('User with this email already exists');
       }
 
+      if (department && !Object.values(UserDepartment).includes(department)) {
+        throw new BadRequestException('Invalid department provided');
+      }
+
       const newUser = new this.userModel({
         email,
         originalEmail: email,
@@ -512,7 +516,7 @@ export class UsersService {
         dateOfBirth,
         joinDate,
         team,
-        department,
+        department: department as UserDepartment,
         nationality,
       });
 
@@ -794,7 +798,6 @@ export class UsersService {
     console.log('Migration Down completed.', updatedAccounts);
   }
 
-
   //TODO: REMOVE AFTER DEPLOYMENT
   async migrateTeamToDepartment() {
     const result = await this.userModel.updateMany(
@@ -804,15 +807,14 @@ export class UsersService {
       [
         {
           $set: {
-            department: "$team", // set department = team
+            department: '$team', // set department = team
           },
         },
       ],
     );
-  
+
     console.log(
       `Successfully updated ${result.modifiedCount} users with team to have department`,
     );
   }
-  
 }

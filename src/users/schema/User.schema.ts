@@ -91,8 +91,8 @@ export class User {
   @Prop()
   team: string;
 
-  @Prop()
-  department: string;
+  @Prop({ type: String, enum: Object.values(UserDepartment) })
+  department: UserDepartment;
 
   @Prop()
   nationality: string;

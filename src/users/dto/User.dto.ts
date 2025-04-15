@@ -139,7 +139,7 @@ export class InviteUserDto {
 
   @IsOptional()
   @IsEnum(UserDepartment, {
-    message: 'Invalid team. Must be one of the predefined values.',
+    message: 'Invalid Department. Must be one of the predefined values.',
   })
   department?: UserDepartment;
 

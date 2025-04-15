@@ -71,12 +71,11 @@ export class RecognitionService {
       (value) => !Object.values(CompanyValues).includes(value),
     );
 
-    if (receivers.length === 0) {
-      if (!departments || departments.length === 0) {
-        throw new BadRequestException(
-          'At least one receiver or department is required for recognition',
-        );
-      }
+    if (!receivers.length || !departments.length) {
+      throw new BadRequestException(
+        'At least one receiver or department is required for recognition',
+      );
+
       const userIdsSet = new Set<string>();
 
       for (const department of departments) {
