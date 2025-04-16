@@ -170,6 +170,7 @@ export class AllocationCronService {
     message: string;
     allocationId: string;
     cadence: AllocationCadence;
+    amount: number;
     status: 'success' | 'skipped' | 'failed';
   }> {
     const allocation = await this.allocationModel
@@ -195,6 +196,7 @@ export class AllocationCronService {
       message: `Manual allocation attempt complete`,
       allocationId,
       cadence: allocation.cadence,
+      amount: allocation.allocationAmount,
       status,
     };
   }
