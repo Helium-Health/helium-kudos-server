@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { AllocationsService } from '../allocations.service';
 import { CreateAllocationDto } from '../dto/create-allocation.dto';
 import { ConfigService } from '@nestjs/config';
+import { AllocationCadence } from '../schema/Allocation.schema';
 
 @Injectable()
 export class AllocationSeeder {
@@ -17,27 +18,48 @@ export class AllocationSeeder {
       'NODE_ENV',
       'development',
     );
-    const cadence = environment === 'production' ? '0 0 1 * *' : '0 0 * * *'; // Monthly for prod, daily for non-prod
-    const allocationAmount = environment === 'production' ? 5 : 300;
+
+    const isProduction = environment === 'production';
+
+    const cronValue = isProduction
+      ? AllocationCadence.MONTHLY
+      : AllocationCadence.DAILY;
+
+    const cadence = Object.keys(AllocationCadence).find(
+      (key) =>
+        AllocationCadence[key as keyof typeof AllocationCadence] === cronValue,
+    ) as keyof typeof AllocationCadence;
+
+    if (!cadence) {
+      this.logger.error(
+        `Invalid cadence value resolved for environment: ${environment}`,
+      );
+      return;
+    }
+
+    const allocationName = isProduction
+      ? 'Monthly Allocation'
+      : 'Daily Allocation';
+    const allocationAmount = isProduction ? 5 : 300;
+
     const allocations: CreateAllocationDto[] = [
-      { allocationAmount: allocationAmount, cadence },
+      { allocationName, allocationAmount, cadence },
     ];
 
     for (const allocationDto of allocations) {
       try {
-        // Directly create the allocation using the new create function in AllocationsService
         await this.allocationService.create(allocationDto);
         this.logger.log(
-          `Allocation with cadence ${allocationDto.cadence} has been created.`,
+          `✅ Allocation "${allocationDto.allocationName}" with cadence "${allocationDto.cadence}" created.`,
         );
       } catch (error) {
         this.logger.error(
-          `Failed to seed allocation with cadence ${allocationDto.cadence}: ${error.message}`,
+          `❌ Failed to seed allocation "${allocationDto.allocationName}" with cadence "${allocationDto.cadence}": ${error.message}`,
           error.stack,
         );
       }
     }
 
-    this.logger.log('Allocation seeding process completed.');
+    this.logger.log('🌱 Allocation seeding process completed.');
   }
 }
