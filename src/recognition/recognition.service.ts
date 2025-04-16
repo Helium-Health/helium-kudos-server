@@ -71,10 +71,12 @@ export class RecognitionService {
       (value) => !Object.values(CompanyValues).includes(value),
     );
 
-    if (!receivers.length || !departments.length) {
+
+    if (!receivers.length && !departments.length) {
       throw new BadRequestException(
         'At least one receiver or department is required for recognition',
       );
+    }
 
       const userIdsSet = new Set<string>();
 
@@ -97,7 +99,7 @@ export class RecognitionService {
         receiverId: id,
         coinAmount: 0,
       }));
-    }
+    
 
     if (invalidValues.length > 0) {
       throw new BadRequestException(
