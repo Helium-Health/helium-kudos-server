@@ -122,7 +122,7 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('teams')
+  @Get('departments')
   getAllDepartment() {
     return this.usersService.getAllDepartments();
   }
