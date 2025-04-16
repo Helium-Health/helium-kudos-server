@@ -93,25 +93,7 @@ export class AllocationsService implements OnModuleInit {
     return updatedAllocation;
   }
 
-  async findAllocation(): Promise<AllocationDocument> {
-    return this.allocationModel.findOne().exec();
-  }
-
-  async allocateCoinsToAllUsersManually(amount: number): Promise<void> {
-    const session = await this.allocationModel.db.startSession();
-    session.startTransaction();
-
-    try {
-      this.logger.log(`Manually allocating ${amount} coins to all users`);
-
-      await this.walletService.allocateCoinsToAll(amount);
-
-      await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      session.endSession();
-    }
+  async findAllAllocations(): Promise<AllocationDocument[]> {
+    return this.allocationModel.find().exec();
   }
 }

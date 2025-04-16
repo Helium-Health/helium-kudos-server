@@ -68,10 +68,10 @@ export class AllocationCronService {
     ];
   }
 
-  private async runAllocationByCadence(
+  async runAllocationByCadence(
     allocationId: string,
     cadence: AllocationCadence,
-  ): Promise<void> {
+  ): Promise<'success' | 'skipped' | 'failed'> {
     const now = new Date();
     const cadenceKey = this.getCadenceKeyFromCron(cadence);
 
@@ -85,7 +85,7 @@ export class AllocationCronService {
 
     const existingRecord = await this.allocationRecordModel.findOne({
       type: cadenceKey,
-      allocationId: allocation._id, 
+      allocationId: allocation._id,
       allocationDate: { $gte: start, $lt: end },
     });
 
@@ -93,7 +93,7 @@ export class AllocationCronService {
       this.logger.warn(
         `(${cadenceKey}) Allocation execution: ${allocationId} already exists and is successful.`,
       );
-      return;
+      return 'skipped';
     }
 
     if (existingRecord?.status === 'failed') {
@@ -101,7 +101,7 @@ export class AllocationCronService {
         `(${cadenceKey}) Allocation execution: ${allocationId} previously failed. Retrying.`,
       );
       await this.executeAllocation(allocation, now, cadenceKey);
-      return;
+      return 'failed';
     }
 
     if (!existingRecord) {
@@ -109,6 +109,7 @@ export class AllocationCronService {
         `No prior allocation record found for ${allocationId}, executing allocation..`,
       );
       await this.executeAllocation(allocation, now, cadenceKey);
+      return 'success';
     }
   }
 
@@ -163,5 +164,38 @@ export class AllocationCronService {
     } finally {
       session.endSession();
     }
+  }
+
+  async allocateCoinsToAllUsersManually(allocationId: string): Promise<{
+    message: string;
+    allocationId: string;
+    cadence: AllocationCadence;
+    status: 'success' | 'skipped' | 'failed';
+  }> {
+    const allocation = await this.allocationModel
+      .findById(new Types.ObjectId(allocationId))
+      .exec();
+
+    if (!allocation) {
+      throw new NotFoundException(
+        `Allocation config not found for ID: ${allocationId}`,
+      );
+    }
+
+    this.logger.log(
+      `🔁 Manually triggering ${allocation.cadence} allocation for allocationId: ${allocationId}`,
+    );
+
+    const status = await this.runAllocationByCadence(
+      allocationId,
+      allocation.cadence,
+    );
+
+    return {
+      message: `Manual allocation attempt complete`,
+      allocationId,
+      cadence: allocation.cadence,
+      status,
+    };
   }
 }
