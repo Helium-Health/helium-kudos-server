@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document, Types } from 'mongoose';
+import mongoose, { Document, Types } from 'mongoose';
 
 export type AllocationDocument = Allocation & Document;
 export enum AllocationCadence {
@@ -21,6 +21,13 @@ export class Allocation extends Document {
 
 @Schema({ timestamps: true })
 export class AllocationRecord extends Document {
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Allocation',
+    required: true,
+  })
+  allocationId: Types.ObjectId;
+
   @Prop({ required: true })
   allocationDate: Date;
 

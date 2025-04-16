@@ -85,6 +85,7 @@ export class AllocationCronService {
 
     const existingRecord = await this.allocationRecordModel.findOne({
       type: cadenceKey,
+      allocationId: allocation._id, 
       allocationDate: { $gte: start, $lt: end },
     });
 
@@ -120,14 +121,16 @@ export class AllocationCronService {
     session.startTransaction();
 
     try {
-      const receiverIds = await this.walletService.allocateCoinsToAll(
-        allocation.allocationAmount,
-      );
+      const { userIds: receiverIds } =
+        await this.walletService.allocateCoinsToAll(
+          allocation.allocationAmount,
+        );
 
       await this.allocationRecordModel.create(
         [
           {
             allocationDate: now,
+            allocationId: allocation._id,
             amount: allocation.allocationAmount,
             receiverIds,
             status: 'success',
@@ -145,6 +148,7 @@ export class AllocationCronService {
       await session.abortTransaction();
 
       await this.allocationRecordModel.create({
+        allocationId: allocation._id,
         allocationDate: now,
         amount: allocation.allocationAmount,
         receiverIds: [],

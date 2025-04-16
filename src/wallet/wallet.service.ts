@@ -177,11 +177,12 @@ export class WalletService {
           },
           { $unwind: '$user' },
           { $match: { 'user.active': true } },
-          { $project: { _id: 1 } },
+          { $project: { _id: 1, userId: '$user._id' } },
         ])
         .session(session);
 
       const walletIds = activeWallets.map((wallet) => wallet._id);
+      const userIds = activeWallets.map((wallet) => wallet.userId);
 
       if (!walletIds.length) {
         this.logger.warn('No active wallets found');
@@ -203,7 +204,7 @@ export class WalletService {
       }
 
       await session.commitTransaction();
-      return result;
+      return { userIds, result };
     });
   }
 
