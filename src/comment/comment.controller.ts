@@ -42,14 +42,17 @@ export class CommentController {
     );
   }
 
-  @Patch('comment/:commentId')
+  @UseGuards(JwtAuthGuard)
+  @Patch(':commentId')
   async updateComment(
     @Param('commentId') commentId: string,
     @Body() updateCommentDto: UpdateCommentDto,
+    @Request() req,
   ) {
     return this.commentService.updateComment(
       commentId,
       updateCommentDto,
+      req.user.userId,
     );
   }
 

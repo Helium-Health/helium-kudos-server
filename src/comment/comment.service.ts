@@ -93,15 +93,22 @@ export class CommentService {
     };
   }
 
-  async updateComment(commentId: string, updateCommentDto: UpdateCommentDto) {
-    return this.commentModel.findByIdAndUpdate(
-      commentId,
+  async updateComment(commentId: string, updateCommentDto: UpdateCommentDto, userId: Types.ObjectId) {
+    const comment = await this.commentModel.findOneAndUpdate(
+      { _id: commentId, userId },
       {
         ...(updateCommentDto.content && { content: updateCommentDto.content }),
         ...(updateCommentDto.giphyUrl && { giphyUrl: updateCommentDto.giphyUrl }),
       },
       { new: true },
     );
+    if (!comment) {
+      throw new NotFoundException(
+        'Comment not found or user not authorized to update',
+      );
+    }
+
+    return comment;
   }
 
   async deleteComment(commentId: Types.ObjectId, userId: Types.ObjectId) {
