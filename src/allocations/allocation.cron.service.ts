@@ -78,7 +78,7 @@ export class AllocationCronService {
     const allocation = await this.allocationModel.findById(allocationId).exec();
     if (!allocation) {
       this.logger.warn(`Allocation config not found for ID ${allocationId}`);
-      return;
+      return 'failed';
     }
 
     const [start, end] = this.getDateRangeForCadence(now, cadenceKey);
