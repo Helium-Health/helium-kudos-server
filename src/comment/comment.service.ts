@@ -1,8 +1,13 @@
-import { forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, Types } from 'mongoose';
 import { RecognitionService } from 'src/recognition/recognition.service';
-import { CreateCommentDto } from './dto/CreateComment.dto';
+import { CreateCommentDto, UpdateCommentDto } from './dto/CreateComment.dto';
 import { Comment } from './schema/comment.schema';
 
 @Injectable()
@@ -58,10 +63,45 @@ export class CommentService {
     }
   }
 
-  async getCommentsByRecognition(recognitionId: string) {
-    return this.commentModel
-      .find({ recognitionId: new Types.ObjectId(recognitionId) })
-      .populate('userId', 'name picture');
+  async getCommentsByRecognition(
+    recognitionId: string,
+    page: number,
+    limit: number,
+  ) {
+    const skip = (page - 1) * limit;
+    const recognitionObjectId = new Types.ObjectId(recognitionId);
+
+    const [comments, total] = await Promise.all([
+      this.commentModel
+        .find({ recognitionId: recognitionObjectId })
+        .populate('userId', 'name picture')
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: 1 }),
+
+      this.commentModel.countDocuments({ recognitionId: recognitionObjectId }),
+    ]);
+
+    return {
+      data: comments,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async updateComment(commentId: string, updateCommentDto: UpdateCommentDto) {
+    return this.commentModel.findByIdAndUpdate(
+      commentId,
+      {
+        ...(updateCommentDto.content && { content: updateCommentDto.content }),
+        ...(updateCommentDto.giphyUrl && { giphyUrl: updateCommentDto.giphyUrl }),
+      },
+      { new: true },
+    );
   }
 
   async deleteComment(commentId: Types.ObjectId, userId: Types.ObjectId) {
