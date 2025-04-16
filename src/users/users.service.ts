@@ -228,6 +228,8 @@ export class UsersService {
     page: number = 1,
     limit: number = 10,
     active: boolean,
+    includeCurrentUser: boolean = false,
+    invited: boolean,
   ): Promise<{
     users: User[];
     meta: {
@@ -237,9 +239,10 @@ export class UsersService {
       totalPages: number;
     };
   }> {
-    const query: any = {
-      _id: { $ne: new Types.ObjectId(userId) },
-    };
+    const query: any = {};
+    if (!includeCurrentUser) {
+      query._id = { $ne: new Types.ObjectId(userId) };
+    }
 
     if (name) {
       const words = name.trim().split(/\s+/);
@@ -247,6 +250,7 @@ export class UsersService {
     }
 
     active !== undefined && (query.active = active);
+    invited !== undefined && (query.verified = !invited);
 
     const totalCount = await this.userModel.countDocuments(query).exec();
     const totalPages = Math.ceil(totalCount / limit);
