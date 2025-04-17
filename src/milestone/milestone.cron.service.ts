@@ -6,6 +6,12 @@ import { MilestoneService } from './milestone.service';
 import { MilestoneType } from './schema/Milestone.schema';
 import { UserGender } from 'src/users/schema/User.schema';
 import { Types } from 'mongoose';
+import {
+  CRON_EVERY_DAY_AT_HALF_PAST_MIDNIGHT,
+  CRON_EVERY_DAY_AT_QUARTER_PAST_MIDNIGHT,
+  CRON_EVERY_MARCH_8_0020,
+  CRON_EVERY_YEAR_ON_NOVEMBER_19_AT_0020,
+} from 'src/constants/index';
 
 @Injectable()
 export class MilestoneCronService {
@@ -15,7 +21,7 @@ export class MilestoneCronService {
     private readonly milestoneService: MilestoneService,
   ) {}
 
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  @Cron(CRON_EVERY_DAY_AT_QUARTER_PAST_MIDNIGHT)
   async handleBirthdayRecognitions() {
     const birthdayMilestone = await this.milestoneService.findByType(
       MilestoneType.BIRTHDAY,
@@ -37,7 +43,7 @@ export class MilestoneCronService {
     }
   }
 
-  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  @Cron(CRON_EVERY_DAY_AT_HALF_PAST_MIDNIGHT)
   async handleWorkAnniversaryRecognitions() {
     const anniversaryMilestone = await this.milestoneService.findByType(
       MilestoneType.WORK_ANNIVERSARY,
@@ -58,7 +64,7 @@ export class MilestoneCronService {
     }
   }
 
-  @Cron('0 0 19 11 *') // Midnight on November 19 (International Men's Day)
+  @Cron(CRON_EVERY_YEAR_ON_NOVEMBER_19_AT_0020) // Midnight on November 19 (International Men's Day)
   async handleMensDayRecognitions() {
     const mensDayMilestone = await this.milestoneService.findByType(
       MilestoneType.INTERNATIONAL_MENS_DAY,
@@ -78,7 +84,7 @@ export class MilestoneCronService {
     }
   }
 
-  @Cron('0 0 8 3 *') // Midnight on March 8 (International Women's Day)
+  @Cron(CRON_EVERY_MARCH_8_0020) // Midnight on March 8 (International Women's Day)
   async handleWomensDayRecognitions() {
     const womensDayMilestone = await this.milestoneService.findByType(
       MilestoneType.INTERNATIONAL_WOMENS_DAY,
@@ -99,10 +105,10 @@ export class MilestoneCronService {
     }
   }
 
-
-  private static readonly cronExpression: string =process.env.NODE_ENV === 'development' ? '0 15 5 3 *' //5:15 AM on March 5th
-   : '0 8 7 3 *' // 8:00 AM on March 7th
-   ;
+  private static readonly cronExpression: string =
+    process.env.NODE_ENV === 'development'
+      ? '0 15 5 3 *' //5:15 AM on March 5th
+      : '0 8 7 3 *'; // 8:00 AM on March 7th
 
   @Cron(MilestoneCronService.cronExpression)
   async handleEmployeeAppreciationDayRecognitions() {

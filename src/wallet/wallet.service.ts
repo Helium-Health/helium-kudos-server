@@ -18,6 +18,39 @@ export class WalletService {
   ) {}
   private readonly logger = new Logger(WalletService.name);
 
+  private async runTransactionWithRetry<T>(
+    fn: (session: ClientSession) => Promise<T>,
+    retries = 4,
+  ): Promise<T> {
+    let lastError: any;
+
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      const session = await this.walletModel.db.startSession();
+
+      try {
+        const result = await fn(session);
+        return result;
+      } catch (error) {
+        lastError = error;
+        const isWriteConflict = error.message.includes('Write conflict');
+
+        if (!isWriteConflict) throw error;
+
+        await session.abortTransaction();
+
+        this.logger.warn(
+          `Write conflict detected. Retrying attempt ${attempt}/${retries}`,
+        );
+
+        await new Promise((res) => setTimeout(res, 1000 * attempt)); // backoff
+      } finally {
+        session.endSession();
+      }
+    }
+
+    throw lastError;
+  }
+
   async createWallet(userId: Types.ObjectId, session: ClientSession) {
     const newWallet = new this.walletModel({
       userId,
@@ -147,10 +180,9 @@ export class WalletService {
       throw new BadRequestException('Allocation must be a positive number');
     }
 
-    const session = await this.connection.startSession();
-    session.startTransaction();
+    return await this.runTransactionWithRetry(async (session) => {
+      session.startTransaction();
 
-    try {
       const activeWallets = await this.walletModel
         .aggregate([
           {
@@ -162,41 +194,36 @@ export class WalletService {
             },
           },
           { $unwind: '$user' },
-          { $match: { 'user.active': true } }, //Allocate  coin to only active users
-          { $project: { _id: 1 } },
+          { $match: { 'user.active': true } },
+          { $project: { _id: 1, userId: '$user._id' } },
         ])
         .session(session);
 
-      if (!activeWallets || activeWallets.length === 0) {
-        this.logger.warn('No activeWallets found for allocation');
-        throw new NotFoundException('No activeWallets found');
+      const walletIds = activeWallets.map((wallet) => wallet._id);
+      const userIds = activeWallets.map((wallet) => wallet.userId);
+
+      if (!walletIds.length) {
+        this.logger.warn('No active wallets found');
+        throw new NotFoundException('No active wallets found');
       }
 
       const result = await this.walletModel.updateMany(
-        {},
+        { _id: { $in: walletIds } },
         { $set: { giveableBalance: allocation } },
         { session },
       );
 
-      if (result.modifiedCount === 0) {
+      if (!result.modifiedCount) {
         this.logger.warn('No active Wallets were updated');
       } else {
         this.logger.log(
-          `Successfully allocated ${allocation} coins to ${result.modifiedCount} activeWallets.`,
+          `Allocated ${allocation} coins to ${result.modifiedCount} wallets`,
         );
       }
 
       await session.commitTransaction();
-      this.logger.log('Transaction committed successfully.');
-
-      return result;
-    } catch (error) {
-      await session.abortTransaction();
-      this.logger.error('Transaction aborted due to an error: ', error.message);
-      throw new Error(error.message);
-    } finally {
-      session.endSession();
-    }
+      return { userIds, result };
+    });
   }
 
   async allocateCoinsToSpecificUser(
