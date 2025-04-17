@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { CompanyValues } from 'src/constants/companyValues';
 import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
+import { UserDepartment } from 'src/users/schema/User.schema';
 
 export type RecognitionDocument = Document & Recognition;
 
@@ -45,13 +46,16 @@ export class Recognition {
   @Prop({
     type: [
       {
-        url: { type: String, required: true }, 
+        url: { type: String, required: true },
         type: { type: String, enum: ['image', 'video'], required: true },
       },
     ],
     default: [],
   })
   media: { url: string; type: 'image' | 'video' }[];
+
+  @Prop({ type: [String], enum: Object.values(UserDepartment) })
+  departments: UserDepartment[];
 }
 
 export const RecognitionSchema = SchemaFactory.createForClass(Recognition);

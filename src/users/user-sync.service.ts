@@ -47,7 +47,7 @@ export class UserSyncService {
             await this.usersService.createUser({
               email,
               name: `${firstName} ${lastName}`,
-              team,
+              department: team,
               joinDate: this.parseDate(workAnniversary),
               dateOfBirth: this.parseDate(dob),
               gender:
@@ -63,7 +63,7 @@ export class UserSyncService {
             results.created.push({ email, name: `${firstName} ${lastName}` });
           } else {
             await this.usersService.updateByEmail(email, {
-              team,
+              department: team,
               joinDate: this.parseDate(workAnniversary),
               dateOfBirth: this.parseDate(dob),
               gender:
@@ -121,7 +121,7 @@ export class UserSyncService {
       ] = row;
 
       await this.usersService.updateByEmail(email, {
-        team,
+        department: team,
         joinDate: this.parseDate(workAnniversary),
         dateOfBirth: this.parseDate(dob),
         gender:
