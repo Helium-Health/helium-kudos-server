@@ -155,6 +155,7 @@ export class RecognitionService {
           coinAmount: r.coinAmount ?? 0,
         })),
         companyValues,
+        departments,
         media: media.map((m) => ({
           url: m.url,
           type: m.type,
@@ -639,6 +640,7 @@ export class RecognitionService {
                 team: '$receivers.details.team',
               },
             },
+            departments: { $first: '$departments' },
             commentCount: { $first: { $size: { $ifNull: ['$comments', []] } } },
             reactions: { $first: '$reactions' },
           },
