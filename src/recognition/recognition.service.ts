@@ -71,25 +71,22 @@ export class RecognitionService {
       (value) => !Object.values(CompanyValues).includes(value),
     );
 
-
-    if (!receivers.length && !departments.length) {
+    if (receivers.length && departments.length) {
       throw new BadRequestException(
-        'At least one receiver or department is required for recognition',
+        'You can only provide either receivers or departments, not both.',
       );
     }
 
-      const userIdsSet = new Set<string>();
+    if (!receivers.length && !departments.length) {
+      throw new BadRequestException(
+        'At least one receiver or department is required for recognition.',
+      );
+    }
 
-      for (const department of departments) {
-        const userIds =
-          await this.usersService.getUserIdsByDepartment(department);
-        for (const userId of userIds) {
-          const idStr = userId.toString();
-          if (idStr !== senderId) {
-            userIdsSet.add(idStr);
-          }
-        }
-      }
+    if (departments.length) {
+      const allUserIds =
+        await this.usersService.getUserIdsByDepartments(departments);
+      const userIdsSet = new Set(allUserIds.filter((id) => id !== senderId));
 
       if (userIdsSet.size === 0) {
         throw new BadRequestException('No valid users found for departments');
@@ -99,7 +96,7 @@ export class RecognitionService {
         receiverId: id,
         coinAmount: 0,
       }));
-    
+    }
 
     if (invalidValues.length > 0) {
       throw new BadRequestException(
