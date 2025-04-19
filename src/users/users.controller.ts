@@ -56,15 +56,12 @@ export class UsersController {
     @Query('name') name: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
-    @Query('active') active: string,
+    @Query('status') status: string,
     @Query('includeCurrentUser') includeCurrentUser: string,
-    @Query('invited') invited: string,
     @Request() req,
   ) {
     const userId = req.user?.userId;
-    const parsedActive = active === undefined ? undefined : active === 'true';
-    const parsedInvited =
-      invited === undefined ? undefined : invited === 'true';
+
     const parsedIncludeUser =
       includeCurrentUser === undefined
         ? undefined
@@ -74,9 +71,8 @@ export class UsersController {
       userId,
       page,
       limit,
-      parsedActive,
+      status,
       parsedIncludeUser,
-      parsedInvited,
     );
   }
 

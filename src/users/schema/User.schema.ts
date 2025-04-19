@@ -13,6 +13,13 @@ export enum UserGender {
   Female = 'female',
 }
 
+
+export enum UserStatus{
+  Active = 'active',
+  Inactive = 'inactive',
+  Invited = 'invited',
+}
+
 export enum UserTeam {
   Engineering = 'Engineering',
   Executives = 'Executives',

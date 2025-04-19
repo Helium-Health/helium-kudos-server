@@ -14,6 +14,7 @@ import {
   User,
   UserDocument,
   UserGender,
+  UserStatus,
   UserTeam,
 } from 'src/users/schema/User.schema';
 import { CreateUserDto, InviteUserDto, UpdateUserDto } from './dto/User.dto';
@@ -227,9 +228,8 @@ export class UsersService {
     userId: string,
     page: number = 1,
     limit: number = 10,
-    active: boolean,
+    status?: string,
     includeCurrentUser: boolean = false,
-    invited: boolean,
   ): Promise<{
     users: User[];
     meta: {
@@ -249,8 +249,14 @@ export class UsersService {
       query.name = { $all: words.map((word) => new RegExp(word, 'i')) };
     }
 
-    active !== undefined && (query.active = active);
-    invited !== undefined && (query.verified = !invited);
+    if (status && status.toLowerCase() === UserStatus.Active) {
+      query.active = true;
+    } else if (status && status.toLowerCase() === UserStatus.Inactive) {
+      query.active = false;
+    }
+    if (status && status.toLowerCase() === UserStatus.Invited) {
+      query.verified = false;
+    }
 
     const totalCount = await this.userModel.countDocuments(query).exec();
     const totalPages = Math.ceil(totalCount / limit);
