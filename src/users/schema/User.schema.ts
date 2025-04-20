@@ -13,10 +13,9 @@ export enum UserGender {
   Female = 'female',
 }
 
-
-export enum UserStatus{
+export enum UserStatus {
   Active = 'active',
-  Inactive = 'inactive',
+  Deactivated = 'deactivated',
   Invited = 'invited',
 }
 
