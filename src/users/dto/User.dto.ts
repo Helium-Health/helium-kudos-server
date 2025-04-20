@@ -16,7 +16,11 @@ import {
   ValidatorConstraintInterface,
 } from 'class-validator';
 import { Types } from 'mongoose';
-import { UserGender, UserRole, UserTeam } from 'src/users/schema/User.schema';
+import {
+  UserGender,
+  UserRole,
+  UserDepartment,
+} from 'src/users/schema/User.schema';
 export class CreateUserDto {
   @IsNotEmpty()
   @IsString()
@@ -41,6 +45,12 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   team?: string;
+
+  @IsOptional()
+  @IsEnum(UserDepartment, {
+    message: 'Invalid Department. Must be one of the predefined values.',
+  })
+  department?: UserDepartment;
 
   @IsDate()
   @IsOptional()
@@ -126,10 +136,14 @@ export class InviteUserDto {
   joinDate?: Date;
 
   @IsOptional()
-  @IsEnum(UserTeam, {
-    message: 'Invalid team. Must be one of the predefined values.',
+  @IsString()
+  team?: string;
+
+  @IsOptional()
+  @IsEnum(UserDepartment, {
+    message: 'Invalid Department. Must be one of the predefined values.',
   })
-  team?: UserTeam;
+  department?: UserDepartment;
 
   @IsOptional()
   @IsString()

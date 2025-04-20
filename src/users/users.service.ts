@@ -15,7 +15,7 @@ import {
   UserDocument,
   UserGender,
   UserStatus,
-  UserTeam,
+  UserDepartment,
 } from 'src/users/schema/User.schema';
 import { CreateUserDto, InviteUserDto, UpdateUserDto } from './dto/User.dto';
 import { WalletService } from 'src/wallet/wallet.service';
@@ -45,6 +45,10 @@ export class UsersService {
   ) {}
 
   private readonly logger = new Logger(UsersService.name);
+
+  async onModuleInit() {
+    await this.migrateTeamToDepartment();
+  }
 
   async runTransactionWithRetry(session, operation) {
     for (let i = 0; i < 5; i++) {
@@ -251,7 +255,8 @@ export class UsersService {
 
     if (status && status.toLowerCase() === UserStatus.Active) {
       query.active = true;
-    } else if (status && status.toLowerCase() === UserStatus.Inactive) {
+      query.verified = true;
+    } else if (status && status.toLowerCase() === UserStatus.Deactivated) {
       query.active = false;
     }
     if (status && status.toLowerCase() === UserStatus.Invited) {
@@ -478,6 +483,7 @@ export class UsersService {
       dateOfBirth,
       joinDate,
       team,
+      department,
       nationality,
       groupId,
     } = inviteUserDto;
@@ -505,6 +511,10 @@ export class UsersService {
         throw new ConflictException('User with this email already exists');
       }
 
+      if (department && !Object.values(UserDepartment).includes(department)) {
+        throw new BadRequestException('Invalid department provided');
+      }
+
       const newUser = new this.userModel({
         email,
         originalEmail: email,
@@ -517,6 +527,7 @@ export class UsersService {
         dateOfBirth,
         joinDate,
         team,
+        department: department as UserDepartment,
         nationality,
       });
 
@@ -576,9 +587,22 @@ export class UsersService {
     return user;
   }
 
-  async getAllTeams() {
-    return Object.values(UserTeam);
+  async getAllDepartments() {
+    return Object.values(UserDepartment);
   }
+
+  async getUserIdsByDepartment(department: string): Promise<Types.ObjectId[]> {
+    const users = await this.userModel
+      .find({
+        department: { $regex: new RegExp(department, 'i') },
+        active: true,
+      })
+      .select('_id')
+      .exec();
+
+    return users.map((user) => user._id);
+  }
+
   async mergeDuplicateEmails() {
     const session = await this.userModel.db.startSession();
     session.startTransaction();
@@ -783,5 +807,25 @@ export class UsersService {
 
     // Log final state after transaction commits
     console.log('Migration Down completed.', updatedAccounts);
+  }
+
+  //TODO: REMOVE AFTER DEPLOYMENT
+  async migrateTeamToDepartment() {
+    const result = await this.userModel.updateMany(
+      {
+        team: { $exists: true, $ne: null }, // has team field with value
+      },
+      [
+        {
+          $set: {
+            department: '$team', // set department = team
+          },
+        },
+      ],
+    );
+
+    console.log(
+      `Successfully updated ${result.modifiedCount} users with team to have department`,
+    );
   }
 }

@@ -19,7 +19,7 @@ export enum UserStatus {
   Invited = 'invited',
 }
 
-export enum UserTeam {
+export enum UserDepartment {
   Engineering = 'Engineering',
   Executives = 'Executives',
   ProjectManagement = 'Project Management',
@@ -96,6 +96,9 @@ export class User {
 
   @Prop()
   team: string;
+
+  @Prop({ type: String, enum: Object.values(UserDepartment) })
+  department: UserDepartment;
 
   @Prop()
   nationality: string;

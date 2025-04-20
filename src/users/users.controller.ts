@@ -135,14 +135,14 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
-  @Get('teams')
-  getAllTeams() {
-    return this.usersService.getAllTeams();
+  @Get('departments')
+  getAllDepartment() {
+    return this.usersService.getAllDepartments();
   }
 
   @UseGuards(JwtAuthGuard, AdminGuard)
   @Post('resend-invite')
-  async resentInvite(@Query('id') id: string): Promise<User> {
+  async resendInvite(@Query('id') id: string): Promise<User> {
     return this.usersService.resendInvite(new Types.ObjectId(id));
   }
 
