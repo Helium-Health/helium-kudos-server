@@ -45,13 +45,17 @@ export class Recognition {
   @Prop({
     type: [
       {
-        url: { type: String, required: true }, 
-        type: { type: String, enum: ['image', 'video'], required: true },
+        url: { type: String, required: true },
+        type: {
+          type: String,
+          enum: ['image', 'video', 'giphy'],
+          required: true,
+        },
       },
     ],
     default: [],
   })
-  media: { url: string; type: 'image' | 'video' }[];
+  media: { url: string; type: 'image' | 'video' | 'giphy' }[];
 }
 
 export const RecognitionSchema = SchemaFactory.createForClass(Recognition);
