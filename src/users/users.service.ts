@@ -580,16 +580,22 @@ export class UsersService {
     return Object.values(UserDepartment);
   }
 
-  async getUserIdsByDepartment(department: string): Promise<Types.ObjectId[]> {
-    const users = await this.userModel
-      .find({
-        department: { $regex: new RegExp(department, 'i') },
-        active: true,
-      })
-      .select('_id')
-      .exec();
+  async getUserIdsByDepartments(departments: string[]): Promise<string[]> {
+    const regexFilters = departments.map((dept) => ({
+      department: { $regex: new RegExp(dept, 'i') },
+    }));
 
-    return users.map((user) => user._id);
+    const users = await this.userModel
+      .find(
+        {
+          active: true,
+          $or: regexFilters,
+        },
+        { _id: 1 },
+      )
+      .lean();
+
+    return users.map((user) => user._id.toString());
   }
 
   async mergeDuplicateEmails() {

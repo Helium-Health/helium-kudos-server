@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { CompanyValues } from 'src/constants/companyValues';
 import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
+import { UserDepartment } from 'src/users/schema/User.schema';
 
 export type RecognitionDocument = Document & Recognition;
 
