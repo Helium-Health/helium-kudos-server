@@ -705,7 +705,9 @@ export class RecognitionService {
     endDate?: Date,
   ) {
     const skip = (page - 1) * limit;
-    const matchStage: any = {};
+    const matchStage: any = {
+      isAuto: false,
+    };
 
     if (startDate && endDate) {
       matchStage.createdAt = {
@@ -784,7 +786,9 @@ export class RecognitionService {
     endDate?: Date,
   ) {
     const skip = (page - 1) * limit;
-    const matchStage: any = {};
+    const matchStage: any = {
+      isAuto: false,
+    };
 
     if (startDate && endDate) {
       matchStage.createdAt = {
@@ -853,7 +857,7 @@ export class RecognitionService {
   }
 
   async getCompanyValueAnalytics(startDate?: Date, endDate?: Date) {
-    const matchStage: any = {};
+    const matchStage: any = { isAuto: false };
 
     if (startDate) {
       matchStage.createdAt = { $gte: new Date(startDate) };
@@ -1177,7 +1181,9 @@ export class RecognitionService {
   }
 
   async getTotalCoinAndRecognition(startDate?: Date, endDate?: Date) {
-    const matchStage: any = {};
+    const matchStage: any = {
+      isAuto: false,
+    };
 
     if (startDate) {
       matchStage.createdAt = { $gte: new Date(startDate) };
@@ -1221,7 +1227,9 @@ export class RecognitionService {
       previousStartDate = new Date(previousEndDate.getTime() - durationMs);
     }
 
-    const prevMatchStage: any = {};
+    const prevMatchStage: any = {
+      isAuto: false,
+    };
     if (previousStartDate) {
       prevMatchStage.createdAt = { $gte: previousStartDate };
     }
