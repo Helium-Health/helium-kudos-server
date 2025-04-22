@@ -15,6 +15,7 @@ import {
   IsInt,
 } from 'class-validator';
 import { CompanyValues } from 'src/constants/companyValues';
+import { UserDepartment } from 'src/users/schema/User.schema';
 
 class Receiver {
   @IsNotEmpty()
@@ -46,7 +47,6 @@ export class CreateRecognitionDto {
   message: string;
 
   @IsArray()
-  @ArrayNotEmpty()
   @ValidateNested({ each: true })
   @Type(() => Receiver)
   receivers: Receiver[];
@@ -62,6 +62,11 @@ export class CreateRecognitionDto {
   @ValidateNested({ each: true })
   @Type(() => MediaDto)
   media?: MediaDto[];
+
+  @IsOptional()
+  @IsArray()
+  @IsEnum(UserDepartment, { each: true })
+  departments?: UserDepartment[];
 }
 
 export class EditRecognitionDto {

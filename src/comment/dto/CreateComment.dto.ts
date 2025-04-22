@@ -41,3 +41,24 @@ export class CreateCommentDto {
   @Type(() => MediaDto)
   media?: MediaDto[];
 }
+
+export class UpdateCommentDto {
+  @IsOptional()
+  @IsString()
+  content?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @Transform(({ value }) =>
+    Array.isArray(value)
+      ? value.filter((url) => typeof url === 'string' && url.trim() !== '')
+      : value,
+  )
+  @Matches(/^https:\/\/(?:media\d*\.)?giphy\.com\/media\/.+\.(gif|mp4)$/, {
+    each: true,
+    message: 'Invalid Giphy URL',
+  })
+  @IsUrl({}, { each: true })
+  giphyUrl?: string[];
+}
