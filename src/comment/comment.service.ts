@@ -153,8 +153,8 @@ export class CommentService {
       { _id: commentId, userId },
       {
         ...(updateCommentDto.content && { content: updateCommentDto.content }),
-        ...(updateCommentDto.giphyUrl && {
-          giphyUrl: updateCommentDto.giphyUrl,
+        ...(updateCommentDto.media && {
+          media: updateCommentDto.media,
         }),
       },
       { new: true },
