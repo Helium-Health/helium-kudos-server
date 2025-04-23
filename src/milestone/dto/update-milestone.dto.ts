@@ -1,4 +1,12 @@
-import { IsString, IsNumber, IsOptional, IsPositive } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsPositive,
+  IsEnum,
+  IsNotEmpty,
+} from 'class-validator';
+import { Cadence } from 'src/constants';
 
 export class UpdateMilestoneDto {
   @IsString()
@@ -9,4 +17,6 @@ export class UpdateMilestoneDto {
   @IsNumber()
   @IsPositive()
   coins?: number;
+
+ 
 }

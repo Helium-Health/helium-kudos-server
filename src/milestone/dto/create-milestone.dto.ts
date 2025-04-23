@@ -4,8 +4,10 @@ import {
   IsEnum,
   IsOptional,
   IsPositive,
+  IsNotEmpty,
 } from 'class-validator';
 import { Milestone, MilestoneType } from '../schema/Milestone.schema';
+import { Cadence } from 'src/constants';
 
 export class CreateMilestoneDto {
   @IsString()
@@ -27,4 +29,11 @@ export class CreateMilestoneDto {
     MilestoneType.VALENTINE_DAY,
   ])
   type: MilestoneType;
+
+  @IsOptional()
+  @IsNotEmpty()
+  @IsEnum(Cadence, {
+    message: `cadence must be one of: ${Object.keys(Cadence).join(', ')}`,
+  })
+  cadence: keyof typeof Cadence;
 }

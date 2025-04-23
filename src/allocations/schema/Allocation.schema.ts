@@ -1,32 +1,17 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document, Types } from 'mongoose';
+import { Cadence } from 'src/constants';
 
-export type AllocationDocument = Allocation & Document;
-export enum AllocationCadence {
-  MONTHLY = '0 0 1 * *', // 1st of every month at midnight
-  DAILY = '0 0 * * *', // Every day at midnight
-}
-
-@Schema()
-export class Allocation extends Document {
-  @Prop({ required: true })
-  allocationName: string;
-
-  @Prop({ required: true })
-  allocationAmount: number;
-
-  @Prop({ required: true, enum: AllocationCadence })
-  cadence: AllocationCadence;
-}
+export type AllocationDocument = AllocationRecord & Document;
 
 @Schema({ timestamps: true })
 export class AllocationRecord extends Document {
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Allocation',
+    ref: 'Milestone',
     required: true,
   })
-  allocationId: Types.ObjectId;
+  milestoneId: Types.ObjectId;
 
   @Prop({ required: true })
   allocationDate: Date;
@@ -37,12 +22,11 @@ export class AllocationRecord extends Document {
   @Prop({ type: [Types.ObjectId], ref: 'User', required: true })
   receiverIds: Types.ObjectId[];
 
-  @Prop({ required: true, type: String, enum: Object.keys(AllocationCadence) })
-  type: keyof typeof AllocationCadence;
+  @Prop({ required: true, type: String, enum: Object.keys(Cadence) })
+  type: keyof typeof Cadence;
 
   @Prop({ required: true })
   status: 'success' | 'failed';
 }
 export const AllocationRecordSchema =
   SchemaFactory.createForClass(AllocationRecord);
-export const AllocationSchema = SchemaFactory.createForClass(Allocation);
