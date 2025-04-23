@@ -14,6 +14,7 @@ import {
   User,
   UserDocument,
   UserGender,
+  UserStatus,
   UserDepartment,
 } from 'src/users/schema/User.schema';
 import { CreateUserDto, InviteUserDto, UpdateUserDto } from './dto/User.dto';
@@ -231,7 +232,8 @@ export class UsersService {
     userId: string,
     page: number = 1,
     limit: number = 10,
-    active: boolean,
+    status?: string,
+    includeCurrentUser: boolean = false,
   ): Promise<{
     users: User[];
     meta: {
@@ -241,16 +243,25 @@ export class UsersService {
       totalPages: number;
     };
   }> {
-    const query: any = {
-      _id: { $ne: new Types.ObjectId(userId) },
-    };
+    const query: any = {};
+    if (!includeCurrentUser) {
+      query._id = { $ne: new Types.ObjectId(userId) };
+    }
 
     if (name) {
       const words = name.trim().split(/\s+/);
       query.name = { $all: words.map((word) => new RegExp(word, 'i')) };
     }
 
-    active !== undefined && (query.active = active);
+    if (status && status.toLowerCase() === UserStatus.Active) {
+      query.active = true;
+      query.verified = true;
+    } else if (status && status.toLowerCase() === UserStatus.Deactivated) {
+      query.active = false;
+    }
+    if (status && status.toLowerCase() === UserStatus.Invited) {
+      query.verified = false;
+    }
 
     const totalCount = await this.userModel.countDocuments(query).exec();
     const totalPages = Math.ceil(totalCount / limit);

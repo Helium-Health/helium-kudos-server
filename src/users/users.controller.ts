@@ -56,11 +56,24 @@ export class UsersController {
     @Query('name') name: string,
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
-    @Query('active') active: boolean,
+    @Query('status') status: string,
+    @Query('includeCurrentUser') includeCurrentUser: string,
     @Request() req,
   ) {
     const userId = req.user?.userId;
-    return this.usersService.findUsers(name, userId, page, limit, active);
+
+    const parsedIncludeUser =
+      includeCurrentUser === undefined
+        ? undefined
+        : includeCurrentUser === 'true';
+    return this.usersService.findUsers(
+      name,
+      userId,
+      page,
+      limit,
+      status,
+      parsedIncludeUser,
+    );
   }
 
   @Get('me')
