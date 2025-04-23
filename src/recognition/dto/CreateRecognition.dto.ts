@@ -16,6 +16,7 @@ import {
 } from 'class-validator';
 import { CompanyValues } from 'src/constants/companyValues';
 import { UserDepartment } from 'src/users/schema/User.schema';
+import { MediaType } from '../schema/Recognition.schema';
 
 class Receiver {
   @IsNotEmpty()
@@ -35,10 +36,10 @@ class MediaDto {
   url: string;
 
   @IsNotEmpty()
-  @IsEnum(['image', 'video', 'giphy'], {
+  @IsEnum(MediaType, {
     message: 'Media type must be either image, video, or giphy',
   })
-  type: 'image' | 'video' | 'giphy';
+  type: MediaType;
 }
 
 export class CreateRecognitionDto {
