@@ -2,6 +2,7 @@ import {
   forwardRef,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -18,9 +19,57 @@ export class CommentService {
     private readonly recognitionService: RecognitionService,
   ) {}
 
+  async onModuleInit() {
+    await this.migrateCommentGiphyUrls();
+  }
+
+  async migrateCommentGiphyUrls() {
+    const session = await this.commentModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      const comments = await this.commentModel
+        .find({ giphyUrl: { $exists: true, $not: { $size: 0 } } })
+        .lean();
+
+      let updatedCount = 0;
+
+      for (const comment of comments) {
+        const giphyMedia = comment.giphyUrl.map((url: string) => ({
+          url,
+          type: 'giphy',
+        }));
+
+        const updatedMedia = [...(comment.media || []), ...giphyMedia];
+
+        await this.commentModel.updateOne(
+          { _id: comment._id },
+          {
+            $set: { media: updatedMedia },
+            $unset: { giphyUrl: '' },
+          },
+          { session },
+        );
+
+        updatedCount++;
+      }
+
+      await session.commitTransaction();
+      Logger.log(
+        `Comment migration completed. Updated ${updatedCount} comments.`,
+      );
+    } catch (error) {
+      await session.abortTransaction();
+      Logger.error('Migration failed:', error);
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
   async addComment(
     userId: Types.ObjectId,
-    { recognitionId, content, giphyUrl }: CreateCommentDto,
+    { recognitionId, content, media }: CreateCommentDto,
   ) {
     const session = await this.commentModel.db.startSession();
     session.startTransaction();
@@ -31,20 +80,22 @@ export class CommentService {
           new Types.ObjectId(recognitionId),
           { session },
         );
+
       if (!recognitionExists) {
         throw new NotFoundException('Recognition not found');
       }
 
-      const validGiphyUrls = Array.isArray(giphyUrl)
-        ? giphyUrl.filter(Boolean)
+      const validMedia = Array.isArray(media)
+        ? media.filter((m) => m.url && m.type)
         : [];
 
       const comment = new this.commentModel({
         userId: new Types.ObjectId(userId),
         recognitionId: new Types.ObjectId(recognitionId),
         content,
-        giphyUrl: validGiphyUrls,
+        media: validMedia,
       });
+
       await comment.save({ session });
 
       await this.recognitionService.addCommentToRecognition(
@@ -93,12 +144,18 @@ export class CommentService {
     };
   }
 
-  async updateComment(commentId: string, updateCommentDto: UpdateCommentDto, userId: Types.ObjectId) {
+  async updateComment(
+    commentId: string,
+    updateCommentDto: UpdateCommentDto,
+    userId: Types.ObjectId,
+  ) {
     const comment = await this.commentModel.findOneAndUpdate(
       { _id: commentId, userId },
       {
         ...(updateCommentDto.content && { content: updateCommentDto.content }),
-        ...(updateCommentDto.giphyUrl && { giphyUrl: updateCommentDto.giphyUrl }),
+        ...(updateCommentDto.media && {
+          media: updateCommentDto.media,
+        }),
       },
       { new: true },
     );

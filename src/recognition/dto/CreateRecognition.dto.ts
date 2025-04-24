@@ -16,6 +16,7 @@ import {
 } from 'class-validator';
 import { CompanyValues } from 'src/constants/companyValues';
 import { UserDepartment } from 'src/users/schema/User.schema';
+import { MediaType } from '../schema/Recognition.schema';
 
 class Receiver {
   @IsNotEmpty()
@@ -35,10 +36,10 @@ class MediaDto {
   url: string;
 
   @IsNotEmpty()
-  @IsEnum(['image', 'video'], {
-    message: 'Media type must be either image or video',
+  @IsEnum(MediaType, {
+    message: 'Media type must be either image, video, or giphy',
   })
-  type: 'image' | 'video';
+  type: MediaType;
 }
 
 export class CreateRecognitionDto {
@@ -58,22 +59,7 @@ export class CreateRecognitionDto {
 
   @IsOptional()
   @IsArray()
-  @ArrayMaxSize(5)
-  @Transform(({ value }) =>
-    Array.isArray(value)
-      ? value.filter((url) => typeof url === 'string' && url.trim() !== '')
-      : value,
-  )
-  @Matches(/^https:\/\/(?:media\d*\.)?giphy\.com\/media\/.+\.(gif|mp4)$/, {
-    each: true,
-    message: 'Invalid Giphy URL',
-  })
-  @IsUrl({}, { each: true })
-  giphyUrl?: string[];
-
-  @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(3)
+  @ArrayMaxSize(8)
   @ValidateNested({ each: true })
   @Type(() => MediaDto)
   media?: MediaDto[];

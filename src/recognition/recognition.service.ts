@@ -55,6 +55,53 @@ export class RecognitionService {
     @Inject(forwardRef(() => ReactionService))
     private readonly reactionService: ReactionService,
   ) {}
+  //TODO: REMOVE THIS AFTER DEPLOYMENT
+  async onModuleInit() {
+    await this.migrateGiphyUrls();
+  }
+  async migrateGiphyUrls() {
+    const recognitions = await this.recognitionModel
+      .find({ giphyUrl: { $exists: true, $not: { $size: 0 } } })
+      .lean();
+
+    const session = await this.recognitionModel.db.startSession();
+    session.startTransaction();
+
+    let updatedCount = 0;
+
+    try {
+      for (const rec of recognitions) {
+        const giphyMedia = rec.giphyUrl.map((url: string) => ({
+          url,
+          type: 'giphy',
+        }));
+
+        const updatedMedia = [...(rec.media || []), ...giphyMedia];
+
+        await this.recognitionModel.updateOne(
+          { _id: rec._id },
+          {
+            $set: { media: updatedMedia },
+            $unset: { giphyUrl: '' },
+          },
+          { session },
+        );
+
+        updatedCount++;
+      }
+
+      await session.commitTransaction();
+      Logger.log(
+        `Recognition Migration completed. Updated ${updatedCount} recognitions.`,
+      );
+    } catch (error) {
+      await session.abortTransaction();
+      Logger.error('Recognition Migration failed. Transaction aborted.', error);
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
 
   async createRecognition(
     senderId: string,
@@ -62,7 +109,6 @@ export class RecognitionService {
       receivers,
       message,
       companyValues = [],
-      giphyUrl,
       media = [],
       departments = [],
     }: CreateRecognitionDto,
@@ -110,10 +156,6 @@ export class RecognitionService {
       );
     }
 
-    const validGiphyUrls = Array.isArray(giphyUrl)
-      ? giphyUrl.filter(Boolean)
-      : [];
-
     const receiverIds = receivers.map((receiver) => receiver.receiverId);
     const areValidUsers = await this.usersService.validateUserIds(receiverIds);
 
@@ -149,7 +191,6 @@ export class RecognitionService {
       const newRecognition = new this.recognitionModel({
         senderId: new Types.ObjectId(senderId),
         message,
-        giphyUrl: validGiphyUrls,
         receivers: receivers.map((r) => ({
           receiverId: new Types.ObjectId(r.receiverId),
           coinAmount: r.coinAmount ?? 0,
@@ -199,7 +240,6 @@ export class RecognitionService {
           amount: r.coinAmount ?? 0,
         })),
         companyValues,
-        giphyUrl,
       });
 
       await this.notifyReceiversViaSlack({
@@ -628,7 +668,6 @@ export class RecognitionService {
             createdAt: { $first: '$createdAt' },
             isAuto: { $first: '$isAuto' },
             sender: { $first: '$sender' },
-            giphyUrl: { $first: '$giphyUrl' },
             media: { $first: '$media' },
             receivers: {
               $push: {

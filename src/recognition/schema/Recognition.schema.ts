@@ -6,6 +6,12 @@ import { UserDepartment } from 'src/users/schema/User.schema';
 
 export type RecognitionDocument = Document & Recognition;
 
+export enum MediaType {
+  IMAGE = 'image',
+  VIDEO = 'video',
+  GIPHY = 'giphy',
+}
+
 @Schema({ timestamps: true })
 export class Recognition {
   @Prop({ type: Types.ObjectId, ref: 'User' })
@@ -15,7 +21,7 @@ export class Recognition {
   message: string;
 
   @Prop({ type: [String], required: false })
-  giphyUrl?: string[];
+  giphyUrl?: string[]; //TODO: Remove after migration
 
   @Prop({
     type: [
@@ -47,15 +53,16 @@ export class Recognition {
     type: [
       {
         url: { type: String, required: true },
-        type: { type: String, enum: ['image', 'video'], required: true },
+        type: {
+          type: String,
+          enum: Object.values(MediaType),
+          required: true,
+        },
       },
     ],
     default: [],
   })
-  media: { url: string; type: 'image' | 'video' }[];
-
-  @Prop({ type: [String], enum: Object.values(UserDepartment) })
-  departments: UserDepartment[];
+  media: { url: string; type: MediaType }[];
 }
 
 export const RecognitionSchema = SchemaFactory.createForClass(Recognition);
