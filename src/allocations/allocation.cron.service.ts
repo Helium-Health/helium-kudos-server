@@ -23,7 +23,7 @@ export class AllocationCronService {
     private readonly allocationRecordModel: Model<AllocationRecord>,
   ) {}
 
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async handleGenericAllocationCron(): Promise<void> {
     const milestoneIds =
       await this.milestoneService.getMilestoneIdsWithCadence();
