@@ -6,6 +6,7 @@ import {
   ValidateNested,
   IsOptional,
   IsString,
+  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -26,6 +27,7 @@ export class ProductDataDto {
 
   @IsNotEmpty()
   @IsNumber()
+  @Min(1)
   quantity: number;
 
   @IsOptional()

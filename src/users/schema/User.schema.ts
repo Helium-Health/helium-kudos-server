@@ -13,9 +13,48 @@ export enum UserGender {
   Female = 'female',
 }
 
+export enum UserTeam {
+  Engineering = 'Engineering',
+  Executives = 'Executives',
+  ProjectManagement = 'Project Management',
+  HeliumCredit = 'Helium Credit',
+  TechSupportT1 = 'Tech Support (T1)',
+  TechSupportT2 = 'Tech Support (T2)',
+  FinanceInvestorRelations = 'Finance & Investor Relations',
+  Admin = 'Admin',
+  HumanResources = 'Human Resources',
+  ProductManagement = 'Product Management',
+  GrowthExpansion = 'Growth & Expansion',
+  HeliumOS = 'HeliumOS',
+  Legal = 'Legal',
+  Data = 'Data',
+  MedicalOperations = 'Medical Operations',
+  HeliumDoc = 'HeliumDoc',
+  Marketing = 'Marketing',
+  DesignOrganization = 'Design (Organization)',
+  Communications = 'Communications',
+  CustomerSuccess = 'Customer Success',
+  StrategyOperations = 'Strategy and Operations',
+  ContactCentre = 'Contact Centre',
+  CEOOffice = "CEO's Office",
+  ProductDesign = 'Product Design',
+  ProductQuality = 'Product Quality',
+  PublicHealth = 'Public Health',
+  Finance = 'Finance',
+  CFOSOffice = "CFO's Office",
+  COOSOffice = "COO's Office",
+  ExecutiveOffice = 'Executive Office',
+}
+
 @Schema({ timestamps: true }) // Automatically adds createdAt and updatedAt fields
 export class User {
-  @Prop({ type: String, required: true, unique: true })
+  @Prop({
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true,
+  })
   email: string;
 
   @Prop({ type: String, required: true })
@@ -54,6 +93,12 @@ export class User {
 
   @Prop()
   nationality: string;
+
+  @Prop({ type: Boolean, default: true })
+  active: boolean;
+
+  @Prop({ type: String })
+  originalEmail: string;
 }
 
 // Create schema using the class

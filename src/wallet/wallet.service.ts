@@ -7,12 +7,14 @@ import {
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import { Model, ClientSession, Types, Connection } from 'mongoose';
 import { Wallet, WalletDocument } from './schema/Wallet.schema';
+import { TransactionService } from 'src/transaction/transaction.service';
 
 @Injectable()
 export class WalletService {
   constructor(
     @InjectModel(Wallet.name) private readonly walletModel: Model<Wallet>,
     @InjectConnection() private readonly connection: Connection,
+    private readonly transactionService: TransactionService,
   ) {}
   private readonly logger = new Logger(WalletService.name);
 
@@ -44,7 +46,7 @@ export class WalletService {
       });
   }
 
-  async refundGiveableBalance(
+  async incrementGiveableBalance(
     userId: Types.ObjectId,
     amount: number,
     session: ClientSession,
@@ -95,12 +97,17 @@ export class WalletService {
 
   async getUserBalances(userId: string) {
     const wallet = await this.findWalletByUserId(new Types.ObjectId(userId));
-
+    const totalCoinSpent =
+      await this.transactionService.getUserCoinSpentonOrders(
+        new Types.ObjectId(userId),
+      );
     return {
       earnedBalance: wallet.earnedBalance,
       availableToGive: wallet.giveableBalance,
+      totalcoinSpent: totalCoinSpent,
     };
   }
+
   async getEarnedCoinBalance(userId: string) {
     const wallet = await this.findWalletByUserId(new Types.ObjectId(userId));
 
@@ -126,25 +133,38 @@ export class WalletService {
     session.startTransaction();
 
     try {
-      const wallets = await this.walletModel.find().session(session).exec();
+      const activeWallets = await this.walletModel
+        .aggregate([
+          {
+            $lookup: {
+              from: 'users',
+              localField: 'userId',
+              foreignField: '_id',
+              as: 'user',
+            },
+          },
+          { $unwind: '$user' },
+          { $match: { 'user.active': true } }, //Allocate  coin to only active users
+          { $project: { _id: 1 } },
+        ])
+        .session(session);
 
-      if (!wallets || wallets.length === 0) {
-        this.logger.warn('No wallets found for allocation');
-        throw new NotFoundException('No wallets found');
+      if (!activeWallets || activeWallets.length === 0) {
+        this.logger.warn('No activeWallets found for allocation');
+        throw new NotFoundException('No activeWallets found');
       }
 
-      // Update all wallets using updateMany within the transaction
       const result = await this.walletModel.updateMany(
-        {}, // Empty filter to update all wallets
-        { $set: { giveableBalance: allocation } }, // Set allocation value
+        {},
+        { $set: { giveableBalance: allocation } },
         { session },
       );
 
       if (result.modifiedCount === 0) {
-        this.logger.warn('No wallets were updated');
+        this.logger.warn('No active Wallets were updated');
       } else {
         this.logger.log(
-          `Successfully allocated ${allocation} coins to ${result.modifiedCount} wallets.`,
+          `Successfully allocated ${allocation} coins to ${result.modifiedCount} activeWallets.`,
         );
       }
 
@@ -155,7 +175,7 @@ export class WalletService {
     } catch (error) {
       await session.abortTransaction();
       this.logger.error('Transaction aborted due to an error: ', error.message);
-      throw error;
+      throw new Error(error.message);
     } finally {
       session.endSession();
     }
@@ -244,5 +264,191 @@ export class WalletService {
         }
         return result;
       });
+  }
+  async getCoinUseMetrics(
+    page: number = 1,
+    limit: number = 10,
+    sortBy:
+      | 'totalCoinEarned'
+      | 'totalCoinBalance'
+      | 'totalCoinSpent' = 'totalCoinEarned',
+    sortOrder: 'ASCENDING' | 'DESCENDING' = 'DESCENDING',
+    startDate?: Date,
+    endDate?: Date,
+  ) {
+    const parsedSortOrder = sortOrder === 'ASCENDING' ? 1 : -1;
+    const skip = (page - 1) * limit;
+    const now = new Date();
+    const isFutureDate = endDate && endDate > now;
+
+    const aggregationPipeline: any[] = [
+      {
+        $lookup: {
+          from: 'transactions',
+          let: { userId: '$userId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$userId', '$$userId'] },
+                    { $eq: ['$type', 'CREDIT'] },
+                    { $eq: ['$entityType', 'recognition'] },
+                    { $ne: ['$status', 'reversed'] },
+                    ...(startDate && endDate
+                      ? [
+                          {
+                            $and: [
+                              { $gte: ['$createdAt', startDate] },
+                              { $lte: ['$createdAt', endDate] },
+                              { $lte: ['$createdAt', now] },
+                            ],
+                          },
+                        ]
+                      : [{ $lte: ['$createdAt', now] }]),
+                  ],
+                },
+              },
+            },
+            {
+              $group: {
+                _id: '$userId',
+                totalEarned: { $sum: '$amount' },
+              },
+            },
+          ],
+          as: 'coinEarnedData',
+        },
+      },
+      {
+        $lookup: {
+          from: 'transactions',
+          let: { userId: '$userId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$userId', '$$userId'] },
+                    { $eq: ['$type', 'DEBIT'] },
+                    { $eq: ['$entityType', 'recognition'] },
+                    ...(startDate && endDate
+                      ? [
+                          {
+                            $and: [
+                              { $gte: ['$createdAt', startDate] },
+                              { $lte: ['$createdAt', endDate] },
+                              { $lte: ['$createdAt', now] },
+                            ],
+                          },
+                        ]
+                      : [{ $lte: ['$createdAt', now] }]),
+                  ],
+                },
+              },
+            },
+            {
+              $lookup: {
+                from: 'transactions',
+                let: { claimId: '$claimId', userId: '$userId' },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [
+                          { $eq: ['$claimId', '$$claimId'] },
+                          { $eq: ['$userId', '$$userId'] },
+                          { $eq: ['$type', 'CREDIT'] },
+                          { $eq: ['$status', 'reversed'] },
+                        ],
+                      },
+                    },
+                  },
+                ],
+                as: 'reversedTransactions',
+              },
+            },
+            {
+              $addFields: {
+                isReversed: { $gt: [{ $size: '$reversedTransactions' }, 0] },
+              },
+            },
+            {
+              $match: { isReversed: false },
+            },
+            {
+              $group: {
+                _id: '$userId',
+                totalSpent: { $sum: '$amount' },
+              },
+            },
+          ],
+          as: 'coinSpentData',
+        },
+      },
+      {
+        $addFields: {
+          totalCoinSpent: {
+            $ifNull: [{ $arrayElemAt: ['$coinSpentData.totalSpent', 0] }, 0],
+          },
+          totalCoinEarned: {
+            $ifNull: [{ $arrayElemAt: ['$coinEarnedData.totalEarned', 0] }, 0],
+          },
+          totalCoinBalance: isFutureDate ? 0 : '$giveableBalance',
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'userId',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      {
+        $unwind: {
+          path: '$user',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          totalCoinEarned: 1,
+          totalCoinSpent: { $abs: '$totalCoinSpent' },
+          totalCoinBalance: 1,
+          user: {
+            userId: '$user._id',
+            email: '$user.email',
+            name: '$user.name',
+            picture: '$user.picture',
+          },
+        },
+      },
+      { $sort: { [sortBy]: parsedSortOrder } },
+      { $skip: skip },
+      { $limit: limit },
+    ];
+
+    const totalCountPipeline: any[] = [{ $count: 'totalCount' }];
+
+    const [data, totalCountResult] = await Promise.all([
+      this.walletModel.aggregate(aggregationPipeline).exec(),
+      this.walletModel.aggregate(totalCountPipeline).exec(),
+    ]);
+
+    const totalCount =
+      totalCountResult.length > 0 ? totalCountResult[0].totalCount : 0;
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return {
+      data,
+      meta: {
+        totalCount,
+        totalPages,
+        page,
+        limit,
+      },
+    };
   }
 }

@@ -15,13 +15,17 @@ export class MilestoneSeedService implements OnModuleInit {
     private milestoneModel: Model<MilestoneDocument>,
   ) {}
 
+  getFirstFridayOfMarch(year: number): Date {
+    let date = new Date(year, 2, 1); // March 1st
+    while (date.getDay() !== 5) {
+      date.setDate(date.getDate() + 1); // Move forward until it's Friday
+    }
+    return date;
+  }
+
   async onModuleInit() {
-    const existingMilestones = await this.milestoneModel
-      .find({}, 'type')
-      .lean();
-    const existingTypes = new Set(
-      existingMilestones.map((milestone) => milestone.type),
-    );
+    await this.milestoneModel.deleteMany({});
+    this.logger.log('Deleted all existing milestones');
 
     const defaultMilestones = [
       {
@@ -44,37 +48,45 @@ export class MilestoneSeedService implements OnModuleInit {
         type: MilestoneType.INTERNATIONAL_MENS_DAY,
         title: "International Men's Day",
         message:
-          "Happy International Men's Day, {name}! 🎉 Thank you for your strength, kindness, and contributions.",
+          "Happy International Men's Day, 🎉 Thank you for your strength, kindness, and contributions.",
         coins: 5,
         isActive: true,
+        isGeneric: true,
+        milestoneDate: new Date(new Date().getFullYear(), 10, 19), // November 19
       },
       {
         type: MilestoneType.INTERNATIONAL_WOMENS_DAY,
         title: "International Women's Day",
         message:
-          "Happy International Women's Day, {name}! 🌟 Thank you for your strength, resilience, and invaluable contributions.",
+          "Happy International Women's Day, 🌟 Thank you for your strength, resilience, and invaluable contributions.",
         coins: 5,
         isActive: true,
+        isGeneric: true,
+        milestoneDate: new Date(new Date().getFullYear(), 2, 8), // March 8
       },
       {
         type: MilestoneType.VALENTINE_DAY,
-        title: "Happy Women's Day",
+        title: "Happy Valentine's Day",
         message:
           "Happy Valentine's Day Team! 💖 Thank you for your love, support, and dedication.",
         coins: 5,
         isActive: true,
+        isGeneric: true,
+        milestoneDate: new Date(new Date().getFullYear(), 1, 14), // February 14
+      },
+      {
+        type: MilestoneType.INTERNATIONAL_EMPLOYEE_APPRECIATION_DAY,
+        title: 'International Employee Day',
+        message:
+          'Happy International Employee Day! 🎉 We appreciate your hard work, dedication, and contributions!',
+        coins: 5,
+        isActive: true,
+        isGeneric: true,
+        milestoneDate: this.getFirstFridayOfMarch(new Date().getFullYear()),
       },
     ];
 
-    const newMilestones = defaultMilestones.filter(
-      (milestone) => !existingTypes.has(milestone.type),
-    );
-
-    if (newMilestones.length > 0) {
-      await this.milestoneModel.insertMany(newMilestones);
-      this.logger.log('Added ${missingMilestones.length} new milestones');
-    } else {
-      this.logger.log('No new milestones to add');
-    }
+    await this.milestoneModel.insertMany(defaultMilestones);
+    this.logger.log(`Inserted ${defaultMilestones.length} default milestones`);
   }
 }

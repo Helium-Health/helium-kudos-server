@@ -1,7 +1,9 @@
 import {
   forwardRef,
+  HttpException,
   Inject,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -12,9 +14,12 @@ import { OAuth2Client } from 'google-auth-library';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { UserInfoClient } from 'auth0';
+import { ApiTags } from '@nestjs/swagger';
 
+@ApiTags('User')
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private oauthClient: OAuth2Client;
   private auth0UserInfo: UserInfoClient;
 
@@ -27,13 +32,6 @@ export class AuthService {
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
     );
-    // this.auth0UserInfo = new UserInfoClient({
-    //   domain:
-    //     process.env.NODE_ENV === 'production'
-    //       ? PROD_AUTH0_DOMAIN
-    //       : STAGING_AUTH0_DOMAIN,
-    // });
-
     this.auth0UserInfo = new UserInfoClient({
       domain: process.env.AUTH0_DOMAIN,
     });
@@ -43,9 +41,9 @@ export class AuthService {
     token: string,
   ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
     try {
+      this.logger.log('Validating Google user...');
       let userDetails = null;
-      let refreshToken = null;
-      
+
       const googleAuth = await this.oauthClient.verifyIdToken({
         idToken: token,
         audience: process.env.GOOGLE_CLIENT_ID,
@@ -55,47 +53,43 @@ export class AuthService {
 
       const userExists = await this.userService.findByEmail(payload.email);
 
-      if (userExists) {
-        if (userExists.verified) {
-          console.log('Verified user exists. Getting...');
-          userDetails = userExists;
-          refreshToken = await this.generateAndStoreRefreshToken(userDetails);
-        } else {
-          console.log('Unverified user exists. Updating with Google data...');
-
-          const updatedUser = await this.userService.updateByEmail(
-            payload.email,
-            {
-              picture: payload.picture,
-              verified: payload.email_verified || false,
-            },
-          );
-          userDetails = updatedUser;
-          refreshToken = await this.generateAndStoreRefreshToken(updatedUser);
-        }
-      } else {
-        console.log('User not found. Creating...');
-        const { newUser, newUserRefreshToken } =
-          await this.userService.createUser({
-            email: payload.email,
-            name: payload.name,
-            picture: payload.picture,
-            verified: payload.email_verified || false,
-          });
+      if (!userExists) {
+        this.logger.log('User not found. Creating...');
+        const { newUser } = await this.userService.createUser({
+          email: payload.email,
+          name: payload.name,
+          picture: payload.picture,
+          verified: payload?.email_verified || true,
+        });
         userDetails = newUser;
-        refreshToken = newUserRefreshToken;
+      } else {
+        this.logger.log('User Exist ...');
+        if (!userExists.active) {
+          this.logger.log('User Exist, but not active');
+          throw new UnauthorizedException(
+            'Your account is currently inactive. Contact Administrator for assistance.',
+          );
+        }
+
+        if (!userExists.verified) {
+          this.logger.log(
+            'Unverified user exists. Updating with Google data...',
+          );
+          await this.userService.updateByEmail(payload.email, {
+            picture: payload.picture,
+            verified: payload.email_verified || true,
+          });
+        }
       }
-
-      const jwtToken = this.generateJwtToken(userDetails);
-
-      return {
-        user: userDetails,
-        accessToken: jwtToken,
-        refreshToken: refreshToken,
-      };
+      const user = userExists || userDetails;
+      const refreshToken = await this.generateAndStoreRefreshToken(user);
+      const accessToken = this.generateJwtToken(user);
+      return { user, refreshToken, accessToken };
     } catch (e) {
-      console.log('Error in validateUser', e);
-      throw new Error('Error in validateUser');
+      throw new HttpException(
+        'Error in validating google user: ' + e.message,
+        400,
+      );
     }
   }
 
@@ -103,55 +97,54 @@ export class AuthService {
     token: string,
   ): Promise<{ user: User; accessToken: string; refreshToken: string }> {
     try {
+      this.logger.log('Validating Auth0 user...');
       const userInfo = await this.auth0UserInfo.getUserInfo(token);
       let userDetails = null;
-      let refreshToken = null;
 
       const userExists = await this.userService.findByEmail(
         userInfo.data.email,
       );
 
-      if (userExists) {
-        if (userExists.verified) {
-          console.log('Verified user exists. Getting...');
-          userDetails = userExists;
-          refreshToken = await this.generateAndStoreRefreshToken(userDetails);
-        } else {
-          console.log('Unverified user exists. Updating with Auth0 data...');
-
-          const updatedUser = await this.userService.updateByEmail(
-            userInfo.data.email,
-            {
-              picture: userInfo.data.picture,
-              verified: true,
-            },
-          );
-          userDetails = updatedUser;
-          refreshToken = await this.generateAndStoreRefreshToken(updatedUser);
-        }
+      if (!userExists) {
+        this.logger.log('User not found. Creating...');
+        // Temporarily prevent user account creation with support for User invitation
+        // const { newUser } = await this.userService.createUser({
+        //   email: userInfo.data.email,
+        //   name: userInfo.data.name,
+        //   picture: userInfo.data.picture,
+        //   verified: userInfo.data?.email_verified || true,
+        // });
+        // userDetails = newUser;
       } else {
-        console.log('User not found. Creating...');
-        const { newUser, newUserRefreshToken } =
-          await this.userService.createUser({
-            email: userInfo.data.email,
-            name: userInfo.data.name,
+        this.logger.log('User Exist ...');
+        if (!userExists.active) {
+          this.logger.log('User Exist but not active ...');
+          throw new UnauthorizedException(
+            'Your account is currently inactive. Contact Administrator for assistance.', //Only active users can login
+          );
+        }
+
+        if (!userExists.verified) {
+          this.logger.log(
+            'Unverified user exists. Updating with Auth0 data...',
+          );
+          await this.userService.updateByEmail(userInfo.data.email, {
             picture: userInfo.data.picture,
-            verified: true,
+            verified: userInfo.data.email_verified || true,
           });
-        userDetails = newUser;
-        refreshToken = newUserRefreshToken;
+
+          this.logger.log('Creating Wallet for first time user ...');
+          }
       }
-
-      const jwtToken = this.generateJwtToken(userDetails);
-
-      return {
-        user: userDetails,
-        accessToken: jwtToken,
-        refreshToken: refreshToken,
-      };
+      const user = userExists || userDetails;
+      const refreshToken = await this.generateAndStoreRefreshToken(user);
+      const accessToken = this.generateJwtToken(user);
+      return { user, refreshToken, accessToken };
     } catch (e) {
-      console.log('Error in validateAuth0User', e);
-      throw new Error('Error in validateAuth0User');
+      throw new HttpException(
+        'Error in validating google user: ' + e.message,
+        400,
+      );
     }
   }
 
@@ -160,14 +153,24 @@ export class AuthService {
       _id: Types.ObjectId;
     },
   ) {
-    const payload = { email: user.email, sub: user._id, role: user.role };
+    const payload = {
+      email: user.email,
+      sub: user._id,
+      role: user.role,
+      active: user.active,
+    };
     return this.jwtService.sign(payload);
   }
 
   async generateAndStoreRefreshToken(
     user: User & { _id: Types.ObjectId },
   ): Promise<string> {
-    const payload = { email: user.email, sub: user._id, role: user.role };
+    const payload = {
+      email: user.email,
+      sub: user._id,
+      role: user.role,
+      active: user.active,
+    };
     const refreshToken = this.jwtService.sign(payload, { expiresIn: '4d' });
 
     const hashedToken = await argon2.hash(refreshToken);
@@ -203,8 +206,10 @@ export class AuthService {
 
       return { newAccessToken, newRefreshToken };
     } catch (e) {
-      console.error('Error in refreshAccessToken:', e.message);
-      throw new UnauthorizedException('Could not refresh access token');
+      throw new UnauthorizedException(
+        'Could not refresh access token',
+        e.message,
+      );
     }
   }
 

@@ -12,6 +12,7 @@ import {
   Matches,
   IsUrl,
   ArrayMaxSize,
+  IsInt,
 } from 'class-validator';
 import { CompanyValues } from 'src/constants/companyValues';
 
@@ -22,8 +23,21 @@ class Receiver {
 
   @IsOptional()
   @IsNumber()
+  @IsInt()
   @Min(0)
   coinAmount: number;
+}
+
+class MediaDto {
+  @IsNotEmpty()
+  @IsUrl()
+  url: string;
+
+  @IsNotEmpty()
+  @IsEnum(['image', 'video'], {
+    message: 'Media type must be either image or video',
+  })
+  type: 'image' | 'video';
 }
 
 export class CreateRecognitionDto {
@@ -56,6 +70,13 @@ export class CreateRecognitionDto {
   })
   @IsUrl({}, { each: true })
   giphyUrl?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(3)
+  @ValidateNested({ each: true })
+  @Type(() => MediaDto)
+  media?: MediaDto[];
 }
 
 export class EditRecognitionDto {

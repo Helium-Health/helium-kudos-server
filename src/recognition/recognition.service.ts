@@ -8,7 +8,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { ClientSession, Model, Types } from 'mongoose';
+import { ClientSession, Model, PipelineStage, Types } from 'mongoose';
 import { Recognition, RecognitionDocument } from './schema/Recognition.schema';
 import {
   CreateRecognitionDto,
@@ -22,7 +22,8 @@ import { CompanyValues } from 'src/constants/companyValues';
 import { Reaction } from 'src/reactions/schema/reactions.schema';
 import {
   EntityType,
-  transactionStatus,
+  TransactionStatus,
+  TransactionType,
 } from 'src/transaction/schema/Transaction.schema';
 import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
 import { ClaimService } from 'src/claim/claim.service';
@@ -31,6 +32,8 @@ import { RecognitionGateway } from './recognition.gateway';
 import { UserRole } from 'src/users/schema/User.schema';
 import { SlackService } from 'src/slack/slack.service';
 import { PRODUCTION_CLIENT, STAGING_CLIENT } from 'src/constants';
+import { CommentService } from 'src/comment/comment.service';
+import { ReactionService } from 'src/reactions/reactions.service';
 
 @Injectable()
 export class RecognitionService {
@@ -45,11 +48,23 @@ export class RecognitionService {
     private readonly usersService: UsersService,
     private readonly slackService: SlackService,
     private readonly transactionService: TransactionService,
+
+    @Inject(forwardRef(() => CommentService))
+    private readonly commentService: CommentService,
+
+    @Inject(forwardRef(() => ReactionService))
+    private readonly reactionService: ReactionService,
   ) {}
 
   async createRecognition(
     senderId: string,
-    { receivers, message, companyValues = [], giphyUrl }: CreateRecognitionDto,
+    {
+      receivers,
+      message,
+      companyValues = [],
+      giphyUrl,
+      media = [],
+    }: CreateRecognitionDto,
   ) {
     const invalidValues = companyValues.filter(
       (value) => !Object.values(CompanyValues).includes(value),
@@ -84,6 +99,14 @@ export class RecognitionService {
       throw new BadRequestException('One or more receiver IDs are invalid');
     }
 
+    const inactiveUsers =
+      await this.usersService.getInactiveUserEmails(receiverIds);
+    if (inactiveUsers.length > 0) {
+      throw new ForbiddenException(
+        `The following users are inactive: ${inactiveUsers.join(', ')}`,
+      );
+    }
+
     const totalCoinAmount = receivers.reduce(
       (sum, r) => sum + (r.coinAmount ?? 0),
       0,
@@ -110,6 +133,10 @@ export class RecognitionService {
           coinAmount: r.coinAmount ?? 0,
         })),
         companyValues,
+        media: media.map((m) => ({
+          url: m.url,
+          type: m.type,
+        })),
       });
       await newRecognition.save({ session });
 
@@ -152,10 +179,12 @@ export class RecognitionService {
         giphyUrl,
       });
 
-      await this.notifyReceiversViaSlack(
-        new Types.ObjectId(senderId),
-        receivers,
-      );
+      await this.notifyReceiversViaSlack({
+        receivers: receivers,
+        senderId: new Types.ObjectId(senderId),
+        isAuto: false,
+        message: message,
+      });
 
       return newRecognition;
     } catch (error) {
@@ -171,11 +200,21 @@ export class RecognitionService {
     }
   }
 
-  private async notifyReceiversViaSlack(
-    senderId: Types.ObjectId,
-    receivers: CreateRecognitionDto['receivers'],
-  ) {
-    const sender = await this.usersService.findById(senderId);
+  private async notifyReceiversViaSlack({
+    receivers,
+    senderId,
+    isAuto,
+    message,
+  }: {
+    receivers: CreateRecognitionDto['receivers'];
+    senderId?: Types.ObjectId;
+    isAuto?: boolean;
+    message?: string;
+  }) {
+    const sender = senderId
+      ? await this.usersService.findById(senderId)
+      : { name: 'Helium HR' };
+
     const clientUrl =
       process.env.NODE_ENV === 'production'
         ? PRODUCTION_CLIENT
@@ -190,7 +229,9 @@ export class RecognitionService {
           receiverUser.email,
         );
         if (slackUserId) {
-          const notificationMessage = `🌟 Hey ${receiverUser.name}!\n\n ${sender.name} just recognized your awesome work!\n\nCheck it out here: ${clientUrl}`;
+          const notificationMessage = isAuto
+            ? `${message} \n\nLogin to Helium Kudos to start shopping with you gifted coins: ${clientUrl}`
+            : `🌟 Hey ${receiverUser.name}!\n\n ${sender.name} just recognized your awesome work!\n\nCheck it out here: ${clientUrl}`;
           await this.slackService.sendDirectMessage(
             slackUserId,
             notificationMessage,
@@ -235,7 +276,7 @@ export class RecognitionService {
     coinAmount = 0,
     milestoneType,
   }: {
-    receiverId: string;
+    receiverId: { receiverId: Types.ObjectId }[];
     message: string;
     coinAmount?: number;
     milestoneType: MilestoneType;
@@ -244,46 +285,68 @@ export class RecognitionService {
     session.startTransaction();
 
     try {
+      // Create the new recognition entry
       const newRecognition = new this.recognitionModel({
         message,
         isAuto: true,
         milestoneType,
-        receivers: [{ receiverId: new Types.ObjectId(receiverId), coinAmount }],
+        receivers: receiverId.map(({ receiverId }) => ({
+          receiverId,
+          coinAmount,
+        })),
       });
+
       await newRecognition.save({ session });
 
-      // Create single UserRecognition entry
-      await this.userRecognitionService.create(
-        {
-          userId: new Types.ObjectId(receiverId),
-          recognitionId: newRecognition._id,
-          role: UserRecognitionRole.RECEIVER,
-        },
-        session,
-      );
-
-      if (coinAmount > 0) {
-        // Update receiver's coin bank
-        await this.walletService.incrementEarnedBalance(
-          new Types.ObjectId(receiverId),
-          coinAmount,
-          session,
-        );
-
-        // Record the transaction
-        await this.transactionService.recordAutoTransaction(
+      // Prepare UserRecognition creation promises
+      const userRecognitionPromises = receiverId.map(({ receiverId }) =>
+        this.userRecognitionService.create(
           {
-            receiverId: new Types.ObjectId(receiverId),
-            amount: coinAmount,
-
-            entityId: newRecognition._id,
-            entityType: EntityType.RECOGNITION,
+            userId: receiverId,
+            recognitionId: newRecognition._id,
+            role: UserRecognitionRole.RECEIVER,
           },
           session,
+        ),
+      );
+
+      // Prepare wallet updates & transactions if coinAmount > 0
+      let walletUpdatePromises: Promise<void>[] = [];
+      let transactionPromises: Promise<void>[] = [];
+
+      if (coinAmount > 0) {
+        walletUpdatePromises = receiverId.map(({ receiverId }) =>
+          this.walletService
+            .incrementEarnedBalance(receiverId, coinAmount, session)
+            .then(() => {}),
+        );
+
+        transactionPromises = receiverId.map(({ receiverId }) =>
+          this.transactionService
+            .recordAutoTransaction(
+              {
+                receiverId: receiverId,
+                amount: coinAmount,
+                entityId: newRecognition._id,
+                entityType: EntityType.RECOGNITION,
+                status: TransactionStatus.SUCCESS,
+                type: TransactionType.CREDIT,
+              },
+              session,
+            )
+            .then(() => {}),
         );
       }
 
+      await Promise.all([
+        ...userRecognitionPromises,
+        ...walletUpdatePromises,
+        ...transactionPromises,
+      ]);
+
       await session.commitTransaction();
+
+      // Notify clients
       this.recognitionGateway.notifyClients({
         recognitionId: newRecognition._id,
         message: `Recognition created: ${message}`,
@@ -291,7 +354,85 @@ export class RecognitionService {
         receivers: receiverId,
         amount: coinAmount,
       });
+
+      await this.notifyReceiversViaSlack({
+        receivers: receiverId.map(({ receiverId }) => ({
+          receiverId: receiverId.toString(),
+          coinAmount,
+        })),
+        senderId: null,
+        isAuto: true,
+        message,
+      });
+
       return newRecognition;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
+  async deleteAutoRecognition(recognitionId: Types.ObjectId): Promise<string> {
+    const session = await this.recognitionModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      const recognition = await this.recognitionModel
+        .findById(recognitionId)
+        .session(session);
+
+      if (!recognition) {
+        throw new NotFoundException('Recognition not found');
+      }
+
+      if (!recognition.isAuto) {
+        throw new BadRequestException(
+          'This recognition is not an auto-generated recognition',
+        );
+      }
+
+      // Reverse wallet balances for each receiver
+      for (const receiver of recognition.receivers) {
+        if (receiver.coinAmount > 0) {
+          await this.walletService.incrementEarnedBalance(
+            receiver.receiverId,
+            -receiver.coinAmount,
+            session,
+          );
+
+          // Record reversal transaction
+          await this.transactionService.recordAutoTransaction(
+            {
+              receiverId: receiver.receiverId,
+              amount: -receiver.coinAmount,
+              entityId: recognitionId,
+              entityType: EntityType.RECOGNITION,
+              status: TransactionStatus.REVERSED,
+              type: TransactionType.DEBIT,
+            },
+            session,
+          );
+        }
+      }
+
+      // Delete the recognition
+      await this.recognitionModel
+        .deleteOne({ _id: recognitionId })
+        .session(session);
+
+      // Delete associated user recognitions
+      await this.userRecognitionService.deleteMany(recognitionId, session);
+
+      // Delete associated reactions
+      await this.reactionService.deleteMany(recognitionId, session);
+
+      // Delete associated comments
+      await this.commentService.deleteMany(recognitionId, session);
+
+      await session.commitTransaction();
+      return 'Auto-recognition and associated records deleted successfully';
     } catch (error) {
       await session.abortTransaction();
       throw error;
@@ -465,6 +606,7 @@ export class RecognitionService {
             isAuto: { $first: '$isAuto' },
             sender: { $first: '$sender' },
             giphyUrl: { $first: '$giphyUrl' },
+            media: { $first: '$media' },
             receivers: {
               $push: {
                 _id: '$receivers.receiverId',
@@ -532,18 +674,37 @@ export class RecognitionService {
     );
   }
 
-  async getTopRecognitionReceivers(page: number, limit: number) {
+  async getTopRecognitionReceivers(
+    page: number,
+    limit: number,
+    startDate?: Date,
+    endDate?: Date,
+  ) {
     const skip = (page - 1) * limit;
+    const matchStage: any = {};
+
+    if (startDate && endDate) {
+      matchStage.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
+    }
 
     const result = await this.recognitionModel.aggregate([
+      ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+
       { $unwind: '$receivers' },
+
       {
         $group: {
           _id: '$receivers.receiverId',
           recognitionCount: { $sum: 1 },
+          totalCoinEarned: { $sum: '$receivers.coinAmount' },
         },
       },
+
       { $sort: { recognitionCount: -1 } },
+
       {
         $lookup: {
           from: 'users',
@@ -553,21 +714,21 @@ export class RecognitionService {
         },
       },
       { $unwind: '$user' },
+
       {
         $project: {
           _id: 0,
-          receiverId: '$_id',
           recognitionCount: 1,
+          totalCoinEarned: 1,
           user: {
-            _id: '$user._id',
+            userId: '$_id',
             email: '$user.email',
             name: '$user.name',
-            role: '$user.role',
             picture: '$user.picture',
-            verified: '$user.verified',
           },
         },
       },
+
       {
         $facet: {
           metadata: [{ $count: 'totalCount' }],
@@ -582,124 +743,139 @@ export class RecognitionService {
     const totalPages = Math.ceil(totalCount / limit);
 
     return {
+      data,
       meta: {
         totalCount,
         page,
         limit,
         totalPages,
       },
-      data,
     };
   }
 
-  async getQuarterParticipants(
-    page: number = 1,
-    limit: number = 10,
-    year: number,
-    quarter: number,
+  async getTopRecognitionSenders(
+    page: number,
+    limit: number,
+    startDate?: Date,
+    endDate?: Date,
   ) {
-    if (quarter < 1 || quarter > 4) {
-      throw new Error('Invalid quarter. Quarter must be between 1 and 4.');
+    const skip = (page - 1) * limit;
+    const matchStage: any = {};
+
+    if (startDate && endDate) {
+      matchStage.createdAt = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      };
+    }
+    const result = await this.recognitionModel.aggregate([
+      ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+
+      {
+        $group: {
+          _id: '$senderId',
+          postCount: { $sum: 1 },
+          totalCoinSent: { $sum: { $sum: '$receivers.coinAmount' } },
+        },
+      },
+
+      { $sort: { postCount: -1 } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user',
+        },
+      },
+      { $unwind: '$user' },
+
+      {
+        $project: {
+          _id: 0,
+          postCount: 1,
+          totalCoinSent: 1,
+          user: {
+            userId: '$_id',
+            email: '$user.email',
+            name: '$user.name',
+            picture: '$user.picture',
+          },
+        },
+      },
+
+      {
+        $facet: {
+          metadata: [{ $count: 'totalCount' }],
+          data: [{ $skip: skip }, { $limit: limit }],
+        },
+      },
+    ]);
+
+    const metadata = result[0]?.metadata[0] || { totalCount: 0 };
+    const data = result[0]?.data || [];
+    const totalCount = metadata.totalCount;
+    const totalPages = Math.ceil(totalCount / limit);
+
+    return {
+      data,
+      meta: {
+        totalCount,
+        page,
+        limit,
+        totalPages,
+      },
+    };
+  }
+
+  async getCompanyValueAnalytics(startDate?: Date, endDate?: Date) {
+    const matchStage: any = {};
+
+    if (startDate) {
+      matchStage.createdAt = { $gte: new Date(startDate) };
+    }
+    if (endDate) {
+      matchStage.createdAt = {
+        ...matchStage.createdAt,
+        $lte: new Date(endDate),
+      };
     }
 
-    const startMonth = (quarter - 1) * 3;
-    const startOfQuarter = new Date(year, startMonth, 1);
-    const endOfQuarter = new Date(year, startMonth + 3, 0, 23, 59, 59);
-
-    const skip = (page - 1) * limit;
-
     const result = await this.recognitionModel.aggregate([
+      ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+      { $match: { companyValues: { $exists: true, $ne: [] } } },
+      { $unwind: '$companyValues' },
       {
-        $match: {
-          createdAt: { $gte: startOfQuarter, $lte: endOfQuarter },
+        $group: {
+          _id: '$companyValues',
+          totalRecognitions: { $sum: 1 },
+          totalCoinsGiven: { $sum: { $sum: '$receivers.coinAmount' } },
         },
       },
       {
         $project: {
-          participants: {
-            $concatArrays: [
-              [{ $ifNull: ['$senderId', null] }],
-              {
-                $map: {
-                  input: '$receivers',
-                  as: 'receiver',
-                  in: '$$receiver.receiverId',
-                },
-              },
-            ],
-          },
+          _id: 0,
+          companyValue: '$_id',
+          totalRecognitions: 1,
+          totalCoinsGiven: 1,
         },
       },
-      { $unwind: '$participants' },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'participants',
-          foreignField: '_id',
-          as: 'userDetails',
-        },
-      },
-      { $unwind: '$userDetails' },
-      {
-        $group: {
-          _id: '$userDetails._id',
-          name: { $first: '$userDetails.name' },
-          picture: { $first: '$userDetails.picture' },
-        },
-      },
-      { $sort: { name: 1 } },
-      { $skip: skip },
-      { $limit: limit },
-      {
-        $facet: {
-          participants: [{ $project: { _id: 0, name: 1, picture: 1 } }],
-          totalParticipants: [{ $count: 'count' }],
-        },
-      },
+      { $sort: { totalRecognitions: -1 } },
     ]);
-
-    const participants = result[0]?.participants || [];
-    const totalParticipantsCount = result[0]?.totalParticipants[0]?.count || 0;
-
-    const totalUsersCount = await this.recognitionModel
-      .distinct('senderId')
-      .then((senders) =>
-        this.recognitionModel
-          .distinct('receivers.receiverId')
-          .then((receivers) => new Set([...senders, ...receivers]).size),
-      );
-
-    const totalCoinsGivenOut = await this.recognitionModel.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: startOfQuarter, $lte: endOfQuarter },
-        },
-      },
-      {
-        $unwind: '$receivers',
-      },
-      {
-        $group: {
-          _id: null,
-          totalCoins: { $sum: '$receivers.coinAmount' },
-        },
-      },
-    ]);
-
-    const totalCoins =
-      totalCoinsGivenOut.length > 0 ? totalCoinsGivenOut[0].totalCoins : 0;
-
-    const participationPercentage =
-      totalUsersCount > 0
-        ? ((totalParticipantsCount / totalUsersCount) * 100).toFixed(2)
-        : '0.00';
 
     return {
-      participants,
-      participationPercentage: `${participationPercentage}%`,
-      totalCoinsGivenOut: totalCoins,
-      currentPage: page,
-      totalPages: Math.ceil(totalParticipantsCount / limit),
+      data: {
+        analytics: result,
+        timeFrame:
+          startDate || endDate
+            ? { startDate: startDate || null, endDate: endDate || null }
+            : 'All Time',
+      },
+      status: 200,
+      message:
+        result.length > 0
+          ? 'Success'
+          : 'No recognitions found for the given period.',
     };
   }
 
@@ -976,6 +1152,115 @@ export class RecognitionService {
     return { topRecognitionReceivers: topReceiversWithCompanyValues };
   }
 
+  async getTotalCoinAndRecognition(startDate?: Date, endDate?: Date) {
+    const matchStage: any = {};
+
+    if (startDate) {
+      matchStage.createdAt = { $gte: new Date(startDate) };
+    }
+
+    if (endDate) {
+      matchStage.createdAt = {
+        ...matchStage.createdAt,
+        $lte: new Date(endDate),
+      };
+    }
+
+    // Calculate Current Period Stats
+    const currentTotals = await this.recognitionModel.aggregate([
+      ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+      {
+        $group: {
+          _id: null,
+          totalRecognitions: { $sum: 1 },
+          totalCoinsGiven: { $sum: { $sum: '$receivers.coinAmount' } },
+        },
+      },
+    ]);
+
+    const currentStats = currentTotals[0] || {
+      totalRecognitions: 0,
+      totalCoinsGiven: 0,
+    };
+
+    // Automatically calculate previous period based on duration
+    let previousStartDate, previousEndDate;
+
+    if (startDate && endDate) {
+      const durationMs =
+        new Date(endDate).getTime() - new Date(startDate).getTime();
+      previousEndDate = new Date(startDate);
+      previousStartDate = new Date(previousEndDate.getTime() - durationMs);
+    } else if (endDate) {
+      const durationMs = new Date(endDate).getTime() - new Date().getTime();
+      previousEndDate = new Date(endDate);
+      previousStartDate = new Date(previousEndDate.getTime() - durationMs);
+    }
+
+    const prevMatchStage: any = {};
+    if (previousStartDate) {
+      prevMatchStage.createdAt = { $gte: previousStartDate };
+    }
+    if (previousEndDate) {
+      prevMatchStage.createdAt = {
+        ...prevMatchStage.createdAt,
+        $lte: previousEndDate,
+      };
+    }
+
+    // Calculate Previous Period Stats
+    const previousTotals = await this.recognitionModel.aggregate([
+      ...(Object.keys(prevMatchStage).length > 0
+        ? [{ $match: prevMatchStage }]
+        : []),
+      {
+        $group: {
+          _id: null,
+          totalRecognitions: { $sum: 1 },
+          totalCoinsGiven: { $sum: { $sum: '$receivers.coinAmount' } },
+        },
+      },
+    ]);
+
+    const previousStats = previousTotals[0] || {
+      totalRecognitions: 0,
+      totalCoinsGiven: 0,
+    };
+
+    // Function to calculate percentage change
+    const calculatePercentageChange = (current: number, previous: number) => {
+      if (previous === 0) return current === 0 ? 0 : 100; // If no previous data, assume 100% increase
+      return ((current - previous) / previous) * 100;
+    };
+
+    const recognitionChange = calculatePercentageChange(
+      currentStats.totalRecognitions,
+      previousStats.totalRecognitions,
+    );
+
+    const coinChange = calculatePercentageChange(
+      currentStats.totalCoinsGiven,
+      previousStats.totalCoinsGiven,
+    );
+
+    return {
+      status: 200,
+      message: currentStats.totalRecognitions > 0 ? 'Success' : 'No data found',
+      data: {
+        totalRecognitions: currentStats.totalRecognitions,
+        totalCoinsGiven: currentStats.totalCoinsGiven,
+        percentageChange: {
+          recognitions: recognitionChange.toFixed(2) + '%',
+          coins: coinChange.toFixed(2) + '%',
+        },
+        timeFrame:
+          startDate || endDate
+            ? { startDate: startDate || null, endDate: endDate || null }
+            : 'All Time',
+      },
+    };
+  }
+
   async deleteRecognition(
     recognitionId: Types.ObjectId,
     userId: Types.ObjectId,
@@ -986,8 +1271,15 @@ export class RecognitionService {
       const recognition = await this.recognitionModel
         .findById(recognitionId)
         .session(session);
+
       if (!recognition) {
         throw new BadRequestException('Recognition not found');
+      }
+
+      if (recognition.isAuto) {
+        throw new BadRequestException(
+          'Cannot delete auto-generated recognitions through this endpoint',
+        );
       }
 
       if (!recognition.senderId.equals(userId)) {
@@ -1019,7 +1311,7 @@ export class RecognitionService {
               entityId: new Types.ObjectId(claim.recognitionId),
               entityType: EntityType.RECOGNITION,
               claimId: claim._id as Types.ObjectId,
-              status: transactionStatus.REVERSED,
+              status: TransactionStatus.REVERSED,
             },
             session,
           );
@@ -1030,7 +1322,7 @@ export class RecognitionService {
           0,
         );
 
-        await this.walletService.refundGiveableBalance(
+        await this.walletService.incrementGiveableBalance(
           claim.senderId,
           totalCoinAmount,
           session,
@@ -1053,5 +1345,53 @@ export class RecognitionService {
     } finally {
       session.endSession();
     }
+  }
+
+  async getPostMetrics(startDate?: Date, endDate?: Date) {
+    const matchStage: PipelineStage.Match = {
+      $match: {
+        ...(startDate && endDate
+          ? {
+              createdAt: {
+                $gte: startDate,
+                $lte: endDate,
+              },
+            }
+          : {}),
+      },
+    };
+
+    const pipeline: PipelineStage[] = [
+      matchStage,
+
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' },
+            day: { $dayOfMonth: '$createdAt' },
+          },
+          totalPosts: { $sum: 1 },
+        },
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } },
+
+      {
+        $project: {
+          _id: 0,
+          date: {
+            $dateFromParts: {
+              year: '$_id.year',
+              month: '$_id.month',
+              day: '$_id.day',
+            },
+          },
+          totalPosts: 1,
+        },
+      },
+    ];
+
+    const result = await this.recognitionModel.aggregate(pipeline);
+    return result;
   }
 }

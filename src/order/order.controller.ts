@@ -15,8 +15,9 @@ import { Types } from 'mongoose';
 import { Order } from './schema/Order.schema';
 import { AdminGuard } from 'src/auth/guards/admin.guard';
 import { CreateOrderDto } from './dto/order.dto';
+import { ActiveUserGuard } from 'src/auth/guards/active-user.guard';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, ActiveUserGuard)
 @Controller('order')
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}

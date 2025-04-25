@@ -9,6 +9,7 @@ export enum MilestoneType {
   INTERNATIONAL_MENS_DAY = 'INTERNATIONAL_MENS_DAY',
   INTERNATIONAL_WOMENS_DAY = 'INTERNATIONAL_WOMENS_DAY',
   VALENTINE_DAY = 'VALENTINE_DAY',
+  INTERNATIONAL_EMPLOYEE_APPRECIATION_DAY = 'INTERNATIONAL_EMPLOYEE_APPRECIATION_DAY',
 }
 
 @Schema({ timestamps: true })
@@ -31,6 +32,12 @@ export class Milestone {
     required: true,
   })
   type: MilestoneType;
+
+  @Prop({ type: Date })
+  milestoneDate?: Date;
+
+  @Prop({ type: Boolean, default: false })
+  isGeneric: boolean;
 }
 
 export const MilestoneSchema = SchemaFactory.createForClass(Milestone);

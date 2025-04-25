@@ -7,7 +7,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { ClientSession, Model, Types } from 'mongoose';
 import {
   EntityType,
-  transactionStatus,
+  TransactionStatus,
   Transaction,
   TransactionType,
   TransactionDocument,
@@ -33,7 +33,7 @@ export class TransactionService {
         entityType: transaction.entityType,
         entityId: transaction.entityId,
         relatedUserId: transaction.receiverId,
-        status: transactionStatus.SUCCESS,
+        status: TransactionStatus.SUCCESS,
         claimId: transaction.claimId,
       });
 
@@ -52,17 +52,18 @@ export class TransactionService {
       amount: number;
       entityId: Types.ObjectId;
       entityType: EntityType;
+      status: TransactionStatus;
+      type: TransactionType;
     },
     session: ClientSession,
   ) {
     const creditTransaction = new this.transactionModel({
       userId: transaction.receiverId,
       amount: transaction.amount,
-      claimId: transaction.entityId,
-      status: transactionStatus.SUCCESS,
-      type: TransactionType.CREDIT,
+      status: transaction.status,
       entityType: transaction.entityType,
       entityId: transaction.entityId,
+      type: transaction.type,
       isAuto: true,
     });
 
@@ -122,35 +123,11 @@ export class TransactionService {
     return transaction;
   }
 
-  async findUncreditedUsers() {
-    return this.transactionModel.aggregate([
-      {
-        $match: {
-          entityType: EntityType.RECOGNITION,
-          $or: [
-            { status: { $ne: transactionStatus.SUCCESS } },
-            { relatedUserId: { $exists: false } },
-          ],
-        },
-      },
-      { $group: { _id: '$userId', uncreditedAmount: { $sum: '$amount' } } },
-      {
-        $lookup: {
-          from: 'users',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'user',
-        },
-      },
-      { $unwind: '$user' },
-    ]);
-  }
-
   async getTotalRecordsForEarnedCoins() {
     return this.transactionModel.countDocuments({
       entityType: EntityType.RECOGNITION,
       type: TransactionType.CREDIT,
-      status: transactionStatus.SUCCESS,
+      status: TransactionStatus.SUCCESS,
     });
   }
 
@@ -163,7 +140,7 @@ export class TransactionService {
           $match: {
             entityType: EntityType.RECOGNITION,
             type: TransactionType.CREDIT,
-            status: transactionStatus.SUCCESS,
+            status: TransactionStatus.SUCCESS,
           },
         },
         {
@@ -184,7 +161,7 @@ export class TransactionService {
         $match: {
           entityType: EntityType.RECOGNITION,
           type: TransactionType.CREDIT,
-          status: transactionStatus.SUCCESS,
+          status: TransactionStatus.SUCCESS,
         },
       },
       {
@@ -241,5 +218,74 @@ export class TransactionService {
       status: 200,
       message: 'Success',
     };
+  }
+
+  async getUserCoinSpentonOrders(userId: Types.ObjectId): Promise<number> {
+    const result = await this.transactionModel.aggregate([
+      {
+        $match: { entityType: 'order', userId: userId, status: 'success' },
+      },
+      {
+        $group: {
+          _id: '$userId',
+          netAmount: { $sum: '$amount' },
+        },
+      },
+    ]);
+
+    return result.length > 0 ? Math.abs(result[0].netAmount) : 0;
+  }
+
+  async getUserCoinSpentOnRecognitions(
+    userId: Types.ObjectId,
+  ): Promise<number> {
+    const result = await this.transactionModel.aggregate([
+      {
+        $match: {
+          entityType: 'recognition',
+          type: 'DEBIT',
+          userId: userId,
+        },
+      },
+      {
+        $lookup: {
+          from: 'transactions',
+          let: { claimId: '$claimId', userId: '$userId' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$claimId', '$$claimId'] },
+                    { $eq: ['$userId', '$$userId'] },
+                    { $eq: ['$type', 'CREDIT'] },
+                    { $eq: ['$status', 'reversed'] },
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'reversedTransactions',
+        },
+      },
+      {
+        $addFields: {
+          isReversed: { $gt: [{ $size: '$reversedTransactions' }, 0] },
+        },
+      },
+      {
+        $match: {
+          isReversed: false,
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          netAmount: { $sum: '$amount' },
+        },
+      },
+    ]);
+
+    return result.length > 0 ? Math.abs(result[0].netAmount) : 0;
   }
 }

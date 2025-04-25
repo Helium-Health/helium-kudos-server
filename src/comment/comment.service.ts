@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { ClientSession, Model, Types } from 'mongoose';
 import { RecognitionService } from 'src/recognition/recognition.service';
 import { CreateCommentDto } from './dto/CreateComment.dto';
 import { Comment } from './schema/comment.schema';
@@ -9,7 +9,8 @@ import { Comment } from './schema/comment.schema';
 export class CommentService {
   constructor(
     @InjectModel(Comment.name) private commentModel: Model<Comment>,
-    private recognitionService: RecognitionService,
+    @Inject(forwardRef(() => RecognitionService))
+    private readonly recognitionService: RecognitionService,
   ) {}
 
   async addComment(
@@ -30,8 +31,8 @@ export class CommentService {
       }
 
       const validGiphyUrls = Array.isArray(giphyUrl)
-      ? giphyUrl.filter(Boolean)
-      : [];
+        ? giphyUrl.filter(Boolean)
+        : [];
 
       const comment = new this.commentModel({
         userId: new Types.ObjectId(userId),
@@ -78,5 +79,14 @@ export class CommentService {
       commentId,
     );
     return { message: 'Comment deleted successfully' };
+  }
+  async deleteMany(
+    recognitionId: Types.ObjectId,
+    session: ClientSession,
+  ): Promise<{ deletedCount: number }> {
+    return this.commentModel.deleteMany(
+      { recognitionId: recognitionId },
+      { session },
+    );
   }
 }

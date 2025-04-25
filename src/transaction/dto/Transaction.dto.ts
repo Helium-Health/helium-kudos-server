@@ -2,7 +2,7 @@ import { IsNotEmpty, IsNumber, IsMongoId, IsEnum } from 'class-validator';
 import { Types } from 'mongoose';
 import {
   EntityType,
-  transactionStatus,
+  TransactionStatus,
 } from 'src/transaction/schema/Transaction.schema';
 
 export class RecordTransactionDto {
@@ -29,7 +29,7 @@ export class RecordTransactionDto {
   @IsNotEmpty()
   claimId: Types.ObjectId;
 
-  @IsEnum(transactionStatus)
+  @IsEnum(TransactionStatus)
   @IsNotEmpty()
-  status: transactionStatus;
+  status: TransactionStatus;
 }
