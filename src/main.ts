@@ -36,6 +36,8 @@ async function bootstrap() {
     credentials: true,
   });
   app.useGlobalInterceptors(new TransformInterceptor());
-  await app.listen(3001);
+  const PORT = process.env.PORT || 3001;
+  const HOST = process.env.HOST || '0.0.0.0';
+  await app.listen(PORT, HOST);
 }
 bootstrap();
