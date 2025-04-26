@@ -31,6 +31,8 @@ export class Comment {
     default: [],
   })
   media: { url: string; type: 'image' | 'video' | 'giphy' }[];
+  @Prop({ type: Boolean, default: null })
+  isEdited: string | null;
 }
 
 export const CommentSchema = SchemaFactory.createForClass(Comment);

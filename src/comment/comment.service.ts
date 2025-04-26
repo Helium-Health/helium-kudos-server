@@ -21,6 +21,7 @@ export class CommentService {
 
   async onModuleInit() {
     await this.migrateCommentGiphyUrls();
+    await this.migrateIsEditedField();
   }
 
   async migrateCommentGiphyUrls() {
@@ -64,6 +65,36 @@ export class CommentService {
       throw error;
     } finally {
       session.endSession();
+    }
+  }
+
+  async migrateIsEditedField() {
+    const session = await this.commentModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      const results = await this.commentModel.updateMany(
+        {
+          isEdited: { $exists: false },
+        },
+        {
+          $set: { isEdited: null },
+        },
+        { session },
+      );
+
+      await session.commitTransaction();
+      Logger.log(
+        `Migrated ${results.modifiedCount} comments. isEdited set to null`,
+      );
+    } catch (error) {
+      if (session.transaction.isActive) {
+        await session.abortTransaction();
+      }
+      Logger.log('isEditedFiled set to null migration failed');
+      throw error;
+    } finally {
+      await session.endSession();
     }
   }
 
@@ -156,6 +187,7 @@ export class CommentService {
         ...(updateCommentDto.media && {
           media: updateCommentDto.media,
         }),
+        isEdited: true,
       },
       { new: true },
     );
