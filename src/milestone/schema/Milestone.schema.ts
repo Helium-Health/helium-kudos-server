@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
+import { Cadence } from 'src/constants';
 
 export type MilestoneDocument = Document & Milestone;
 
@@ -10,6 +11,7 @@ export enum MilestoneType {
   INTERNATIONAL_WOMENS_DAY = 'INTERNATIONAL_WOMENS_DAY',
   VALENTINE_DAY = 'VALENTINE_DAY',
   INTERNATIONAL_EMPLOYEE_APPRECIATION_DAY = 'INTERNATIONAL_EMPLOYEE_APPRECIATION_DAY',
+  MONTHLY_ALLOCATION = 'MONTHLY_ALLOCATION',
 }
 
 @Schema({ timestamps: true })
@@ -38,6 +40,10 @@ export class Milestone {
 
   @Prop({ type: Boolean, default: false })
   isGeneric: boolean;
+
+  @Prop({ enum: Cadence })
+    cadence: Cadence;
+
 }
 
 export const MilestoneSchema = SchemaFactory.createForClass(Milestone);
