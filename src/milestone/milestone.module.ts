@@ -18,6 +18,8 @@ import { RecognitionModule } from 'src/recognition/recognition.module';
     UsersModule,
     RecognitionModule,
   ],
+  exports: [MilestoneService],
+
   controllers: [MilestoneController],
   providers: [MilestoneService, MilestoneSeedService, MilestoneCronService],
 })

@@ -14,7 +14,8 @@ import {
   User,
   UserDocument,
   UserGender,
-  UserTeam,
+  UserStatus,
+  UserDepartment,
 } from 'src/users/schema/User.schema';
 import { CreateUserDto, InviteUserDto, UpdateUserDto } from './dto/User.dto';
 import { WalletService } from 'src/wallet/wallet.service';
@@ -44,6 +45,10 @@ export class UsersService {
   ) {}
 
   private readonly logger = new Logger(UsersService.name);
+
+  async onModuleInit() {
+    await this.migrateTeamToDepartment();
+  }
 
   async runTransactionWithRetry(session, operation) {
     for (let i = 0; i < 5; i++) {
@@ -227,7 +232,8 @@ export class UsersService {
     userId: string,
     page: number = 1,
     limit: number = 10,
-    active: boolean,
+    status?: string,
+    includeCurrentUser: boolean = false,
   ): Promise<{
     users: User[];
     meta: {
@@ -237,16 +243,25 @@ export class UsersService {
       totalPages: number;
     };
   }> {
-    const query: any = {
-      _id: { $ne: new Types.ObjectId(userId) },
-    };
+    const query: any = {};
+    if (!includeCurrentUser) {
+      query._id = { $ne: new Types.ObjectId(userId) };
+    }
 
     if (name) {
       const words = name.trim().split(/\s+/);
       query.name = { $all: words.map((word) => new RegExp(word, 'i')) };
     }
 
-    active !== undefined && (query.active = active);
+    if (status && status.toLowerCase() === UserStatus.Active) {
+      query.active = true;
+      query.verified = true;
+    } else if (status && status.toLowerCase() === UserStatus.Deactivated) {
+      query.active = false;
+    }
+    if (status && status.toLowerCase() === UserStatus.Invited) {
+      query.verified = false;
+    }
 
     const totalCount = await this.userModel.countDocuments(query).exec();
     const totalPages = Math.ceil(totalCount / limit);
@@ -468,6 +483,7 @@ export class UsersService {
       dateOfBirth,
       joinDate,
       team,
+      department,
       nationality,
       groupId,
     } = inviteUserDto;
@@ -495,6 +511,10 @@ export class UsersService {
         throw new ConflictException('User with this email already exists');
       }
 
+      if (department && !Object.values(UserDepartment).includes(department)) {
+        throw new BadRequestException('Invalid department provided');
+      }
+
       const newUser = new this.userModel({
         email,
         originalEmail: email,
@@ -507,6 +527,7 @@ export class UsersService {
         dateOfBirth,
         joinDate,
         team,
+        department: department as UserDepartment,
         nationality,
       });
 
@@ -566,9 +587,28 @@ export class UsersService {
     return user;
   }
 
-  async getAllTeams() {
-    return Object.values(UserTeam);
+  async getAllDepartments() {
+    return Object.values(UserDepartment);
   }
+
+  async getUserIdsByDepartments(departments: string[]): Promise<string[]> {
+    const regexFilters = departments.map((dept) => ({
+      department: { $regex: new RegExp(dept, 'i') },
+    }));
+
+    const users = await this.userModel
+      .find(
+        {
+          active: true,
+          $or: regexFilters,
+        },
+        { _id: 1 },
+      )
+      .lean();
+
+    return users.map((user) => user._id.toString());
+  }
+
   async mergeDuplicateEmails() {
     const session = await this.userModel.db.startSession();
     session.startTransaction();
@@ -773,5 +813,25 @@ export class UsersService {
 
     // Log final state after transaction commits
     console.log('Migration Down completed.', updatedAccounts);
+  }
+
+  //TODO: REMOVE AFTER DEPLOYMENT
+  async migrateTeamToDepartment() {
+    const result = await this.userModel.updateMany(
+      {
+        team: { $exists: true, $ne: null }, // has team field with value
+      },
+      [
+        {
+          $set: {
+            department: '$team', // set department = team
+          },
+        },
+      ],
+    );
+
+    console.log(
+      `Successfully updated ${result.modifiedCount} users with team to have department`,
+    );
   }
 }

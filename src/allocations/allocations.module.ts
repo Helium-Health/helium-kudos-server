@@ -1,27 +1,26 @@
 import { Module } from '@nestjs/common';
 import { AllocationsService } from './allocations.service';
 import { AllocationsController } from './allocations.controller';
-import { Allocation, AllocationSchema } from './schema/Allocation.schema';
+import {
+  AllocationRecord,
+  AllocationRecordSchema,
+} from './schema/Allocation.schema';
 import { MongooseModule } from '@nestjs/mongoose';
-import { WalletService } from 'src/wallet/wallet.service';
-import { Wallet, WalletSchema } from 'src/wallet/schema/Wallet.schema';
-import { AllocationSeeder } from './seeds/allocation.seed';
 import { ConfigModule } from '@nestjs/config';
 import { WalletModule } from 'src/wallet/wallet.module';
+import { AllocationCronService } from './allocation.cron.service';
+import { MilestoneModule } from 'src/milestone/milestone.module';
 
 @Module({
   imports: [
     WalletModule,
     ConfigModule,
+    MilestoneModule,
     MongooseModule.forFeature([
-      {
-        name: Allocation.name,
-        schema: AllocationSchema,
-      },
-      { name: Wallet.name, schema: WalletSchema },
+      { name: AllocationRecord.name, schema: AllocationRecordSchema },
     ]),
   ],
   controllers: [AllocationsController],
-  providers: [AllocationsService, AllocationSeeder],
+  providers: [AllocationsService, AllocationCronService],
 })
 export class AllocationsModule {}

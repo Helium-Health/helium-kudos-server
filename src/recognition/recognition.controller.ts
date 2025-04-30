@@ -39,7 +39,6 @@ export class RecognitionController {
     @Body() createRecognitionDto: CreateRecognitionDto,
   ): Promise<Recognition> {
     const senderId = req.user.userId;
-
     return this.recognitionService.createRecognition(
       senderId,
       createRecognitionDto,
