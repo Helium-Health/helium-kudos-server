@@ -36,17 +36,11 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           GITHUB_TOKEN: ${{ secrets.SUPER_PAT }}
         run: |
-          trivy repo \
-            --db-repository public.ecr.aws/aquasecurity/trivy-db \
-            --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
-            --scanners vuln,secret \
-            --format table \
-            --ignore-unfixed \
-            --severity CRITICAL,HIGH \
-            --output "trivy-results-repo.txt" \
-            https://github.com/Helium-Health/helium-kudos-server
-            --exit-code 1 || true
-          cat trivy-results-repo.txt 
+            trivy sbom --input package-lock.json \
+             --format table \
+             --severity HIGH,CRITICAL \
+             --exit-code 1
+          
             
 
       - name: Build and push  Docker image
