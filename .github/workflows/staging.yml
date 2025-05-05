@@ -44,6 +44,7 @@ jobs:
             --format table \
             --ignore-unfixed \
             --severity CRITICAL,HIGH \
+            --exit-code 1 \
             --output "trivy-results-repo.txt" \
             https://github.com/Helium-Health/helium-kudos-server
    
@@ -56,6 +57,9 @@ jobs:
             --db-repository public.ecr.aws/aquasecurity/trivy-db \
             --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
             --scanners vuln \
+            --ignore-unfixed \
+            --severity CRITICAL,HIGH \
+            --exit-code 1 \
             --output trivy-results-image.txt \
             onemed/helium-kudos-server-staging:latest
 
