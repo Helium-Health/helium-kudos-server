@@ -66,7 +66,7 @@ jobs:
             --ignore-unfixed \
             --severity CRITICAL,HIGH \
             --output trivy-results-image.txt \
-            onemed/helium-kudos-server-dev:latest
+            1med/helium-kudos-server-dev
             --exit-code 1 || true
           cat trivy-results-image.txt 
 
