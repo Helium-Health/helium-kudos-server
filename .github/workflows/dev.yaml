@@ -46,6 +46,7 @@ jobs:
             --exit-code 1 \
             --output "trivy-results-repo.txt" \
             https://github.com/Helium-Health/helium-kudos-server
+          cat trivy-results-repo.txt 
 
       - name: Build and push  Docker image
         run: |
@@ -66,6 +67,7 @@ jobs:
             --exit-code 1 \
             --output trivy-results-image.txt \
             onemed/helium-kudos-server-staging:latest
+          cat trivy-results-image.txt 
 
 
       - name: Upload Trivy scan results to artifacts
