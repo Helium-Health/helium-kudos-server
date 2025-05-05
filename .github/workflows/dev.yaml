@@ -45,8 +45,7 @@ jobs:
             --severity CRITICAL,HIGH \
             --output "trivy-results-repo.txt" \
             https://github.com/Helium-Health/helium-kudos-server
-            --exit-code 1 || true
-          cat trivy-results-repo.txt 
+            --exit-code 1
             
 
       - name: Build and push  Docker image
@@ -66,9 +65,8 @@ jobs:
             --ignore-unfixed \
             --severity CRITICAL,HIGH \
             --output trivy-results-image.txt \
-            onemed/helium-kudos-server-staging:latest
-            --exit-code 1 || true
-          cat trivy-results-image.txt 
+            onemed/helium-kudos-server-dev:latest
+            --exit-code 1 
 
 
       - name: Upload Trivy scan results to artifacts
