@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - trivy-exit
+
 env:
   REGISTRY: docker.io
   IMAGE_NAME: ${{ github.repository }}
@@ -12,9 +13,11 @@ jobs:
   build-and-push-image:
     name: Build and push Docker image
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
       - name: Login to Docker Hub
         uses: docker/login-action@v2
         with:
@@ -23,12 +26,12 @@ jobs:
 
       - name: Install Trivy
         run: |
-         sudo apt-get update
-         sudo apt-get install wget apt-transport-https gnupg lsb-release -y
-         wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-         echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
-         sudo apt-get update
-         sudo apt-get install trivy -y
+          sudo apt-get update
+          sudo apt-get install wget apt-transport-https gnupg lsb-release -y
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install trivy -y
 
       - name: Run Trivy Vulnerability Scan in repo mode
         env:
@@ -36,34 +39,47 @@ jobs:
           TRIVY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           GITHUB_TOKEN: ${{ secrets.SUPER_PAT }}
         run: |
-            trivy sbom --input package-lock.json \
-             --format table \
-             --severity HIGH,CRITICAL \
-             --exit-code 1
-          
-            
+          trivy repo \
+            --db-repository public.ecr.aws/aquasecurity/trivy-db \
+            --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
+            --scanners vuln,secret \
+            --format table \
+            --ignore-unfixed \
+            --severity CRITICAL,HIGH \
+            --output trivy-results-repo.txt \
+            https://github.com/Helium-Health/helium-kudos-server || true
 
-      - name: Build and push  Docker image
+          cat trivy-results-repo.txt
+          if grep -qE 'CRITICAL|HIGH' trivy-results-repo.txt; then
+            echo "❌ High or Critical vulnerabilities found in repo scan — failing job."
+            exit 1
+          fi
+
+      - name: Build and push Docker image
         run: |
           docker build -t 1med/helium-kudos-server-dev .
           docker push 1med/helium-kudos-server-dev
-   
-      - name: Run Trivy Vulnerability Scan
+
+      - name: Run Trivy Vulnerability Scan on Docker image
         env:
-         TRIVY_USERNAME: ${{ secrets.DOCKER_USER }}
-         TRIVY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          TRIVY_USERNAME: ${{ secrets.DOCKER_USER }}
+          TRIVY_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
         run: |
-         trivy image \
+          trivy image \
             --db-repository public.ecr.aws/aquasecurity/trivy-db \
             --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
             --scanners vuln \
             --ignore-unfixed \
             --severity CRITICAL,HIGH \
+            --format table \
             --output trivy-results-image.txt \
-            1med/helium-kudos-server-dev
-            --exit-code 1 || true
-          cat trivy-results-image.txt 
+            1med/helium-kudos-server-dev || true
 
+          cat trivy-results-image.txt
+          if grep -qE 'CRITICAL|HIGH' trivy-results-image.txt; then
+            echo "❌ High or Critical vulnerabilities found in Docker image — failing job."
+            exit 1
+          fi
 
       - name: Upload Trivy scan results to artifacts
         uses: actions/upload-artifact@v4
@@ -72,6 +88,3 @@ jobs:
           path: |
             trivy-results-repo.txt
             trivy-results-image.txt
-          
-
-          
