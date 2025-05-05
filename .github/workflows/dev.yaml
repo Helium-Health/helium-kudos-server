@@ -3,7 +3,7 @@ name: Deploy to Dev Environment
 on:
   push:
     branches:
-      - dev
+      - trivy-exit
 env:
   REGISTRY: docker.io
   IMAGE_NAME: ${{ github.repository }}
@@ -43,6 +43,7 @@ jobs:
             --format table \
             --ignore-unfixed \
             --severity CRITICAL,HIGH \
+            --exit-code 1 \
             --output "trivy-results-repo.txt" \
             https://github.com/Helium-Health/helium-kudos-server
 
@@ -60,8 +61,11 @@ jobs:
             --db-repository public.ecr.aws/aquasecurity/trivy-db \
             --java-db-repository public.ecr.aws/aquasecurity/trivy-java-db \
             --scanners vuln \
+            --ignore-unfixed \
+            --severity CRITICAL,HIGH \
+            --exit-code 1 \
             --output trivy-results-image.txt \
-            1med/helium-kudos-server-staging:latest
+            onemed/helium-kudos-server-staging:latest
 
 
       - name: Upload Trivy scan results to artifacts
@@ -73,18 +77,4 @@ jobs:
             trivy-results-image.txt
           
 
-      - name: Set up ArgoCD CLI
-        run: |
-          sudo curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-          sudo chmod +x /usr/local/bin/argocd
-
-      - name: ArgoCD Login
-        run: |
-          yes | argocd login ${{ vars.ARGOCD_STAGING_URL }} --insecure --username ${{ secrets.ARGOCD_USERNAME }} --password  ${{ secrets.ARGOCD_PASSWORD }}
-
-      - name: ArgoCD Sync App
-        env:
-          APP_NAME: helium-kudos-server-dev
-        run: |
-          argocd app actions run $APP_NAME restart --kind Deployment --resource-name helium-kudos-server-dev --all
           
