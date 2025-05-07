@@ -70,4 +70,20 @@ jobs:
           name: trivy-results
           path: |
             trivy-results-repo.txt
-            trivy-results-image.txt           
+            trivy-results-image.txt
+          
+      - name: Set up ArgoCD CLI
+        run: |
+          sudo curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          sudo chmod +x /usr/local/bin/argocd
+
+      - name: ArgoCD Login
+        run: |
+          yes | argocd login ${{ vars.ARGOCD_STAGING_URL }} --insecure --username ${{ secrets.ARGOCD_USERNAME }} --password  ${{ secrets.ARGOCD_PASSWORD }}
+
+      - name: ArgoCD Sync App
+        env:
+          APP_NAME: helium-kudos-server-dev
+        run: |
+          argocd app actions run $APP_NAME restart --kind Deployment --resource-name helium-kudos-server-dev --all
+          
