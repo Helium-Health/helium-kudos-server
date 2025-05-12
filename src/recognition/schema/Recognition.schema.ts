@@ -63,6 +63,9 @@ export class Recognition {
     default: [],
   })
   media: { url: string; type: MediaType }[];
+  
+  @Prop({ type: [String], enum: UserDepartment, default: [] })
+  departments: UserDepartment[];
 }
 
 export const RecognitionSchema = SchemaFactory.createForClass(Recognition);
