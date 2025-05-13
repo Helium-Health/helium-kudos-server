@@ -16,6 +16,23 @@ export class Comment {
 
   @Prop({ type: [String], required: false })
   giphyUrl?: string[];
+
+  @Prop({
+    type: [
+      {
+        url: { type: String, required: true },
+        type: {
+          type: String,
+          enum: ['image', 'video', 'giphy'],
+          required: true,
+        },
+      },
+    ],
+    default: [],
+  })
+  media: { url: string; type: 'image' | 'video' | 'giphy' }[];
+  @Prop({ type: Boolean, default: null })
+  isEdited: string | null;
 }
 
 export const CommentSchema = SchemaFactory.createForClass(Comment);

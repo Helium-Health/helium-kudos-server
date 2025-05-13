@@ -1,10 +1,22 @@
-import { IsString, IsDate, IsOptional, IsEnum, IsBoolean } from 'class-validator';
-import { UserGender } from '../schema/User.schema';
+import {
+  IsString,
+  IsDate,
+  IsOptional,
+  IsEnum,
+  IsBoolean,
+} from 'class-validator';
+import { UserDepartment, UserGender } from '../schema/User.schema';
 
 export class UpdateUserFromSheetDto {
   @IsString()
   @IsOptional()
   team?: string;
+
+  @IsOptional()
+  @IsEnum(UserDepartment, {
+    message: 'Invalid Department. Must be one of the predefined values.',
+  })
+  department?: UserDepartment;
 
   @IsDate()
   @IsOptional()

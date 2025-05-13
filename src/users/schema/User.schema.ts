@@ -13,7 +13,13 @@ export enum UserGender {
   Female = 'female',
 }
 
-export enum UserTeam {
+export enum UserStatus {
+  Active = 'active',
+  Deactivated = 'deactivated',
+  Invited = 'invited',
+}
+
+export enum UserDepartment {
   Engineering = 'Engineering',
   Executives = 'Executives',
   ProjectManagement = 'Project Management',
@@ -90,6 +96,9 @@ export class User {
 
   @Prop()
   team: string;
+
+  @Prop({ type: String, enum: Object.values(UserDepartment) })
+  department: UserDepartment;
 
   @Prop()
   nationality: string;

@@ -55,6 +55,53 @@ export class RecognitionService {
     @Inject(forwardRef(() => ReactionService))
     private readonly reactionService: ReactionService,
   ) {}
+  //TODO: REMOVE THIS AFTER DEPLOYMENT
+  async onModuleInit() {
+    await this.migrateGiphyUrls();
+  }
+  async migrateGiphyUrls() {
+    const recognitions = await this.recognitionModel
+      .find({ giphyUrl: { $exists: true, $not: { $size: 0 } } })
+      .lean();
+
+    const session = await this.recognitionModel.db.startSession();
+    session.startTransaction();
+
+    let updatedCount = 0;
+
+    try {
+      for (const rec of recognitions) {
+        const giphyMedia = rec.giphyUrl.map((url: string) => ({
+          url,
+          type: 'giphy',
+        }));
+
+        const updatedMedia = [...(rec.media || []), ...giphyMedia];
+
+        await this.recognitionModel.updateOne(
+          { _id: rec._id },
+          {
+            $set: { media: updatedMedia },
+            $unset: { giphyUrl: '' },
+          },
+          { session },
+        );
+
+        updatedCount++;
+      }
+
+      await session.commitTransaction();
+      Logger.log(
+        `Recognition Migration completed. Updated ${updatedCount} recognitions.`,
+      );
+    } catch (error) {
+      await session.abortTransaction();
+      Logger.error('Recognition Migration failed. Transaction aborted.', error);
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
 
   async createRecognition(
     senderId: string,
@@ -62,18 +109,39 @@ export class RecognitionService {
       receivers,
       message,
       companyValues = [],
-      giphyUrl,
       media = [],
+      departments = [],
     }: CreateRecognitionDto,
   ) {
     const invalidValues = companyValues.filter(
       (value) => !Object.values(CompanyValues).includes(value),
     );
 
-    if (receivers.length === 0) {
+    if (receivers.length && departments.length) {
       throw new BadRequestException(
-        'At least one receiver is required for recognition',
+        'You can only provide either receivers or departments, not both.',
       );
+    }
+
+    if (!receivers.length && !departments.length) {
+      throw new BadRequestException(
+        'At least one receiver or department is required for recognition.',
+      );
+    }
+
+    if (departments.length) {
+      const allUserIds =
+        await this.usersService.getUserIdsByDepartments(departments);
+      const userIdsSet = new Set(allUserIds.filter((id) => id !== senderId));
+
+      if (userIdsSet.size === 0) {
+        throw new BadRequestException('No valid users found for departments');
+      }
+
+      receivers = Array.from(userIdsSet).map((id) => ({
+        receiverId: id,
+        coinAmount: 0,
+      }));
     }
 
     if (invalidValues.length > 0) {
@@ -87,10 +155,6 @@ export class RecognitionService {
         'Sender cannot be a receiver of the recognition',
       );
     }
-
-    const validGiphyUrls = Array.isArray(giphyUrl)
-      ? giphyUrl.filter(Boolean)
-      : [];
 
     const receiverIds = receivers.map((receiver) => receiver.receiverId);
     const areValidUsers = await this.usersService.validateUserIds(receiverIds);
@@ -127,12 +191,12 @@ export class RecognitionService {
       const newRecognition = new this.recognitionModel({
         senderId: new Types.ObjectId(senderId),
         message,
-        giphyUrl: validGiphyUrls,
         receivers: receivers.map((r) => ({
           receiverId: new Types.ObjectId(r.receiverId),
           coinAmount: r.coinAmount ?? 0,
         })),
         companyValues,
+        departments,
         media: media.map((m) => ({
           url: m.url,
           type: m.type,
@@ -176,7 +240,6 @@ export class RecognitionService {
           amount: r.coinAmount ?? 0,
         })),
         companyValues,
-        giphyUrl,
       });
 
       await this.notifyReceiversViaSlack({
@@ -605,7 +668,6 @@ export class RecognitionService {
             createdAt: { $first: '$createdAt' },
             isAuto: { $first: '$isAuto' },
             sender: { $first: '$sender' },
-            giphyUrl: { $first: '$giphyUrl' },
             media: { $first: '$media' },
             receivers: {
               $push: {
@@ -617,6 +679,7 @@ export class RecognitionService {
                 team: '$receivers.details.team',
               },
             },
+            departments: { $first: '$departments' },
             commentCount: { $first: { $size: { $ifNull: ['$comments', []] } } },
             reactions: { $first: '$reactions' },
           },
@@ -681,7 +744,9 @@ export class RecognitionService {
     endDate?: Date,
   ) {
     const skip = (page - 1) * limit;
-    const matchStage: any = {};
+    const matchStage: any = {
+      isAuto: false,
+    };
 
     if (startDate && endDate) {
       matchStage.createdAt = {
@@ -760,7 +825,9 @@ export class RecognitionService {
     endDate?: Date,
   ) {
     const skip = (page - 1) * limit;
-    const matchStage: any = {};
+    const matchStage: any = {
+      isAuto: false,
+    };
 
     if (startDate && endDate) {
       matchStage.createdAt = {
@@ -829,7 +896,7 @@ export class RecognitionService {
   }
 
   async getCompanyValueAnalytics(startDate?: Date, endDate?: Date) {
-    const matchStage: any = {};
+    const matchStage: any = { isAuto: false };
 
     if (startDate) {
       matchStage.createdAt = { $gte: new Date(startDate) };
@@ -1153,7 +1220,9 @@ export class RecognitionService {
   }
 
   async getTotalCoinAndRecognition(startDate?: Date, endDate?: Date) {
-    const matchStage: any = {};
+    const matchStage: any = {
+      isAuto: false,
+    };
 
     if (startDate) {
       matchStage.createdAt = { $gte: new Date(startDate) };
@@ -1197,7 +1266,9 @@ export class RecognitionService {
       previousStartDate = new Date(previousEndDate.getTime() - durationMs);
     }
 
-    const prevMatchStage: any = {};
+    const prevMatchStage: any = {
+      isAuto: false,
+    };
     if (previousStartDate) {
       prevMatchStage.createdAt = { $gte: previousStartDate };
     }

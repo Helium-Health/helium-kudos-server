@@ -72,7 +72,6 @@ jobs:
             trivy-results-repo.txt
             trivy-results-image.txt
           
-
       - name: Set up ArgoCD CLI
         run: |
           sudo curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64

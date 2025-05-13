@@ -2,7 +2,6 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { TransformInterceptor } from './utils/transform.interceptor';
 import { CurrencySeeder } from './currency/seeds/currency.seed';
-import { AllocationSeeder } from './allocations/seeds/allocation.seed';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
@@ -11,8 +10,6 @@ async function bootstrap() {
 
   const currencySeeder = app.get(CurrencySeeder);
   await currencySeeder.seedCurrency();
-  const allocationSeeder = app.get(AllocationSeeder);
-  await allocationSeeder.seedAllocations();
 
   // Swagger Configuration
   const config = new DocumentBuilder()
@@ -36,6 +33,8 @@ async function bootstrap() {
     credentials: true,
   });
   app.useGlobalInterceptors(new TransformInterceptor());
-  await app.listen(3001);
+  const PORT = process.env.PORT || 3001;
+  const HOST = process.env.HOST || '0.0.0.0';
+  await app.listen(PORT, HOST);
 }
 bootstrap();

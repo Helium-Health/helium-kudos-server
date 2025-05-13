@@ -52,12 +52,27 @@ export class MilestoneService {
     month?: number,
     celebrationType?: MilestoneType,
   ) {
-
     return await this.usersService.getUpcomingCelebrations(
       limit,
       page,
       month,
       celebrationType,
     );
+  }
+
+  async getMilestoneIdsWithCadence(): Promise<string[]> {
+    const milestones = await this.milestoneModel.find(
+      { cadence: { $exists: true, $ne: null } },
+      { _id: 1 },
+    );
+
+    return milestones.map((milestone) => milestone._id.toString());
+  }
+
+  async findMilestoneById(id: string): Promise<MilestoneDocument | null> {
+    if (!Types.ObjectId.isValid(id)) {
+      throw new Error('Invalid ID format');
+    }
+    return this.milestoneModel.findById(id).exec();
   }
 }

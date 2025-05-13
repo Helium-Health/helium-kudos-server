@@ -6,6 +6,7 @@ import {
   MilestoneDocument,
   MilestoneType,
 } from './schema/Milestone.schema';
+import { Cadence } from 'src/constants';
 
 @Injectable()
 export class MilestoneSeedService implements OnModuleInit {
@@ -24,8 +25,7 @@ export class MilestoneSeedService implements OnModuleInit {
   }
 
   async onModuleInit() {
-    await this.milestoneModel.deleteMany({});
-    this.logger.log('Deleted all existing milestones');
+    const currentYear = new Date().getFullYear();
 
     const defaultMilestones = [
       {
@@ -52,7 +52,7 @@ export class MilestoneSeedService implements OnModuleInit {
         coins: 5,
         isActive: true,
         isGeneric: true,
-        milestoneDate: new Date(new Date().getFullYear(), 10, 19), // November 19
+        milestoneDate: new Date(currentYear, 10, 19),
       },
       {
         type: MilestoneType.INTERNATIONAL_WOMENS_DAY,
@@ -62,7 +62,7 @@ export class MilestoneSeedService implements OnModuleInit {
         coins: 5,
         isActive: true,
         isGeneric: true,
-        milestoneDate: new Date(new Date().getFullYear(), 2, 8), // March 8
+        milestoneDate: new Date(currentYear, 2, 8),
       },
       {
         type: MilestoneType.VALENTINE_DAY,
@@ -72,7 +72,7 @@ export class MilestoneSeedService implements OnModuleInit {
         coins: 5,
         isActive: true,
         isGeneric: true,
-        milestoneDate: new Date(new Date().getFullYear(), 1, 14), // February 14
+        milestoneDate: new Date(currentYear, 1, 14),
       },
       {
         type: MilestoneType.INTERNATIONAL_EMPLOYEE_APPRECIATION_DAY,
@@ -82,11 +82,33 @@ export class MilestoneSeedService implements OnModuleInit {
         coins: 5,
         isActive: true,
         isGeneric: true,
-        milestoneDate: this.getFirstFridayOfMarch(new Date().getFullYear()),
+        milestoneDate: this.getFirstFridayOfMarch(currentYear),
+      },
+      {
+        type: MilestoneType.MONTHLY_ALLOCATION,
+        title: 'Employee Monthly Allocation',
+        message:
+          'Happy New Month! 🎉 You have received your monthly allocation of coins.',
+        coins: 5,
+        isActive: true,
+        isGeneric: true,
+        cadence: Cadence.MONTHLY,
       },
     ];
 
-    await this.milestoneModel.insertMany(defaultMilestones);
-    this.logger.log(`Inserted ${defaultMilestones.length} default milestones`);
+    const operations = defaultMilestones.map((milestone) => ({
+      updateOne: {
+        filter: { type: milestone.type },
+        update: { $setOnInsert: milestone },
+        upsert: true,
+      },
+    }));
+
+    const result = await this.milestoneModel.bulkWrite(operations);
+
+    const insertedCount = result.upsertedCount ?? 0;
+    this.logger.log(
+      `Milestone seeding complete. ${insertedCount} new milestones added.`,
+    );
   }
 }
