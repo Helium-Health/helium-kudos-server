@@ -331,12 +331,17 @@ export class UsersService {
               day: { $dayOfMonth: '$joinDate' },
             },
           },
+          yearsOfService: {
+            $subtract: [{ $year: today }, { $year: '$joinDate' }],
+          },
         },
       },
       {
         $project: {
           name: 1,
           picture: 1,
+          joinDate: 1,
+          dateOfBirth: 1,
           celebrations: {
             $concatArrays: [
               {
@@ -378,6 +383,7 @@ export class UsersService {
                     {
                       celebrationType: MilestoneType.WORK_ANNIVERSARY,
                       date: '$nextAnniversary',
+                      yearsOfService: '$yearsOfService',
                     },
                   ],
                   else: [],
