@@ -48,8 +48,8 @@ export class UserSyncService {
               email,
               name: `${firstName} ${lastName}`,
               department: team,
-              joinDate: this.parseDate(workAnniversary),
-              dateOfBirth: this.parseDate(dob),
+              joinDate: workAnniversary ? new Date(workAnniversary) : null,
+              dateOfBirth: dob ? new Date(dob) : null,
               gender:
                 gender &&
                 [UserGender.Female, UserGender.Male].includes(
@@ -64,8 +64,8 @@ export class UserSyncService {
           } else {
             await this.usersService.updateByEmail(email, {
               department: team,
-              joinDate: this.parseDate(workAnniversary),
-              dateOfBirth: this.parseDate(dob),
+              joinDate: workAnniversary ? new Date(workAnniversary) : null,
+              dateOfBirth: dob ? new Date(dob) : null,
               gender:
                 gender &&
                 [UserGender.Female, UserGender.Male].includes(
@@ -120,10 +120,15 @@ export class UserSyncService {
         nationality,
       ] = row;
 
+      // Skip rows with missing workAnniversary or dob
+      if (!workAnniversary || !dob) {
+        continue;
+      }
+
       await this.usersService.updateByEmail(email, {
         department: team,
-        joinDate: this.parseDate(workAnniversary),
-        dateOfBirth: this.parseDate(dob),
+        joinDate: workAnniversary ? new Date(workAnniversary) : null,
+        dateOfBirth: dob ? new Date(dob) : null,
         gender:
           gender &&
           [UserGender.Female, UserGender.Male].includes(gender.toLowerCase())
@@ -131,25 +136,35 @@ export class UserSyncService {
             : undefined,
         nationality,
       });
+      return;
     }
   }
 
-  parseDate(dateString: string | number | undefined): Date | undefined {
-    if (!dateString) return undefined;
+  async syncUserWorkAnniversary() {
+    console.log('RUNNING WORK ANNIVERSARY UPDATE', new Date());
+    const sheetData = await this.googleSheetsService.getEmployeeData();
 
-    if (typeof dateString === 'number') {
-      const EXCEL_EPOCH_OFFSET = 25569;
-      const MILLISECONDS_PER_DAY = 86400000;
-
-      return new Date((dateString - EXCEL_EPOCH_OFFSET) * MILLISECONDS_PER_DAY);
+    for (const row of sheetData) {
+      const [
+        id,
+        firstName,
+        lastName,
+        email,
+        team,
+        workAnniversary,
+        dob,
+        gender,
+        nationality,
+      ] = row;
+      // Skip rows with missing workAnniversary or dob
+      if (!workAnniversary) {
+        continue;
+      }
+      const result = await this.usersService.updateByEmail(email, {
+        joinDate: workAnniversary ? new Date(workAnniversary) : null,
+      });
+      console.log(result);
+      return;
     }
-
-    if (isNaN(new Date(dateString).getTime())) return undefined;
-    const currentYear = new Date().getFullYear();
-    const [month, day] = dateString.split(' ');
-    const date = new Date(
-      Date.UTC(currentYear, new Date(`${month} 1`).getMonth(), parseInt(day)),
-    );
-    return date;
   }
 }
