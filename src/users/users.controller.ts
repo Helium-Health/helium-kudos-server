@@ -51,6 +51,11 @@ export class UsersController {
     return await this.userSyncService.syncUsersWithGoogleSheet();
   }
 
+  @Post('sync-users-anniversary-with-sheet')
+  async syncUserWorkAnniversary() {
+    return await this.userSyncService.syncUserWorkAnniversary();
+  }
+
   @Get()
   async searchUsers(
     @Query('name') name: string,

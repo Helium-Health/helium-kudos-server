@@ -139,4 +139,32 @@ export class UserSyncService {
       return;
     }
   }
+
+  async syncUserWorkAnniversary() {
+    console.log('RUNNING WORK ANNIVERSARY UPDATE', new Date());
+    const sheetData = await this.googleSheetsService.getEmployeeData();
+
+    for (const row of sheetData) {
+      const [
+        id,
+        firstName,
+        lastName,
+        email,
+        team,
+        workAnniversary,
+        dob,
+        gender,
+        nationality,
+      ] = row;
+      // Skip rows with missing workAnniversary or dob
+      if (!workAnniversary) {
+        continue;
+      }
+      const result = await this.usersService.updateByEmail(email, {
+        joinDate: workAnniversary ? new Date(workAnniversary) : null,
+      });
+      console.log(result);
+      return;
+    }
+  }
 }
