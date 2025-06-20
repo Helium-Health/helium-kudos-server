@@ -142,6 +142,7 @@ export class UserSyncService {
 
   async syncUserWorkAnniversary() {
     console.log('RUNNING WORK ANNIVERSARY UPDATE', new Date());
+    const skippedUsers = [];
     const sheetData = await this.googleSheetsService.getEmployeeData();
 
     for (const row of sheetData) {
@@ -158,13 +159,13 @@ export class UserSyncService {
       ] = row;
       // Skip rows with missing workAnniversary or dob
       if (!workAnniversary) {
+        skippedUsers.push(email);
         continue;
       }
       const result = await this.usersService.updateByEmail(email, {
         joinDate: workAnniversary ? new Date(workAnniversary) : null,
       });
-      console.log(result);
-      return;
     }
+    console.log('skippedUsers', skippedUsers);
   }
 }
