@@ -123,9 +123,10 @@ export class ProductService {
       updateProductDto.categories = categoryObjectIds;
     }
 
-    const updatedImages = updateProductDto.images
-      ? [...new Set([...existingProduct.images, ...updateProductDto.images])] // Remove duplicates
-      : existingProduct.images;
+    const updatedImages =
+      updateProductDto.images !== undefined
+        ? [...new Set(updateProductDto.images)]
+        : existingProduct.images;
 
     if (updatedImages.length > 3) {
       throw new BadRequestException('Products cannot have more than 3 images');
@@ -231,10 +232,10 @@ export class ProductService {
           );
         }
 
-        variantMatch.stock += quantity; 
+        variantMatch.stock += quantity;
       }
     } else {
-      product.stock += quantity; 
+      product.stock += quantity;
     }
 
     await product.save({ session });
