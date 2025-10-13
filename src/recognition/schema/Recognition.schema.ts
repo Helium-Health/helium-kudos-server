@@ -63,9 +63,15 @@ export class Recognition {
     default: [],
   })
   media: { url: string; type: MediaType }[];
-  
+
   @Prop({ type: [String], enum: UserDepartment, default: [] })
   departments: UserDepartment[];
+
+  @Prop({ type: Boolean, default: false, index: true })
+  isPinned: boolean;
+
+  @Prop({ type: Date, default: null, index: true })
+  pinnedAt: Date | null;
 }
 
 export const RecognitionSchema = SchemaFactory.createForClass(Recognition);

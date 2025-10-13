@@ -333,6 +333,50 @@ export class RecognitionService {
     return recognition;
   }
 
+  async togglePinRecognition(recognitionId: Types.ObjectId) {
+    const session = await this.recognitionModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      const recognition = await this.recognitionModel.findById(recognitionId);
+
+      if (!recognition.isPinned) {
+        const pinnedCount = await this.recognitionModel
+          .countDocuments({ isPinned: true })
+          .session(session);
+
+        if (pinnedCount >= 2) {
+          throw new BadRequestException(
+            'You can only pin up to 2 recognitions',
+          );
+        }
+
+        recognition.isPinned = true;
+        recognition.pinnedAt = new Date();
+      } else {
+        recognition.isPinned = false;
+        recognition.pinnedAt = null;
+      }
+
+      await recognition.save({ session });
+
+      await session.commitTransaction();
+
+      this.recognitionGateway.notifyClients({
+        recognitionId,
+        message: recognition.isPinned
+          ? 'Recognition pinned successfully'
+          : 'Recognition unpinned successfully',
+      });
+      return recognition;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
   async createAutoRecognition({
     receiverId,
     message,
@@ -442,9 +486,7 @@ export class RecognitionService {
     session.startTransaction();
 
     try {
-      const recognition = await this.recognitionModel
-        .findById(recognitionId)
-        .session(session);
+      const recognition = await this.findById(recognitionId, session);
 
       if (!recognition) {
         throw new NotFoundException('Recognition not found');
@@ -589,7 +631,7 @@ export class RecognitionService {
     const [recognitions, totalCount] = await Promise.all([
       this.recognitionModel.aggregate([
         { $match: matchFilter },
-        { $sort: { createdAt: -1 } },
+        { $sort: { isPinned: -1, pinnedAt: -1, createdAt: -1 } },
         {
           $lookup: {
             from: 'users',
@@ -682,9 +724,11 @@ export class RecognitionService {
             departments: { $first: '$departments' },
             commentCount: { $first: { $size: { $ifNull: ['$comments', []] } } },
             reactions: { $first: '$reactions' },
+            isPinned: { $first: '$isPinned' },
+            pinnedAt: { $first: '$pinnedAt' },
           },
         },
-        { $sort: { createdAt: -1 } },
+        { $sort: { isPinned: -1, pinnedAt: -1, createdAt: -1 } },
         { $skip: skip },
         { $limit: limit },
       ]),
