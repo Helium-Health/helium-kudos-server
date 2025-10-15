@@ -133,16 +133,15 @@ export class RecognitionService {
       const hasHeliumHumans = departments.includes(UserDepartment.HeliumHumans);
 
       if (hasHeliumHumans) {
-        const allUserIdsExceptsSender =
-          await this.usersService.getAllActiveUserIdsAndExcludeSenderID(
-            senderId,
-          );
+        const allUserIds =
+          await this.usersService.getAllActiveUserIds(senderId);
+        const userIdsSet = new Set(allUserIds);
 
-        if (allUserIdsExceptsSender.length === 0) {
+        if (userIdsSet.size === 0) {
           throw new BadRequestException('No valid users found in HeliumHumans');
         }
 
-        receivers = Array.from(allUserIdsExceptsSender).map((id) => ({
+        receivers = Array.from(userIdsSet).map((id) => ({
           receiverId: id,
           coinAmount: 0,
         }));

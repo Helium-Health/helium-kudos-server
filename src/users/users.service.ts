@@ -597,20 +597,16 @@ export class UsersService {
     return Object.values(UserDepartment);
   }
 
-  async getAllActiveUserIdsAndExcludeSenderID(
-    excludeUserId?: string,
-  ): Promise<string[]> {
-    const allActiveUsers = await this.userModel
-      .find({ active: true }, { _id: 1 })
-      .lean();
+  async getAllActiveUserIds(excludeUserId?: string): Promise<string[]> {
+    const query: Record<string, any> = { active: true };
 
-    const userIdsSet = new Set(
-      allActiveUsers
-        .map((u) => u._id.toString())
-        .filter((id) => id !== excludeUserId),
-    );
+    if (excludeUserId) {
+      query._id = { $ne: new Types.ObjectId(excludeUserId) };
+    }
 
-    return Array.from(userIdsSet);
+    const users = await this.userModel.find(query, { _id: 1 }).lean();
+
+    return users.map((user) => user._id.toString());
   }
 
   async getUserIdsByDepartments(departments: string[]): Promise<string[]> {
