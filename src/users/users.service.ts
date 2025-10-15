@@ -597,6 +597,18 @@ export class UsersService {
     return Object.values(UserDepartment);
   }
 
+  async getAllActiveUserIds(excludeUserId?: string): Promise<string[]> {
+    const query: Record<string, any> = { active: true };
+
+    if (excludeUserId) {
+      query._id = { $ne: new Types.ObjectId(excludeUserId) };
+    }
+
+    const users = await this.userModel.find(query, { _id: 1 }).lean();
+
+    return users.map((user) => user._id.toString());
+  }
+
   async getUserIdsByDepartments(departments: string[]): Promise<string[]> {
     const regexFilters = departments.map((dept) => ({
       department: { $regex: new RegExp(dept, 'i') },

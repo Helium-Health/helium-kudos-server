@@ -20,6 +20,7 @@ export enum UserStatus {
 }
 
 export enum UserDepartment {
+  HeliumHumans = 'HeliumHumans',
   Engineering = 'Engineering',
   Executives = 'Executives',
   ProjectManagement = 'Project Management',
