@@ -29,7 +29,7 @@ import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
 import { ClaimService } from 'src/claim/claim.service';
 import { TransactionService } from 'src/transaction/transaction.service';
 import { RecognitionGateway } from './recognition.gateway';
-import { UserRole } from 'src/users/schema/User.schema';
+import { UserDepartment, UserRole } from 'src/users/schema/User.schema';
 import { SlackService } from 'src/slack/slack.service';
 import { PRODUCTION_CLIENT, STAGING_CLIENT } from 'src/constants';
 import { CommentService } from 'src/comment/comment.service';
@@ -130,18 +130,38 @@ export class RecognitionService {
     }
 
     if (departments.length) {
-      const allUserIds =
-        await this.usersService.getUserIdsByDepartments(departments);
-      const userIdsSet = new Set(allUserIds.filter((id) => id !== senderId));
+      const hasHeliumHumans = departments.includes(UserDepartment.HeliumHumans);
 
-      if (userIdsSet.size === 0) {
-        throw new BadRequestException('No valid users found for departments');
+      if (hasHeliumHumans) {
+        const allUserIdsExceptsSender =
+          await this.usersService.getAllActiveUserIdsAndExcludeSenderID(
+            senderId,
+          );
+
+        if (allUserIdsExceptsSender.length === 0) {
+          throw new BadRequestException('No valid users found in HeliumHumans');
+        }
+
+        receivers = Array.from(allUserIdsExceptsSender).map((id) => ({
+          receiverId: id,
+          coinAmount: 0,
+        }));
+
+        departments = [UserDepartment.HeliumHumans];
+      } else {
+        const allUserIds =
+          await this.usersService.getUserIdsByDepartments(departments);
+        const userIdsSet = new Set(allUserIds.filter((id) => id !== senderId));
+
+        if (userIdsSet.size === 0) {
+          throw new BadRequestException('No valid users found for departments');
+        }
+
+        receivers = Array.from(userIdsSet).map((id) => ({
+          receiverId: id,
+          coinAmount: 0,
+        }));
       }
-
-      receivers = Array.from(userIdsSet).map((id) => ({
-        receiverId: id,
-        coinAmount: 0,
-      }));
     }
 
     if (invalidValues.length > 0) {

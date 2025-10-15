@@ -597,6 +597,22 @@ export class UsersService {
     return Object.values(UserDepartment);
   }
 
+  async getAllActiveUserIdsAndExcludeSenderID(
+    excludeUserId?: string,
+  ): Promise<string[]> {
+    const allActiveUsers = await this.userModel
+      .find({ active: true }, { _id: 1 })
+      .lean();
+
+    const userIdsSet = new Set(
+      allActiveUsers
+        .map((u) => u._id.toString())
+        .filter((id) => id !== excludeUserId),
+    );
+
+    return Array.from(userIdsSet);
+  }
+
   async getUserIdsByDepartments(departments: string[]): Promise<string[]> {
     const regexFilters = departments.map((dept) => ({
       department: { $regex: new RegExp(dept, 'i') },
