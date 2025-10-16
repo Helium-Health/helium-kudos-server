@@ -29,7 +29,7 @@ import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
 import { ClaimService } from 'src/claim/claim.service';
 import { TransactionService } from 'src/transaction/transaction.service';
 import { RecognitionGateway } from './recognition.gateway';
-import { UserRole } from 'src/users/schema/User.schema';
+import { UserDepartment, UserRole } from 'src/users/schema/User.schema';
 import { SlackService } from 'src/slack/slack.service';
 import { PRODUCTION_CLIENT, STAGING_CLIENT } from 'src/constants';
 import { CommentService } from 'src/comment/comment.service';
@@ -130,18 +130,37 @@ export class RecognitionService {
     }
 
     if (departments.length) {
-      const allUserIds =
-        await this.usersService.getUserIdsByDepartments(departments);
-      const userIdsSet = new Set(allUserIds.filter((id) => id !== senderId));
+      const hasHeliumHumans = departments.includes(UserDepartment.HeliumHumans);
 
-      if (userIdsSet.size === 0) {
-        throw new BadRequestException('No valid users found for departments');
+      if (hasHeliumHumans) {
+        const allUserIds =
+          await this.usersService.getAllActiveUserIds(senderId);
+        const userIdsSet = new Set(allUserIds);
+
+        if (userIdsSet.size === 0) {
+          throw new BadRequestException('No valid users found in HeliumHumans');
+        }
+
+        receivers = Array.from(userIdsSet).map((id) => ({
+          receiverId: id,
+          coinAmount: 0,
+        }));
+
+        departments = [UserDepartment.HeliumHumans];
+      } else {
+        const allUserIds =
+          await this.usersService.getUserIdsByDepartments(departments);
+        const userIdsSet = new Set(allUserIds.filter((id) => id !== senderId));
+
+        if (userIdsSet.size === 0) {
+          throw new BadRequestException('No valid users found for departments');
+        }
+
+        receivers = Array.from(userIdsSet).map((id) => ({
+          receiverId: id,
+          coinAmount: 0,
+        }));
       }
-
-      receivers = Array.from(userIdsSet).map((id) => ({
-        receiverId: id,
-        coinAmount: 0,
-      }));
     }
 
     if (invalidValues.length > 0) {
@@ -333,6 +352,50 @@ export class RecognitionService {
     return recognition;
   }
 
+  async togglePinRecognition(recognitionId: Types.ObjectId) {
+    const session = await this.recognitionModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      const recognition = await this.recognitionModel.findById(recognitionId);
+
+      if (!recognition.isPinned) {
+        const pinnedCount = await this.recognitionModel
+          .countDocuments({ isPinned: true })
+          .session(session);
+
+        if (pinnedCount >= 2) {
+          throw new BadRequestException(
+            'You can only pin up to 2 recognitions',
+          );
+        }
+
+        recognition.isPinned = true;
+        recognition.pinnedAt = new Date();
+      } else {
+        recognition.isPinned = false;
+        recognition.pinnedAt = null;
+      }
+
+      await recognition.save({ session });
+
+      await session.commitTransaction();
+
+      this.recognitionGateway.notifyClients({
+        recognitionId,
+        message: recognition.isPinned
+          ? 'Recognition pinned successfully'
+          : 'Recognition unpinned successfully',
+      });
+      return recognition;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
+  }
+
   async createAutoRecognition({
     receiverId,
     message,
@@ -442,9 +505,7 @@ export class RecognitionService {
     session.startTransaction();
 
     try {
-      const recognition = await this.recognitionModel
-        .findById(recognitionId)
-        .session(session);
+      const recognition = await this.findById(recognitionId, session);
 
       if (!recognition) {
         throw new NotFoundException('Recognition not found');
@@ -589,7 +650,7 @@ export class RecognitionService {
     const [recognitions, totalCount] = await Promise.all([
       this.recognitionModel.aggregate([
         { $match: matchFilter },
-        { $sort: { createdAt: -1 } },
+        { $sort: { isPinned: -1, pinnedAt: -1, createdAt: -1 } },
         {
           $lookup: {
             from: 'users',
@@ -682,9 +743,11 @@ export class RecognitionService {
             departments: { $first: '$departments' },
             commentCount: { $first: { $size: { $ifNull: ['$comments', []] } } },
             reactions: { $first: '$reactions' },
+            isPinned: { $first: '$isPinned' },
+            pinnedAt: { $first: '$pinnedAt' },
           },
         },
-        { $sort: { createdAt: -1 } },
+        { $sort: { isPinned: -1, pinnedAt: -1, createdAt: -1 } },
         { $skip: skip },
         { $limit: limit },
       ]),

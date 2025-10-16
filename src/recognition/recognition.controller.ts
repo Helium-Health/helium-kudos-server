@@ -79,6 +79,13 @@ export class RecognitionController {
     );
   }
 
+  @UseGuards(AdminGuard)
+  @Patch(':id/toggle-pin')
+  async togglePin(@Param('id') id: string) {
+    const recognitionId = new Types.ObjectId(id);
+    return this.recognitionService.togglePinRecognition(recognitionId);
+  }
+
   @Delete(':id')
   async deleteRecogntions(@Request() req, @Param('id') recognitionId: string) {
     const userId = req.user.userId;
