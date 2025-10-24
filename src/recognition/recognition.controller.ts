@@ -64,7 +64,14 @@ export class RecognitionController {
       parsedIsAuto,
     );
   }
-
+  @Get(':id')
+  async getRecognitionById(@Param('id') id: string, @Request() req) {
+    const userId = req.user.userId;
+    return this.recognitionService.getRecognitionById(
+      new Types.ObjectId(id),
+      new Types.ObjectId(userId),
+    );
+  }
   @Patch(':id')
   async editRecognition(
     @Param('id') recognitionId: string,

@@ -34,6 +34,7 @@ import { SlackService } from 'src/slack/slack.service';
 import { PRODUCTION_CLIENT, STAGING_CLIENT } from 'src/constants';
 import { CommentService } from 'src/comment/comment.service';
 import { ReactionService } from 'src/reactions/reactions.service';
+import { PollService } from 'src/poll/poll.service';
 
 @Injectable()
 export class RecognitionService {
@@ -48,6 +49,7 @@ export class RecognitionService {
     private readonly usersService: UsersService,
     private readonly slackService: SlackService,
     private readonly transactionService: TransactionService,
+    private readonly pollService: PollService,
 
     @Inject(forwardRef(() => CommentService))
     private readonly commentService: CommentService,
@@ -111,6 +113,7 @@ export class RecognitionService {
       companyValues = [],
       media = [],
       departments = [],
+      poll,
     }: CreateRecognitionDto,
   ) {
     const invalidValues = companyValues.filter(
@@ -248,11 +251,25 @@ export class RecognitionService {
         );
       }
 
-      await session.commitTransaction();
+      if (poll) {
+        const createdPoll = await this.pollService.createPoll(
+          poll,
+          newRecognition._id,
+          session,
+        );
 
+        if (!createdPoll) {
+          throw new BadRequestException('Poll creation failed');
+        }
+
+        newRecognition.poll = createdPoll ? [(createdPoll as any)._id] : [];
+
+        await newRecognition.save({ session });
+      }
+      await session.commitTransaction();
       this.recognitionGateway.notifyClients({
         recognitionId: newRecognition._id,
-        message: `Recognition created: ${message}`,
+        message: `${poll ? 'Poll' : 'Recognition'} created: ${message}`,
         senderId,
         receivers: receivers.map((r) => ({
           receiverId: new Types.ObjectId(r.receiverId),
@@ -265,7 +282,7 @@ export class RecognitionService {
         receivers: receivers,
         senderId: new Types.ObjectId(senderId),
         isAuto: false,
-        message: message,
+        message: `${poll ? 'A poll has been created' : message}`,
       });
 
       return newRecognition;
@@ -357,7 +374,10 @@ export class RecognitionService {
     session.startTransaction();
 
     try {
-      const recognition = await this.recognitionModel.findById(recognitionId);
+      const recognition = await this.recognitionModel
+        .findById(recognitionId)
+        .populate('poll')
+        .exec();
 
       if (!recognition.isPinned) {
         const pinnedCount = await this.recognitionModel
@@ -722,6 +742,26 @@ export class RecognitionService {
           },
         },
         {
+          $lookup: {
+            from: 'polls',
+            localField: 'poll',
+            foreignField: '_id',
+            as: 'poll',
+            pipeline: [
+              {
+                $project: {
+                  _id: 1,
+                  question: 1,
+                  options: 1,
+                  expiresAt: 1,
+                  createdAt: 1,
+                  recognitionId: 1,
+                },
+              },
+            ],
+          },
+        },
+        {
           $group: {
             _id: '$_id',
             message: { $first: '$message' },
@@ -745,6 +785,7 @@ export class RecognitionService {
             reactions: { $first: '$reactions' },
             isPinned: { $first: '$isPinned' },
             pinnedAt: { $first: '$pinnedAt' },
+            poll: { $first: '$poll' },
           },
         },
         { $sort: { isPinned: -1, pinnedAt: -1, createdAt: -1 } },
@@ -754,8 +795,22 @@ export class RecognitionService {
       this.recognitionModel.countDocuments(matchFilter),
     ]);
 
+    const formattedRecognitions = await Promise.all(
+      recognitions.map(async (rec) => {
+        const pollDoc = rec.poll?.[0];
+        if (pollDoc && pollDoc._id) {
+          const poll = await this.pollService.formatPoll(
+            pollDoc,
+            userId ? new Types.ObjectId(userId) : undefined,
+          );
+          return { ...rec, poll };
+        }
+        return rec;
+      }),
+    );
+
     return {
-      data: recognitions,
+      data: formattedRecognitions,
       meta: {
         totalCount,
         page,

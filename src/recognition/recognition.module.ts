@@ -12,6 +12,7 @@ import { RecognitionGateway } from './recognition.gateway';
 import { SlackModule } from 'src/slack/slack.module';
 import { CommentModule } from 'src/comment/comment.module';
 import { ReactionsModule } from 'src/reactions/reactions.module';
+import { PollModule } from 'src/poll/poll.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { ReactionsModule } from 'src/reactions/reactions.module';
     SlackModule,
     forwardRef(() => CommentModule),
     forwardRef(() => ReactionsModule),
+    PollModule,
   ],
   controllers: [RecognitionController],
   providers: [RecognitionService, RecognitionGateway],
