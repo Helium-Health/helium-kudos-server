@@ -628,6 +628,7 @@ export class RecognitionService {
     role?: string,
     milestoneType?: MilestoneType,
     isAuto?: Boolean,
+    voterId?: string,
   ) {
     if (userId && !Types.ObjectId.isValid(userId)) {
       throw new BadRequestException('Invalid userId format');
@@ -754,32 +755,113 @@ export class RecognitionService {
                   foreignField: 'pollId',
                   as: 'options',
                   pipeline: [
-                    { $sort: { position: 1 } },
+                    {
+                      $lookup: {
+                        from: 'pollvotes',
+                        localField: '_id',
+                        foreignField: 'optionId',
+                        as: 'votes',
+                      },
+                    },
+                    {
+                      $addFields: {
+                        votesCount: { $size: '$votes' },
+                        hasUserVote: voterId
+                          ? {
+                              $in: [voterId, '$votes.userId'],
+                            }
+                          : false,
+                      },
+                    },
                     {
                       $project: {
                         _id: 1,
                         optionText: 1,
-                        votesCount: 1,
                         position: 1,
+                        votesCount: 1,
+                        hasUserVote: 1,
                       },
                     },
+                    { $sort: { position: 1 } },
                   ],
+                },
+              },
+              {
+                $addFields: {
+                  totalVotes: {
+                    $sum: {
+                      $map: {
+                        input: '$options',
+                        as: 'opt',
+                        in: '$$opt.votesCount',
+                      },
+                    },
+                  },
+                  hasVoted: {
+                    $anyElementTrue: {
+                      $map: {
+                        input: '$options',
+                        as: 'opt',
+                        in: '$$opt.hasUserVote',
+                      },
+                    },
+                  },
+                  votedOptionId: {
+                    $first: {
+                      $map: {
+                        input: {
+                          $filter: {
+                            input: '$options',
+                            as: 'opt',
+                            cond: { $eq: ['$$opt.hasUserVote', true] },
+                          },
+                        },
+                        as: 'opt',
+                        in: '$$opt._id',
+                      },
+                    },
+                  },
                 },
               },
               {
                 $project: {
                   _id: 1,
                   question: 1,
-                  options: 1,
+                  options: {
+                    $map: {
+                      input: '$options',
+                      as: 'opt',
+                      in: {
+                        optionId: '$$opt._id',
+                        text: '$$opt.optionText',
+                        votesCount: '$$opt.votesCount',
+                        percentage: {
+                          $cond: {
+                            if: { $gt: ['$totalVotes', 0] },
+                            then: {
+                              $multiply: [
+                                {
+                                  $divide: ['$$opt.votesCount', '$totalVotes'],
+                                },
+                                100,
+                              ],
+                            },
+                            else: 0,
+                          },
+                        },
+                      },
+                    },
+                  },
                   totalVotes: 1,
+                  hasVoted: 1,
+                  votedOptionId: { $toString: '$votedOptionId' },
                   expiresAt: 1,
-                  createdAt: 1,
-                  recognitionId: 1,
                 },
               },
             ],
           },
         },
+
         {
           $group: {
             _id: '$_id',
@@ -814,24 +896,8 @@ export class RecognitionService {
       this.recognitionModel.countDocuments(matchFilter),
     ]);
 
-    const formattedRecognitions = await Promise.all(
-      recognitions.map(async (rec) => {
-        const pollDoc = rec.poll?.[0];
-        if (pollDoc && pollDoc._id) {
-          const poll = await this.pollService.formatPollWithUserVote(
-            pollDoc._id,
-            pollDoc,
-            pollDoc.options || [],
-            userId ? new Types.ObjectId(userId) : null,
-          );
-          return { ...rec, poll };
-        }
-        return rec;
-      }),
-    );
-
     return {
-      data: formattedRecognitions,
+      data: recognitions,
       meta: {
         totalCount,
         page,

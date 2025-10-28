@@ -62,25 +62,6 @@ export class PollService {
     return poll[0];
   }
 
-  async getPoll(recognitionId: Types.ObjectId, userId?: Types.ObjectId) {
-    const poll = await this.pollModel.findOne({ recognitionId }).lean();
-    if (!poll) throw new NotFoundException('Poll not found');
-
-    const options = await this.pollOptionModel
-      .find({ pollId: poll._id })
-      .sort({ position: 1 })
-      .lean();
-
-    let userVote = null;
-    if (userId) {
-      userVote = await this.pollVoteModel
-        .findOne({ pollId: poll._id, userId })
-        .lean();
-    }
-
-    return this.formatPoll(poll, options, userVote?.optionId);
-  }
-
   async vote(
     pollId: Types.ObjectId,
     userId: Types.ObjectId,
@@ -94,88 +75,25 @@ export class PollService {
       throw new BadRequestException('Invalid optionId');
 
     const optionId = new Types.ObjectId(optionIdStr);
-    const session = await this.pollModel.db.startSession();
-    session.startTransaction();
 
-    try {
-      const poll = await this.pollModel
-        .findById(pollId)
-        .session(session)
-        .lean();
-      if (!poll) throw new NotFoundException('Poll not found');
-      if (poll.expiresAt && poll.expiresAt < new Date())
-        throw new ForbiddenException('Poll has expired');
+    const poll = await this.pollModel.findById(pollId).lean();
+    if (!poll) throw new NotFoundException('Poll not found');
+    if (poll.expiresAt && poll.expiresAt < new Date())
+      throw new ForbiddenException('Poll has expired');
 
-      const targetOption = await this.pollOptionModel
-        .findOne({ _id: optionId, pollId })
-        .session(session)
-        .lean();
-      if (!targetOption) throw new BadRequestException('Invalid optionId');
+    const optionExists = await this.pollOptionModel.exists({
+      _id: optionId,
+      pollId,
+    });
+    if (!optionExists) throw new BadRequestException('Invalid optionId');
 
-      const existingVote = await this.pollVoteModel
-        .findOne({ pollId, userId })
-        .session(session);
+    await this.pollVoteModel.updateOne(
+      { pollId, userId },
+      { $set: { optionId } },
+      { upsert: true },
+    );
 
-      if (existingVote) {
-        // User already voted - check if switching
-        if (existingVote.optionId.equals(optionId)) {
-          // Voting for same option - no change needed
-          await session.commitTransaction();
-          return this.getPoll(poll.recognitionId, userId);
-        }
-
-        // User switching vote
-        await Promise.all([
-          // Decrement old option
-          this.pollOptionModel.updateOne(
-            { _id: existingVote.optionId },
-            { $inc: { votesCount: -1 } },
-            { session },
-          ),
-          // Increment new option
-          this.pollOptionModel.updateOne(
-            { _id: optionId },
-            { $inc: { votesCount: 1 } },
-            { session },
-          ),
-          // Update vote record
-          this.pollVoteModel.updateOne(
-            { pollId, userId },
-            { $set: { optionId } },
-            { session },
-          ),
-        ]);
-      } else {
-        // New vote
-        await Promise.all([
-          // Increment option count
-          this.pollOptionModel.updateOne(
-            { _id: optionId },
-            { $inc: { votesCount: 1 } },
-            { session },
-          ),
-          // Increment poll total
-          this.pollModel.updateOne(
-            { _id: pollId },
-            { $inc: { totalVotes: 1 } },
-            { session },
-          ),
-          // Create vote record
-          this.pollVoteModel.create([{ pollId, userId, optionId }], {
-            session,
-          }),
-        ]);
-      }
-
-      await session.commitTransaction();
-
-      return this.getPoll(poll.recognitionId, userId);
-    } catch (err) {
-      await session.abortTransaction();
-      throw err;
-    } finally {
-      session.endSession();
-    }
+    return this.getPollWithCounts(pollId, userId);
   }
 
   async removeVote(pollId: Types.ObjectId, userId: Types.ObjectId) {
@@ -184,77 +102,65 @@ export class PollService {
     if (!Types.ObjectId.isValid(userId))
       throw new BadRequestException('Invalid userId');
 
-    const session = await this.pollModel.db.startSession();
-    session.startTransaction();
+    const poll = await this.pollModel.findById(pollId).lean();
+    if (!poll) throw new NotFoundException('Poll not found');
+    if (poll.expiresAt && poll.expiresAt < new Date())
+      throw new ForbiddenException('Poll has expired');
 
-    try {
-      const poll = await this.pollModel
-        .findById(pollId)
-        .session(session)
-        .lean();
-      if (!poll) throw new NotFoundException('Poll not found');
-      if (poll.expiresAt && poll.expiresAt < new Date())
-        throw new ForbiddenException('Poll has expired');
+    const result = await this.pollVoteModel.deleteOne({ pollId, userId });
 
-      const existingVote = await this.pollVoteModel
-        .findOne({ pollId, userId })
-        .session(session);
-
-      if (!existingVote) {
-        throw new BadRequestException('User has not voted on this poll');
-      }
-
-      await Promise.all([
-        this.pollOptionModel.updateOne(
-          { _id: existingVote.optionId },
-          { $inc: { votesCount: -1 } },
-          { session },
-        ),
-        this.pollModel.updateOne(
-          { _id: pollId },
-          { $inc: { totalVotes: -1 } },
-          { session },
-        ),
-        this.pollVoteModel.deleteOne({ pollId, userId }, { session }),
-      ]);
-
-      await session.commitTransaction();
-
-      return this.getPoll(poll.recognitionId, userId);
-    } catch (err) {
-      await session.abortTransaction();
-      throw err;
-    } finally {
-      session.endSession();
-    }
-  }
-
-  async formatPollWithUserVote(
-    pollId: Types.ObjectId,
-    pollDoc: any,
-    options: any[],
-    userId: Types.ObjectId | null,
-  ) {
-    let userVote = null;
-
-    if (userId) {
-      userVote = await this.pollVoteModel.findOne({ pollId, userId }).lean();
+    if (result.deletedCount === 0) {
+      throw new BadRequestException('User has not voted on this poll');
     }
 
-    return this.formatPoll(pollDoc, options, userVote?.optionId);
+    return this.getPollWithCounts(pollId, userId);
   }
 
-  formatPoll(poll: any, options: any[], userVotedOptionId?: Types.ObjectId) {
-    if (!poll || !options) return null;
+  async getPollWithCounts(pollId: Types.ObjectId, userId?: Types.ObjectId) {
+    const poll = await this.pollModel.findById(pollId).lean();
+    if (!poll) throw new NotFoundException('Poll not found');
 
-    const totalVotes = poll.totalVotes || 0;
+    const optionsWithCounts = await this.pollOptionModel.aggregate([
+      { $match: { pollId } },
+      {
+        $lookup: {
+          from: 'pollvotes',
+          localField: '_id',
+          foreignField: 'optionId',
+          as: 'votes',
+        },
+      },
+      {
+        $addFields: {
+          votesCount: { $size: '$votes' },
+          hasUserVote: userId ? { $in: [userId, '$votes.userId'] } : false,
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          optionText: 1,
+          position: 1,
+          votesCount: 1,
+          hasUserVote: 1,
+        },
+      },
+      { $sort: { position: 1 } },
+    ]);
+
+    const totalVotes = optionsWithCounts.reduce(
+      (sum, opt) => sum + opt.votesCount,
+      0,
+    );
+
+    const userVotedOption = optionsWithCounts.find((opt) => opt.hasUserVote);
 
     return {
       id: poll._id,
       question: poll.question,
       expiresAt: poll.expiresAt,
       totalVotes,
-      options: options.map((opt) => ({
+      options: optionsWithCounts.map((opt) => ({
         optionId: opt._id.toString(),
         text: opt.optionText,
         votesCount: opt.votesCount,
@@ -263,8 +169,8 @@ export class PollService {
             ? +((opt.votesCount / totalVotes) * 100).toFixed(1)
             : 0,
       })),
-      hasVoted: !!userVotedOptionId,
-      votedOptionId: userVotedOptionId ? userVotedOptionId.toString() : null,
+      hasVoted: !!userVotedOption,
+      votedOptionId: userVotedOption ? userVotedOption._id.toString() : null,
     };
   }
 }

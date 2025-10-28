@@ -16,9 +16,6 @@ export class Poll {
   @Prop({ type: String, required: true })
   question: string;
 
-  @Prop({ default: 0 })
-  totalVotes: number;
-
   @Prop({ required: true })
   expiresAt: Date;
 }

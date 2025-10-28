@@ -12,9 +12,6 @@ export class PollOption {
   @Prop({ type: String, required: true })
   optionText: string;
 
-  @Prop({ default: 0 })
-  votesCount: number;
-
   @Prop({ type: Number, required: true })
   position: number;
 }
