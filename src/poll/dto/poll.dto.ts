@@ -1,15 +1,14 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
-  IsDateString,
   IsNotEmpty,
-  MaxLength,
   ArrayMaxSize,
   ArrayMinSize,
   IsInt,
   Min,
   ValidateNested,
 } from 'class-validator';
+
 class PollDurationDto {
   @IsInt()
   @Min(0)

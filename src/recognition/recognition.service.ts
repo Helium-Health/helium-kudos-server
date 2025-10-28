@@ -35,6 +35,7 @@ import { PRODUCTION_CLIENT, STAGING_CLIENT } from 'src/constants';
 import { CommentService } from 'src/comment/comment.service';
 import { ReactionService } from 'src/reactions/reactions.service';
 import { PollService } from 'src/poll/poll.service';
+import { PollVote } from 'src/poll/schema/poll-vote.schema';
 
 @Injectable()
 export class RecognitionService {
@@ -50,7 +51,6 @@ export class RecognitionService {
     private readonly slackService: SlackService,
     private readonly transactionService: TransactionService,
     private readonly pollService: PollService,
-
     @Inject(forwardRef(() => CommentService))
     private readonly commentService: CommentService,
 
@@ -262,8 +262,7 @@ export class RecognitionService {
           throw new BadRequestException('Poll creation failed');
         }
 
-        newRecognition.poll = createdPoll ? [(createdPoll as any)._id] : [];
-
+        newRecognition.poll = [(createdPoll as any)._id];
         await newRecognition.save({ session });
       }
       await session.commitTransaction();
@@ -749,10 +748,30 @@ export class RecognitionService {
             as: 'poll',
             pipeline: [
               {
+                $lookup: {
+                  from: 'polloptions',
+                  localField: '_id',
+                  foreignField: 'pollId',
+                  as: 'options',
+                  pipeline: [
+                    { $sort: { position: 1 } },
+                    {
+                      $project: {
+                        _id: 1,
+                        optionText: 1,
+                        votesCount: 1,
+                        position: 1,
+                      },
+                    },
+                  ],
+                },
+              },
+              {
                 $project: {
                   _id: 1,
                   question: 1,
                   options: 1,
+                  totalVotes: 1,
                   expiresAt: 1,
                   createdAt: 1,
                   recognitionId: 1,
@@ -799,9 +818,11 @@ export class RecognitionService {
       recognitions.map(async (rec) => {
         const pollDoc = rec.poll?.[0];
         if (pollDoc && pollDoc._id) {
-          const poll = await this.pollService.formatPoll(
+          const poll = await this.pollService.formatPollWithUserVote(
+            pollDoc._id,
             pollDoc,
-            userId ? new Types.ObjectId(userId) : undefined,
+            pollDoc.options || [],
+            userId ? new Types.ObjectId(userId) : null,
           );
           return { ...rec, poll };
         }
