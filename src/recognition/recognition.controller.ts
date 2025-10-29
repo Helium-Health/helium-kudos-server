@@ -47,6 +47,7 @@ export class RecognitionController {
 
   @Get()
   async getAllRecognitions(
+    @Request() req,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
     @Query('userId') userId?: string,
@@ -55,6 +56,7 @@ export class RecognitionController {
     @Query('isAuto', new DefaultValuePipe(undefined)) isAuto?: string,
   ) {
     const parsedIsAuto = isAuto === undefined ? undefined : isAuto === 'true';
+    const voterId = req.user.userId; // This is needed for user poll lookup
     return this.recognitionService.getAllRecognitions(
       page,
       limit,
@@ -62,9 +64,17 @@ export class RecognitionController {
       role,
       milestoneType,
       parsedIsAuto,
+      voterId,
     );
   }
-
+  @Get(':id')
+  async getRecognitionById(@Param('id') id: string, @Request() req) {
+    const userId = req.user.userId;
+    return this.recognitionService.getRecognitionById(
+      new Types.ObjectId(id),
+      new Types.ObjectId(userId),
+    );
+  }
   @Patch(':id')
   async editRecognition(
     @Param('id') recognitionId: string,

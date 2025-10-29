@@ -37,6 +37,9 @@ export class Recognition {
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Comment' }] })
   comments: Types.ObjectId[];
 
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Poll' }] })
+  poll?: Types.ObjectId[];
+
   @Prop({ type: [String], enum: CompanyValues, default: [] })
   companyValues: CompanyValues[];
 

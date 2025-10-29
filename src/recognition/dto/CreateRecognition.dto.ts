@@ -17,6 +17,7 @@ import {
 import { CompanyValues } from 'src/constants/companyValues';
 import { UserDepartment } from 'src/users/schema/User.schema';
 import { MediaType } from '../schema/Recognition.schema';
+import { CreatePollDto } from 'src/poll/dto/poll.dto';
 
 class Receiver {
   @IsNotEmpty()
@@ -56,6 +57,11 @@ export class CreateRecognitionDto {
   @IsArray()
   @IsEnum(CompanyValues, { each: true })
   companyValues?: CompanyValues[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => CreatePollDto)
+  poll?: CreatePollDto;
 
   @IsOptional()
   @IsArray()

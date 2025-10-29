@@ -34,6 +34,8 @@ import { SlackService } from 'src/slack/slack.service';
 import { PRODUCTION_CLIENT, STAGING_CLIENT } from 'src/constants';
 import { CommentService } from 'src/comment/comment.service';
 import { ReactionService } from 'src/reactions/reactions.service';
+import { PollService } from 'src/poll/poll.service';
+import { PollVote } from 'src/poll/schema/poll-vote.schema';
 
 @Injectable()
 export class RecognitionService {
@@ -48,7 +50,7 @@ export class RecognitionService {
     private readonly usersService: UsersService,
     private readonly slackService: SlackService,
     private readonly transactionService: TransactionService,
-
+    private readonly pollService: PollService,
     @Inject(forwardRef(() => CommentService))
     private readonly commentService: CommentService,
 
@@ -111,6 +113,7 @@ export class RecognitionService {
       companyValues = [],
       media = [],
       departments = [],
+      poll,
     }: CreateRecognitionDto,
   ) {
     const invalidValues = companyValues.filter(
@@ -248,11 +251,24 @@ export class RecognitionService {
         );
       }
 
-      await session.commitTransaction();
+      if (poll) {
+        const createdPoll = await this.pollService.createPoll(
+          poll,
+          newRecognition._id,
+          session,
+        );
 
+        if (!createdPoll) {
+          throw new BadRequestException('Poll creation failed');
+        }
+
+        newRecognition.poll = [(createdPoll as any)._id];
+        await newRecognition.save({ session });
+      }
+      await session.commitTransaction();
       this.recognitionGateway.notifyClients({
         recognitionId: newRecognition._id,
-        message: `Recognition created: ${message}`,
+        message: `${poll ? 'Poll' : 'Recognition'} created: ${message}`,
         senderId,
         receivers: receivers.map((r) => ({
           receiverId: new Types.ObjectId(r.receiverId),
@@ -265,7 +281,7 @@ export class RecognitionService {
         receivers: receivers,
         senderId: new Types.ObjectId(senderId),
         isAuto: false,
-        message: message,
+        message: `${poll ? 'A poll has been created' : message}`,
       });
 
       return newRecognition;
@@ -357,7 +373,10 @@ export class RecognitionService {
     session.startTransaction();
 
     try {
-      const recognition = await this.recognitionModel.findById(recognitionId);
+      const recognition = await this.recognitionModel
+        .findById(recognitionId)
+        .populate('poll')
+        .exec();
 
       if (!recognition.isPinned) {
         const pinnedCount = await this.recognitionModel
@@ -609,6 +628,7 @@ export class RecognitionService {
     role?: string,
     milestoneType?: MilestoneType,
     isAuto?: Boolean,
+    voterId?: string,
   ) {
     if (userId && !Types.ObjectId.isValid(userId)) {
       throw new BadRequestException('Invalid userId format');
@@ -722,6 +742,127 @@ export class RecognitionService {
           },
         },
         {
+          $lookup: {
+            from: 'polls',
+            localField: 'poll',
+            foreignField: '_id',
+            as: 'poll',
+            pipeline: [
+              {
+                $lookup: {
+                  from: 'polloptions',
+                  localField: '_id',
+                  foreignField: 'pollId',
+                  as: 'options',
+                  pipeline: [
+                    {
+                      $lookup: {
+                        from: 'pollvotes',
+                        localField: '_id',
+                        foreignField: 'optionId',
+                        as: 'votes',
+                      },
+                    },
+                    {
+                      $addFields: {
+                        votesCount: { $size: '$votes' },
+                        hasUserVote: voterId
+                          ? {
+                              $in: [voterId, '$votes.userId'],
+                            }
+                          : false,
+                      },
+                    },
+                    {
+                      $project: {
+                        _id: 1,
+                        optionText: 1,
+                        position: 1,
+                        votesCount: 1,
+                        hasUserVote: 1,
+                      },
+                    },
+                    { $sort: { position: 1 } },
+                  ],
+                },
+              },
+              {
+                $addFields: {
+                  totalVotes: {
+                    $sum: {
+                      $map: {
+                        input: '$options',
+                        as: 'opt',
+                        in: '$$opt.votesCount',
+                      },
+                    },
+                  },
+                  hasVoted: {
+                    $anyElementTrue: {
+                      $map: {
+                        input: '$options',
+                        as: 'opt',
+                        in: '$$opt.hasUserVote',
+                      },
+                    },
+                  },
+                  votedOptionId: {
+                    $first: {
+                      $map: {
+                        input: {
+                          $filter: {
+                            input: '$options',
+                            as: 'opt',
+                            cond: { $eq: ['$$opt.hasUserVote', true] },
+                          },
+                        },
+                        as: 'opt',
+                        in: '$$opt._id',
+                      },
+                    },
+                  },
+                },
+              },
+              {
+                $project: {
+                  _id: 1,
+                  question: 1,
+                  options: {
+                    $map: {
+                      input: '$options',
+                      as: 'opt',
+                      in: {
+                        optionId: '$$opt._id',
+                        text: '$$opt.optionText',
+                        votesCount: '$$opt.votesCount',
+                        percentage: {
+                          $cond: {
+                            if: { $gt: ['$totalVotes', 0] },
+                            then: {
+                              $multiply: [
+                                {
+                                  $divide: ['$$opt.votesCount', '$totalVotes'],
+                                },
+                                100,
+                              ],
+                            },
+                            else: 0,
+                          },
+                        },
+                      },
+                    },
+                  },
+                  totalVotes: 1,
+                  hasVoted: 1,
+                  votedOptionId: { $toString: '$votedOptionId' },
+                  expiresAt: 1,
+                },
+              },
+            ],
+          },
+        },
+
+        {
           $group: {
             _id: '$_id',
             message: { $first: '$message' },
@@ -745,6 +886,7 @@ export class RecognitionService {
             reactions: { $first: '$reactions' },
             isPinned: { $first: '$isPinned' },
             pinnedAt: { $first: '$pinnedAt' },
+            poll: { $first: '$poll' },
           },
         },
         { $sort: { isPinned: -1, pinnedAt: -1, createdAt: -1 } },
