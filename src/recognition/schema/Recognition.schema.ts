@@ -17,7 +17,7 @@ export class Recognition {
   @Prop({ type: Types.ObjectId, ref: 'User' })
   senderId: Types.ObjectId;
 
-  @Prop({ type: String, required: true })
+  @Prop({ type: String, required: false })
   message: string;
 
   @Prop({ type: [String], required: false })
@@ -37,7 +37,7 @@ export class Recognition {
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Comment' }] })
   comments: Types.ObjectId[];
 
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'Poll' }] })
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Poll', default: null }] })
   poll?: Types.ObjectId[];
 
   @Prop({ type: [String], enum: CompanyValues, default: [] })

@@ -13,6 +13,7 @@ import {
   IsUrl,
   ArrayMaxSize,
   IsInt,
+  ValidateIf,
 } from 'class-validator';
 import { CompanyValues } from 'src/constants/companyValues';
 import { UserDepartment } from 'src/users/schema/User.schema';
@@ -44,6 +45,7 @@ class MediaDto {
 }
 
 export class CreateRecognitionDto {
+  @ValidateIf((o) => !o.poll)
   @IsNotEmpty()
   @IsString()
   message: string;
@@ -59,6 +61,7 @@ export class CreateRecognitionDto {
   companyValues?: CompanyValues[];
 
   @IsOptional()
+  @ValidateIf((_, value) => Object.keys(value || {}).length > 0)
   @ValidateNested()
   @Type(() => CreatePollDto)
   poll?: CreatePollDto;

@@ -43,7 +43,7 @@ export class PollService {
         {
           recognitionId,
           question: dto.question,
-          totalVotes: 0,
+          hide: dto.hide,
           expiresAt,
         },
       ],
@@ -53,7 +53,6 @@ export class PollService {
     const optionDocs = dto.options.map((text, index) => ({
       pollId: poll[0]._id,
       optionText: text,
-      votesCount: 0,
       position: index,
     }));
 
@@ -143,6 +142,7 @@ export class PollService {
           position: 1,
           votesCount: 1,
           hasUserVote: 1,
+          hide: 1,
         },
       },
       { $sort: { position: 1 } },
@@ -169,6 +169,7 @@ export class PollService {
             ? +((opt.votesCount / totalVotes) * 100).toFixed(1)
             : 0,
       })),
+      hide: poll.hide,
       hasVoted: !!userVotedOption,
       votedOptionId: userVotedOption ? userVotedOption._id.toString() : null,
     };
