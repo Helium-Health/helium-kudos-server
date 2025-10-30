@@ -7,6 +7,7 @@ import {
   IsInt,
   Min,
   ValidateNested,
+  IsBoolean,
 } from 'class-validator';
 
 class PollDurationDto {
@@ -31,6 +32,9 @@ export class CreatePollDto {
   @ArrayMaxSize(4)
   @ArrayMinSize(2)
   options: string[];
+
+  @IsBoolean()
+  hide: boolean;
 
   @ValidateNested()
   @Type(() => PollDurationDto)

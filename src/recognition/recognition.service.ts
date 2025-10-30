@@ -282,6 +282,7 @@ export class RecognitionService {
         senderId: new Types.ObjectId(senderId),
         isAuto: false,
         message: `${poll ? 'A poll has been created' : message}`,
+        poll: true,
       });
 
       return newRecognition;
@@ -303,11 +304,13 @@ export class RecognitionService {
     senderId,
     isAuto,
     message,
+    poll,
   }: {
     receivers: CreateRecognitionDto['receivers'];
     senderId?: Types.ObjectId;
     isAuto?: boolean;
     message?: string;
+    poll?: boolean;
   }) {
     const sender = senderId
       ? await this.usersService.findById(senderId)
@@ -327,9 +330,16 @@ export class RecognitionService {
           receiverUser.email,
         );
         if (slackUserId) {
-          const notificationMessage = isAuto
-            ? `${message} \n\nLogin to Helium Kudos to start shopping with you gifted coins: ${clientUrl}`
-            : `🌟 Hey ${receiverUser.name}!\n\n ${sender.name} just recognized your awesome work!\n\nCheck it out here: ${clientUrl}`;
+          let notificationMessage: string;
+
+          if (isAuto) {
+            notificationMessage = `${message} \n\nLogin to Helium Kudos to start shopping with your gifted coins: ${clientUrl}`;
+          } else if (poll) {
+            notificationMessage = `📊 Hey ${receiverUser.name}!\n\n${sender.name} just created a new poll for your team — your opinion matters!\n\nCast your vote here: ${clientUrl}`;
+          } else {
+            notificationMessage = `🌟 Hey ${receiverUser.name}!\n\n${sender.name} just recognized your awesome work!\n\nCheck it out here: ${clientUrl}`;
+          }
+
           await this.slackService.sendDirectMessage(
             slackUserId,
             notificationMessage,
@@ -778,6 +788,7 @@ export class RecognitionService {
                         _id: 1,
                         optionText: 1,
                         position: 1,
+                        hide: 1,
                         votesCount: 1,
                         hasUserVote: 1,
                       },
@@ -853,6 +864,7 @@ export class RecognitionService {
                     },
                   },
                   totalVotes: 1,
+                  hide: 1,
                   hasVoted: 1,
                   votedOptionId: { $toString: '$votedOptionId' },
                   expiresAt: 1,

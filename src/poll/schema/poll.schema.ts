@@ -16,6 +16,9 @@ export class Poll {
   @Prop({ type: String, required: true })
   question: string;
 
+  @Prop({ type: Boolean, default: false })
+  hide: boolean;
+
   @Prop({ required: true })
   expiresAt: Date;
 }
