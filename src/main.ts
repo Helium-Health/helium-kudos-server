@@ -29,6 +29,7 @@ async function bootstrap() {
       'http://localhost:3000',
       'https://kudos-staging.onemedtest.com',
       'https://kudos.onemedicalfile.com',
+      'https://kudos.myheliumos.com',
     ],
     credentials: true,
   });
