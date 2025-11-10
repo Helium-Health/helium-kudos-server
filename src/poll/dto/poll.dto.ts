@@ -12,7 +12,7 @@ import {
 
 class PollDurationDto {
   @IsInt()
-  @Min(0)
+  @Min(1)
   days: number;
 
   @IsInt()
