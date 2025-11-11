@@ -172,6 +172,7 @@ export class PollService {
       hide: poll.hide,
       hasVoted: !!userVotedOption,
       votedOptionId: userVotedOption ? userVotedOption._id.toString() : null,
+      voterId: userId ? userId.toString() : null,
     };
   }
 }
