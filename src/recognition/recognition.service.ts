@@ -282,7 +282,7 @@ export class RecognitionService {
         senderId: new Types.ObjectId(senderId),
         isAuto: false,
         message: `${poll ? 'A poll has been created' : message}`,
-        poll: true,
+        poll: poll ? true : false,
       });
 
       return newRecognition;
@@ -867,6 +867,7 @@ export class RecognitionService {
                   hide: 1,
                   hasVoted: 1,
                   votedOptionId: { $toString: '$votedOptionId' },
+                  voterId: { $toString: voterId },
                   expiresAt: 1,
                 },
               },
