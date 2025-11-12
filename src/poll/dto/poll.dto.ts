@@ -29,7 +29,7 @@ export class CreatePollDto {
   question: string;
 
   @IsArray()
-  @ArrayMaxSize(4)
+  @ArrayMaxSize(20)
   @ArrayMinSize(2)
   options: string[];
 
