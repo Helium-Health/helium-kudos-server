@@ -12,6 +12,7 @@ export enum MilestoneType {
   VALENTINE_DAY = 'VALENTINE_DAY',
   INTERNATIONAL_EMPLOYEE_APPRECIATION_DAY = 'INTERNATIONAL_EMPLOYEE_APPRECIATION_DAY',
   MONTHLY_ALLOCATION = 'MONTHLY_ALLOCATION',
+  TEST_CELEBRATION = 'TEST_CELEBRATION',
 }
 
 @Schema({ timestamps: true })
@@ -42,8 +43,7 @@ export class Milestone {
   isGeneric: boolean;
 
   @Prop({ enum: Cadence })
-    cadence: Cadence;
-
+  cadence: Cadence;
 }
 
 export const MilestoneSchema = SchemaFactory.createForClass(Milestone);
