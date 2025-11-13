@@ -24,6 +24,7 @@ export class MilestoneService {
       title: createMilestoneDto.title,
       message: createMilestoneDto.message,
       coins: createMilestoneDto.coins,
+      type: createMilestoneDto.type,
     });
     return newMilestone.save();
   }
