@@ -29,11 +29,13 @@ import { MilestoneType } from 'src/milestone/schema/Milestone.schema';
 import { ClaimService } from 'src/claim/claim.service';
 import { TransactionService } from 'src/transaction/transaction.service';
 import { RecognitionGateway } from './recognition.gateway';
-import { UserRole } from 'src/users/schema/User.schema';
+import { UserDepartment, UserRole } from 'src/users/schema/User.schema';
 import { SlackService } from 'src/slack/slack.service';
 import { PRODUCTION_CLIENT, STAGING_CLIENT } from 'src/constants';
 import { CommentService } from 'src/comment/comment.service';
 import { ReactionService } from 'src/reactions/reactions.service';
+import { PollService } from 'src/poll/poll.service';
+import { PollVote } from 'src/poll/schema/poll-vote.schema';
 
 @Injectable()
 export class RecognitionService {
@@ -48,7 +50,7 @@ export class RecognitionService {
     private readonly usersService: UsersService,
     private readonly slackService: SlackService,
     private readonly transactionService: TransactionService,
-
+    private readonly pollService: PollService,
     @Inject(forwardRef(() => CommentService))
     private readonly commentService: CommentService,
 
@@ -111,6 +113,7 @@ export class RecognitionService {
       companyValues = [],
       media = [],
       departments = [],
+      poll,
     }: CreateRecognitionDto,
   ) {
     const invalidValues = companyValues.filter(
@@ -130,18 +133,37 @@ export class RecognitionService {
     }
 
     if (departments.length) {
-      const allUserIds =
-        await this.usersService.getUserIdsByDepartments(departments);
-      const userIdsSet = new Set(allUserIds.filter((id) => id !== senderId));
+      const hasHeliumHumans = departments.includes(UserDepartment.HeliumHumans);
 
-      if (userIdsSet.size === 0) {
-        throw new BadRequestException('No valid users found for departments');
+      if (hasHeliumHumans) {
+        const allUserIds =
+          await this.usersService.getAllActiveUserIds(senderId);
+        const userIdsSet = new Set(allUserIds);
+
+        if (userIdsSet.size === 0) {
+          throw new BadRequestException('No valid users found in HeliumHumans');
+        }
+
+        receivers = Array.from(userIdsSet).map((id) => ({
+          receiverId: id,
+          coinAmount: 0,
+        }));
+
+        departments = [UserDepartment.HeliumHumans];
+      } else {
+        const allUserIds =
+          await this.usersService.getUserIdsByDepartments(departments);
+        const userIdsSet = new Set(allUserIds.filter((id) => id !== senderId));
+
+        if (userIdsSet.size === 0) {
+          throw new BadRequestException('No valid users found for departments');
+        }
+
+        receivers = Array.from(userIdsSet).map((id) => ({
+          receiverId: id,
+          coinAmount: 0,
+        }));
       }
-
-      receivers = Array.from(userIdsSet).map((id) => ({
-        receiverId: id,
-        coinAmount: 0,
-      }));
     }
 
     if (invalidValues.length > 0) {
@@ -229,11 +251,24 @@ export class RecognitionService {
         );
       }
 
-      await session.commitTransaction();
+      if (poll) {
+        const createdPoll = await this.pollService.createPoll(
+          poll,
+          newRecognition._id,
+          session,
+        );
 
+        if (!createdPoll) {
+          throw new BadRequestException('Poll creation failed');
+        }
+
+        newRecognition.poll = [(createdPoll as any)._id];
+        await newRecognition.save({ session });
+      }
+      await session.commitTransaction();
       this.recognitionGateway.notifyClients({
         recognitionId: newRecognition._id,
-        message: `Recognition created: ${message}`,
+        message: `${poll ? 'Poll' : 'Recognition'} created: ${message}`,
         senderId,
         receivers: receivers.map((r) => ({
           receiverId: new Types.ObjectId(r.receiverId),
@@ -246,7 +281,8 @@ export class RecognitionService {
         receivers: receivers,
         senderId: new Types.ObjectId(senderId),
         isAuto: false,
-        message: message,
+        message: `${poll ? 'A poll has been created' : message}`,
+        poll: poll ? true : false,
       });
 
       return newRecognition;
@@ -268,11 +304,13 @@ export class RecognitionService {
     senderId,
     isAuto,
     message,
+    poll,
   }: {
     receivers: CreateRecognitionDto['receivers'];
     senderId?: Types.ObjectId;
     isAuto?: boolean;
     message?: string;
+    poll?: boolean;
   }) {
     const sender = senderId
       ? await this.usersService.findById(senderId)
@@ -292,9 +330,16 @@ export class RecognitionService {
           receiverUser.email,
         );
         if (slackUserId) {
-          const notificationMessage = isAuto
-            ? `${message} \n\nLogin to Helium Kudos to start shopping with you gifted coins: ${clientUrl}`
-            : `🌟 Hey ${receiverUser.name}!\n\n ${sender.name} just recognized your awesome work!\n\nCheck it out here: ${clientUrl}`;
+          let notificationMessage: string;
+
+          if (isAuto) {
+            notificationMessage = `${message} \n\nLogin to Helium Kudos to start shopping with your gifted coins: ${clientUrl}`;
+          } else if (poll) {
+            notificationMessage = `📊 Hey ${receiverUser.name}!\n\n${sender.name} just created a new poll for your team — your opinion matters!\n\nCast your vote here: ${clientUrl}`;
+          } else {
+            notificationMessage = `🌟 Hey ${receiverUser.name}!\n\n${sender.name} just recognized your awesome work!\n\nCheck it out here: ${clientUrl}`;
+          }
+
           await this.slackService.sendDirectMessage(
             slackUserId,
             notificationMessage,
@@ -331,6 +376,53 @@ export class RecognitionService {
     });
 
     return recognition;
+  }
+
+  async togglePinRecognition(recognitionId: Types.ObjectId) {
+    const session = await this.recognitionModel.db.startSession();
+    session.startTransaction();
+
+    try {
+      const recognition = await this.recognitionModel
+        .findById(recognitionId)
+        .populate('poll')
+        .exec();
+
+      if (!recognition.isPinned) {
+        const pinnedCount = await this.recognitionModel
+          .countDocuments({ isPinned: true })
+          .session(session);
+
+        if (pinnedCount >= 2) {
+          throw new BadRequestException(
+            'You can only pin up to 2 recognitions',
+          );
+        }
+
+        recognition.isPinned = true;
+        recognition.pinnedAt = new Date();
+      } else {
+        recognition.isPinned = false;
+        recognition.pinnedAt = null;
+      }
+
+      await recognition.save({ session });
+
+      await session.commitTransaction();
+
+      this.recognitionGateway.notifyClients({
+        recognitionId,
+        message: recognition.isPinned
+          ? 'Recognition pinned successfully'
+          : 'Recognition unpinned successfully',
+      });
+      return recognition;
+    } catch (error) {
+      await session.abortTransaction();
+      throw error;
+    } finally {
+      session.endSession();
+    }
   }
 
   async createAutoRecognition({
@@ -442,9 +534,7 @@ export class RecognitionService {
     session.startTransaction();
 
     try {
-      const recognition = await this.recognitionModel
-        .findById(recognitionId)
-        .session(session);
+      const recognition = await this.findById(recognitionId, session);
 
       if (!recognition) {
         throw new NotFoundException('Recognition not found');
@@ -548,6 +638,7 @@ export class RecognitionService {
     role?: string,
     milestoneType?: MilestoneType,
     isAuto?: Boolean,
+    voterId?: string,
   ) {
     if (userId && !Types.ObjectId.isValid(userId)) {
       throw new BadRequestException('Invalid userId format');
@@ -589,7 +680,7 @@ export class RecognitionService {
     const [recognitions, totalCount] = await Promise.all([
       this.recognitionModel.aggregate([
         { $match: matchFilter },
-        { $sort: { createdAt: -1 } },
+        { $sort: { isPinned: -1, pinnedAt: -1, createdAt: -1 } },
         {
           $lookup: {
             from: 'users',
@@ -661,6 +752,130 @@ export class RecognitionService {
           },
         },
         {
+          $lookup: {
+            from: 'polls',
+            localField: 'poll',
+            foreignField: '_id',
+            as: 'poll',
+            pipeline: [
+              {
+                $lookup: {
+                  from: 'polloptions',
+                  localField: '_id',
+                  foreignField: 'pollId',
+                  as: 'options',
+                  pipeline: [
+                    {
+                      $lookup: {
+                        from: 'pollvotes',
+                        localField: '_id',
+                        foreignField: 'optionId',
+                        as: 'votes',
+                      },
+                    },
+                    {
+                      $addFields: {
+                        votesCount: { $size: '$votes' },
+                        hasUserVote: voterId
+                          ? {
+                              $in: [voterId, '$votes.userId'],
+                            }
+                          : false,
+                      },
+                    },
+                    {
+                      $project: {
+                        _id: 1,
+                        optionText: 1,
+                        position: 1,
+                        hide: 1,
+                        votesCount: 1,
+                        hasUserVote: 1,
+                      },
+                    },
+                    { $sort: { position: 1 } },
+                  ],
+                },
+              },
+              {
+                $addFields: {
+                  totalVotes: {
+                    $sum: {
+                      $map: {
+                        input: '$options',
+                        as: 'opt',
+                        in: '$$opt.votesCount',
+                      },
+                    },
+                  },
+                  hasVoted: {
+                    $anyElementTrue: {
+                      $map: {
+                        input: '$options',
+                        as: 'opt',
+                        in: '$$opt.hasUserVote',
+                      },
+                    },
+                  },
+                  votedOptionId: {
+                    $first: {
+                      $map: {
+                        input: {
+                          $filter: {
+                            input: '$options',
+                            as: 'opt',
+                            cond: { $eq: ['$$opt.hasUserVote', true] },
+                          },
+                        },
+                        as: 'opt',
+                        in: '$$opt._id',
+                      },
+                    },
+                  },
+                },
+              },
+              {
+                $project: {
+                  _id: 1,
+                  question: 1,
+                  options: {
+                    $map: {
+                      input: '$options',
+                      as: 'opt',
+                      in: {
+                        optionId: '$$opt._id',
+                        text: '$$opt.optionText',
+                        votesCount: '$$opt.votesCount',
+                        percentage: {
+                          $cond: {
+                            if: { $gt: ['$totalVotes', 0] },
+                            then: {
+                              $multiply: [
+                                {
+                                  $divide: ['$$opt.votesCount', '$totalVotes'],
+                                },
+                                100,
+                              ],
+                            },
+                            else: 0,
+                          },
+                        },
+                      },
+                    },
+                  },
+                  totalVotes: 1,
+                  hide: 1,
+                  hasVoted: 1,
+                  votedOptionId: { $toString: '$votedOptionId' },
+                  voterId: { $toString: voterId },
+                  expiresAt: 1,
+                },
+              },
+            ],
+          },
+        },
+
+        {
           $group: {
             _id: '$_id',
             message: { $first: '$message' },
@@ -682,9 +897,12 @@ export class RecognitionService {
             departments: { $first: '$departments' },
             commentCount: { $first: { $size: { $ifNull: ['$comments', []] } } },
             reactions: { $first: '$reactions' },
+            isPinned: { $first: '$isPinned' },
+            pinnedAt: { $first: '$pinnedAt' },
+            poll: { $first: '$poll' },
           },
         },
-        { $sort: { createdAt: -1 } },
+        { $sort: { isPinned: -1, pinnedAt: -1, createdAt: -1 } },
         { $skip: skip },
         { $limit: limit },
       ]),

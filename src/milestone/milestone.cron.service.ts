@@ -10,6 +10,7 @@ import {
   CRON_EVERY_DAY_AT_HALF_PAST_MIDNIGHT,
   CRON_EVERY_DAY_AT_QUARTER_PAST_MIDNIGHT,
   CRON_EVERY_MARCH_8_0020,
+  CRON_EVERY_YEAR_ON_NOV_13_AT_0020,
   CRON_EVERY_YEAR_ON_NOVEMBER_19_AT_0020,
 } from 'src/constants/index';
 
@@ -83,6 +84,28 @@ export class MilestoneCronService {
       });
     }
   }
+
+  // @Cron(CRON_EVERY_YEAR_ON_NOV_13_AT_0020) // Daytime on November 13 (Test Celebration)
+  // async handleTestCelebrationRecognitions() {
+  //   const testCelebrationMilestone = await this.milestoneService.findByType(
+  //     MilestoneType.TEST_CELEBRATION,
+  //   );
+  //   const users = await this.usersService.findUsersByGender(UserGender.Male);
+
+  //   console.log('Testing celebration for user');
+  //   const receivers = users.map((user) => ({
+  //     receiverId: user._id as Types.ObjectId,
+  //   }));
+
+  //   if (receivers.length > 0) {
+  //     await this.recognitionService.createAutoRecognition({
+  //       receiverId: receivers,
+  //       message: testCelebrationMilestone.message,
+  //       coinAmount: testCelebrationMilestone.coins,
+  //       milestoneType: MilestoneType.TEST_CELEBRATION,
+  //     });
+  //   }
+  // }
 
   @Cron(CRON_EVERY_MARCH_8_0020) // Midnight on March 8 (International Women's Day)
   async handleWomensDayRecognitions() {

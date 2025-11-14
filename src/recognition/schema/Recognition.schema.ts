@@ -17,7 +17,7 @@ export class Recognition {
   @Prop({ type: Types.ObjectId, ref: 'User' })
   senderId: Types.ObjectId;
 
-  @Prop({ type: String, required: true })
+  @Prop({ type: String, required: false })
   message: string;
 
   @Prop({ type: [String], required: false })
@@ -36,6 +36,9 @@ export class Recognition {
 
   @Prop({ type: [{ type: Types.ObjectId, ref: 'Comment' }] })
   comments: Types.ObjectId[];
+
+  @Prop({ type: [{ type: Types.ObjectId, ref: 'Poll', default: null }] })
+  poll?: Types.ObjectId[];
 
   @Prop({ type: [String], enum: CompanyValues, default: [] })
   companyValues: CompanyValues[];
@@ -63,9 +66,15 @@ export class Recognition {
     default: [],
   })
   media: { url: string; type: MediaType }[];
-  
+
   @Prop({ type: [String], enum: UserDepartment, default: [] })
   departments: UserDepartment[];
+
+  @Prop({ type: Boolean, default: false, index: true })
+  isPinned: boolean;
+
+  @Prop({ type: Date, default: null, index: true })
+  pinnedAt: Date | null;
 }
 
 export const RecognitionSchema = SchemaFactory.createForClass(Recognition);

@@ -27,6 +27,7 @@ export class CreateMilestoneDto {
     MilestoneType.INTERNATIONAL_MENS_DAY,
     MilestoneType.INTERNATIONAL_WOMENS_DAY,
     MilestoneType.VALENTINE_DAY,
+    MilestoneType.TEST_CELEBRATION,
   ])
   type: MilestoneType;
 
