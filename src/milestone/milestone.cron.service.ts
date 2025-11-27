@@ -7,8 +7,9 @@ import { MilestoneType } from './schema/Milestone.schema';
 import { UserGender } from 'src/users/schema/User.schema';
 import { Types } from 'mongoose';
 import {
-  CRON_EVERY_DAY_AT_HALF_PAST_MIDNIGHT,
-  CRON_EVERY_DAY_AT_QUARTER_PAST_MIDNIGHT,
+  CRON_EVERY_DAY_AT_11AM,
+  CRON_EVERY_DAY_AT_HALF_PAST_11AM,
+  CRON_EVERY_DAY_AT_QAUTER_PAST_10AM_TEST,
   CRON_EVERY_MARCH_8_0020,
   CRON_EVERY_YEAR_ON_NOV_13_AT_0020,
   CRON_EVERY_YEAR_ON_NOVEMBER_19_AT_0020,
@@ -22,7 +23,7 @@ export class MilestoneCronService {
     private readonly milestoneService: MilestoneService,
   ) {}
 
-  @Cron(CRON_EVERY_DAY_AT_QUARTER_PAST_MIDNIGHT)
+  @Cron(CRON_EVERY_DAY_AT_11AM)
   async handleBirthdayRecognitions() {
     const birthdayMilestone = await this.milestoneService.findByType(
       MilestoneType.BIRTHDAY,
@@ -44,7 +45,38 @@ export class MilestoneCronService {
     }
   }
 
-  @Cron(CRON_EVERY_DAY_AT_HALF_PAST_MIDNIGHT)
+  //Comment out this after test is run for affected users on prod
+  @Cron(CRON_EVERY_DAY_AT_QAUTER_PAST_10AM_TEST)
+  async handleBirthdayRecognitionsTest() {
+    const birthdayMilestone = await this.milestoneService.findByType(
+      MilestoneType.BIRTHDAY,
+    );
+    const today = new Date();
+    const users = await this.usersService.findUsersByBirthdayRange(
+      today.getMonth() + 1,
+      today.getDate() - 26,
+      today.getDate() - 1,
+    );
+
+    for (const user of users) {
+      console.log('i was called', user.name);
+      if (user.name === 'Moses Effiom' || user.name === 'Sunday Nwagu')
+        continue;
+
+      const belatedMessage = birthdayMilestone.message
+        .replace('Happy Birthday', 'Belated Happy Birthday')
+        .replace('{name}', user.name);
+
+      await this.recognitionService.createAutoRecognition({
+        receiverId: [{ receiverId: user._id as Types.ObjectId }],
+        message: belatedMessage,
+        coinAmount: birthdayMilestone.coins,
+        milestoneType: MilestoneType.BIRTHDAY,
+      });
+    }
+  }
+
+  @Cron(CRON_EVERY_DAY_AT_HALF_PAST_11AM)
   async handleWorkAnniversaryRecognitions() {
     const anniversaryMilestone = await this.milestoneService.findByType(
       MilestoneType.WORK_ANNIVERSARY,
@@ -130,7 +162,7 @@ export class MilestoneCronService {
 
   private static readonly cronExpression: string =
     process.env.NODE_ENV === 'development'
-      ? '0 15 5 3 *' //5:15 AM on March 5th
+      ? '15 8 5 3 *' //8:15 AM on March 5th
       : '0 8 7 3 *'; // 8:00 AM on March 7th
 
   @Cron(MilestoneCronService.cronExpression)
