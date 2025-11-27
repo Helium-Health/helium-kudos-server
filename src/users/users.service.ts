@@ -205,7 +205,24 @@ export class UsersService {
       })
       .exec();
   }
-
+  async findUsersByBirthdayRange(
+    month: number,
+    startDay: number,
+    endDay: number,
+  ): Promise<UserDocument[]> {
+    return this.userModel
+      .find({
+        active: true,
+        $expr: {
+          $and: [
+            { $eq: [{ $month: '$dateOfBirth' }, month] },
+            { $gte: [{ $dayOfMonth: '$dateOfBirth' }, startDay] },
+            { $lte: [{ $dayOfMonth: '$dateOfBirth' }, endDay] },
+          ],
+        },
+      })
+      .exec();
+  }
   async findUsersByWorkAnniversary(
     month: number,
     day: number,
