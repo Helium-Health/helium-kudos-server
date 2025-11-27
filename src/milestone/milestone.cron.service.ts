@@ -46,35 +46,35 @@ export class MilestoneCronService {
   }
 
   //Comment out this after test is run for affected users on prod
-  @Cron(CRON_EVERY_DAY_AT_QAUTER_PAST_10AM_TEST)
-  async handleBirthdayRecognitionsTest() {
-    const birthdayMilestone = await this.milestoneService.findByType(
-      MilestoneType.BIRTHDAY,
-    );
-    const today = new Date();
-    const users = await this.usersService.findUsersByBirthdayRange(
-      today.getMonth() + 1,
-      today.getDate() - 26,
-      today.getDate() - 1,
-    );
+  // @Cron(CRON_EVERY_DAY_AT_QAUTER_PAST_10AM_TEST)
+  // async handleBirthdayRecognitionsTest() {
+  //   const birthdayMilestone = await this.milestoneService.findByType(
+  //     MilestoneType.BIRTHDAY,
+  //   );
+  //   const today = new Date();
+  //   const users = await this.usersService.findUsersByBirthdayRange(
+  //     today.getMonth() + 1,
+  //     today.getDate() - 26,
+  //     today.getDate() - 1,
+  //   );
 
-    for (const user of users) {
-      console.log('i was called', user.name);
-      if (user.name === 'Moses Effiom' || user.name === 'Sunday Nwagu')
-        continue;
+  //   for (const user of users) {
+  //     console.log('i was called', user.name);
+  //     if (user.name === 'Moses Effiom' || user.name === 'Sunday Nwagu')
+  //       continue;
 
-      const belatedMessage = birthdayMilestone.message
-        .replace('Happy Birthday', 'Belated Happy Birthday')
-        .replace('{name}', user.name);
+  //     const belatedMessage = birthdayMilestone.message
+  //       .replace('Happy Birthday', 'Belated Happy Birthday')
+  //       .replace('{name}', user.name);
 
-      await this.recognitionService.createAutoRecognition({
-        receiverId: [{ receiverId: user._id as Types.ObjectId }],
-        message: belatedMessage,
-        coinAmount: birthdayMilestone.coins,
-        milestoneType: MilestoneType.BIRTHDAY,
-      });
-    }
-  }
+  //     await this.recognitionService.createAutoRecognition({
+  //       receiverId: [{ receiverId: user._id as Types.ObjectId }],
+  //       message: belatedMessage,
+  //       coinAmount: birthdayMilestone.coins,
+  //       milestoneType: MilestoneType.BIRTHDAY,
+  //     });
+  //   }
+  // }
 
   @Cron(CRON_EVERY_DAY_AT_HALF_PAST_11AM)
   async handleWorkAnniversaryRecognitions() {
